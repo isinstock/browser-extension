@@ -1,0 +1,20 @@
+{
+  "name": "isinstock-chrome-extension",
+  "private": true,
+  "scripts": {
+    "watch": "webpack --config webpack/webpack.development.js --watch",
+    "build": "webpack --config webpack/webpack.production.js",
+    "clean": "rimraf dist",
+    "test": "npx jest",
+    "style": "prettier --write \"src/**/*.{ts,tsx}\""
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.206",
+    "copy-webpack-plugin": "^11.0.0",
+    "schema-dts": "^1.1.0",
+    "ts-loader": "^9.4.2",
+    "typescript": "^4.9.4",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1"
+  }
+}

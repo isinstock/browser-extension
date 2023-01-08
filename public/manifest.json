@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Is In Stock",
+  "description": "Base Level Extension",
+  "version": "1.0",
+  "permissions": [
+    "activeTab",
+    "tabs"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/default/16.png",
+      "24": "images/default/24.png",
+      "32": "images/default/32.png",
+      "48": "images/default/48.png",
+      "64": "images/default/64.png",
+      "128": "images/default/128.png"
+    }
+  },
+  "icons": {
+    "16": "images/default/16.png",
+    "24": "images/default/24.png",
+    "32": "images/default/32.png",
+    "48": "images/default/48.png",
+    "64": "images/default/64.png",
+    "128": "images/default/128.png"
+  },
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "js": ["js/content_scripts/retailers/best-buy.js"],
+      "matches": ["https://*.bestbuy.com/*"]
+    },
+    {
+      "js": ["js/content_scripts/retailers/target.js"],
+      "matches": ["https://*.target.com/*"]
+    },
+    {
+      "js": ["js/content_scripts/content_script.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "exclude_matches": [
+        "https://*.bestbuy.com/*",
+        "https://*.target.com/*"
+      ]
+    }
+  ]
+}
