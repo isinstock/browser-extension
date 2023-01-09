@@ -9,6 +9,7 @@ chrome.tabs.onActivated.addListener(activeInfo => {
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  console.log(tabId, changeInfo, tab)
   if (changeInfo.status == "complete") {
     chrome.tabs.sendMessage(tabId, {
       action: MessageAction.URLChanged,

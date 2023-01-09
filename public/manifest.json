@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Is In Stock",
   "description": "Base Level Extension",
-  "version": "1.0",
+  "version": "1.0.1",
   "permissions": [
     "activeTab",
     "tabs"
@@ -10,25 +10,53 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "images/default/16.png",
-      "24": "images/default/24.png",
-      "32": "images/default/32.png",
-      "48": "images/default/48.png",
-      "64": "images/default/64.png",
-      "128": "images/default/128.png"
+      "16": "images/inventory-states/unknown/16.png",
+      "24": "images/inventory-states/unknown/24.png",
+      "32": "images/inventory-states/unknown/32.png",
+      "48": "images/inventory-states/unknown/48.png",
+      "64": "images/inventory-states/unknown/64.png",
+      "128": "images/inventory-states/unknown/128.png"
     }
   },
   "icons": {
-    "16": "images/default/16.png",
-    "24": "images/default/24.png",
-    "32": "images/default/32.png",
-    "48": "images/default/48.png",
-    "64": "images/default/64.png",
-    "128": "images/default/128.png"
+    "16": "images/inventory-states/unknown/16.png",
+    "24": "images/inventory-states/unknown/24.png",
+    "32": "images/inventory-states/unknown/32.png",
+    "48": "images/inventory-states/unknown/48.png",
+    "64": "images/inventory-states/unknown/64.png",
+    "128": "images/inventory-states/unknown/128.png"
   },
   "background": {
     "service_worker": "js/background.js"
   },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "css/elements/isinstock-button/style.css",
+        "images/inventory-states/unknown/16.png",
+        "images/inventory-states/unknown/24.png",
+        "images/inventory-states/unknown/32.png",
+        "images/inventory-states/unknown/48.png",
+        "images/inventory-states/unknown/64.png",
+        "images/inventory-states/unknown/128.png",
+        "images/inventory-states/available/16.png",
+        "images/inventory-states/available/24.png",
+        "images/inventory-states/available/32.png",
+        "images/inventory-states/available/48.png",
+        "images/inventory-states/available/64.png",
+        "images/inventory-states/available/128.png",
+        "images/inventory-states/unavailable/16.png",
+        "images/inventory-states/unavailable/24.png",
+        "images/inventory-states/unavailable/32.png",
+        "images/inventory-states/unavailable/48.png",
+        "images/inventory-states/unavailable/64.png",
+        "images/inventory-states/unavailable/128.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
   "content_scripts": [
     {
       "js": ["js/content_scripts/retailers/best-buy.js"],

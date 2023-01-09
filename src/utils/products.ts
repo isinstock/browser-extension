@@ -1,16 +1,13 @@
 import { InventoryState } from "../@types/inventory-states"
 import { Product } from "../@types/linked-data"
+import { ObservableElement } from "../@types/observables"
 import { MessageAction } from "../@types/messages"
 import { insertWidget } from "../elements/widget"
 import { isProduct } from "./helpers"
 import { broadcastInventoryState, calculateInventoryState } from "./inventory-state"
 import { findNearbyInventory, requestFromProduct } from "./nearby-inventory"
 
-interface ScriptElement extends Element {
-  loaded: boolean
-}
-
-const loadJSON = (script: ScriptElement): any[] => {
+const loadJSON = (script: Element): any[] => {
   if (!script.textContent || script.textContent == "") {
     return []
   }
@@ -22,18 +19,12 @@ const loadJSON = (script: ScriptElement): any[] => {
   }
 }
 
-const findProduct = (obj?: any): Product | undefined => {
+const findProduct = (obj?: any): Product | null => {
   if (!obj || !isProduct(obj)) {
-    return
+    return null
   }
 
   return obj
-}
-
-type LocateProductsOptions = {
-  runLoaded?: boolean
-  productCallback: (product: Product) => void
-  notFoundCallback?: () => void
 }
 
 // Default callback when a product is found
@@ -54,7 +45,7 @@ export const notFoundCallback = () => {
 }
 
 export const findProducts = (): Product[] => {
-  const scripts: NodeListOf<ScriptElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
+  const scripts: NodeListOf<Element> = document.querySelectorAll(`script[type="application/ld+json"]`)
   const products: Product[] = []
   scripts.forEach(script => {
     const json = loadJSON(script)
@@ -69,19 +60,32 @@ export const findProducts = (): Product[] => {
   return products
 }
 
+export const loadProduct = (script: Element): Product | null => {
+  const json = loadJSON(script)
+  if (json) {
+    return findProduct(json)
+  } else {
+    return null
+  }
+}
+
+type LocateProductsOptions = {
+  runFired?: boolean
+  productCallback: (product: Product) => void
+  notFoundCallback?: () => void
+}
+
 // Allows callbacks for each product found and if none were found
-export const searchProducts = ({ runLoaded = false, productCallback, notFoundCallback }: LocateProductsOptions) => {
-  const scripts: NodeListOf<ScriptElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
+export const searchProducts = ({ runFired = false, productCallback, notFoundCallback }: LocateProductsOptions) => {
+  const scripts: NodeListOf<ObservableElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
   if (scripts.length) {
     scripts.forEach(script => {
-      if (runLoaded || !script.loaded) {
-        script.loaded = true
-        const json = loadJSON(script)
-        if (json) {
-          const product = findProduct(json)
-          if (product) {
-            productCallback(product)
-          }
+      if (runFired || !script.fired) {
+        script.fired = true
+
+        const product = loadProduct(script)
+        if (product) {
+          productCallback(product)
         }
       } else {
         console.warn("Already loaded script for", script)

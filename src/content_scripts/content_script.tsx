@@ -1,8 +1,8 @@
 import { ItemAvailability, OfferItemCondition, Product, Offer, AggregateOffer } from "../@types/linked-data";
 import { findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer } from "../utils/helpers";
-import { observeProducts } from "../utils/observers"
+import { observeSelector } from "../utils/observers"
 import { calculateInventoryState } from "../utils/inventory-state";
-import { searchProducts, notFoundCallback, productCallback } from "../utils/products";
+import { searchProducts, notFoundCallback, productCallback, loadProduct } from "../utils/products";
 import { insertWidget } from "../elements/widget";
 import { MessageAction } from "../@types/messages";
 import { InventoryState } from "../@types/inventory-states";
@@ -16,10 +16,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 })
 
 // Detect page transitions or DOM changes for single page based applications.
-const { observe, disconnect } = observeProducts(productCallback)
+const { observe, disconnect } = observeSelector(`script[type="application/ld+json"]`, (element) => {
+  const product = loadProduct(element)
+  if (product) {
+    productCallback(product)
+  }
+})
 
-const run = (runLoaded?: boolean) => {
-  searchProducts({ runLoaded, productCallback, notFoundCallback })
+const run = (runFired?: boolean) => {
+  searchProducts({ runFired, productCallback, notFoundCallback })
   observe()
 }
 
