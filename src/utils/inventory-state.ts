@@ -1,6 +1,7 @@
 import { ItemAvailability, Product } from "../@types/linked-data"
 import { findOffer, isInStock, isNewCondition } from "./helpers"
 import { InventoryState } from "../@types/inventory-states"
+import { MessageAction } from "../@types/messages"
 
 export const calculateInventoryState = (product: Product): InventoryState => {
   console.log("Found product", product)
@@ -15,4 +16,11 @@ export const calculateInventoryState = (product: Product): InventoryState => {
   } else {
     return InventoryState.Unknown
   }
+}
+
+export const broadcastInventoryState = (inventoryState: InventoryState) => {
+  chrome.runtime.sendMessage({
+    action: MessageAction.InventoryState,
+    value: inventoryState,
+  })
 }

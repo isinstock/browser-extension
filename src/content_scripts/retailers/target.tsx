@@ -1,17 +1,19 @@
-import { ItemAvailability, OfferItemCondition, Product, Offer, AggregateOffer } from "../../@types/linked-data";
-import { findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer } from "../../utils/helpers";
-import { observeProducts } from "../../utils/observers"
-import { calculateInventoryState } from "../../utils/inventory-state";
-import { findProducts, notFoundCallback, productCallback } from "../../utils/products";
-import { insertWidget } from "../../elements/widget";
+import { findProducts } from "../../utils/products";
 import { MessageAction } from "../../@types/messages";
 import { InventoryState } from "../../@types/inventory-states";
 import { findNearbyInventory } from "../../utils/nearby-inventory";
 import { NearbyInventoryProductRequest, NearbyInventorySearchProductStore } from "../../@types/api";
 import { Retailer } from "../../@types/retailers";
+import { selectorAdded } from "../../utils/observers";
 
-const findStoreId = (): string | null => {
-  const store = document.querySelector<HTMLElement>(`[data-test="storeNameWithAddressPopover"] [id^="store-name-"]`)
+const storeIdSelectors = `
+  #pageBodyContainer [data-test="@web/AddToCart/FulfillmentSection"] [id^="store-name-"],
+  #pageBodyContainer [data-test="storeNameWithAddressPopover"] [id^="store-name-"],
+  #pageBodyContainer [id^="store-name-"]
+`
+
+const findStoreId = async (): Promise<string | null> => {
+  const store = await selectorAdded(storeIdSelectors)
   if (!store) {
     return null
   }
@@ -34,14 +36,15 @@ const findSku = (href: string): string | null => {
   return matches.groups.sku
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+// Can we detect store location changing and re-issue request?
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   if (request.action == MessageAction.URLChanged) {
     console.log("URL changed to", request.url)
 
     const sku = findSku(request.url)
     if (sku) {
       console.log("Likely found product with SKU", sku)
-      const storeId = findStoreId()
+      const storeId = await findStoreId()
       let store: NearbyInventorySearchProductStore | undefined = undefined
       if (storeId) {
         console.log("Likely found product with SKU", storeId)
@@ -81,20 +84,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 console.log("target")
 
 
-// // Detect page transitions or DOM changes for single page based applications.
-// const { observe, disconnect } = observeProducts(productCallback)
+  // // Detect page transitions or DOM changes for single page based applications.
+  // const { observe, disconnect } = observeProducts(productCallback)
 
-// const run = (runLoaded?: boolean) => {
-//   observe()
-// }
+  // const run = (runLoaded?: boolean) => {
+  //   observe()
+  // }
 
-// // Run product location on page load
-// run()
+  // // Run product location on page load
+  // run()
 
-// // Once user leaves the page, disconnect the MutationObserver until user returns to tab.
-// window.addEventListener('blur', disconnect)
+  // // Once user leaves the page, disconnect the MutationObserver until user returns to tab.
+  // window.addEventListener('blur', disconnect)
 
-// // Once user returns to the page, start the MutationObserver again and re-process page for updated chrome action icon.
-// window.addEventListener('focus', () => {
-//   run(true)
-// })
+  // // Once user returns to the page, start the MutationObserver again and re-process page for updated chrome action icon.
+  // window.addEventListener('focus', () => {
+  //   run(true)
+  // })

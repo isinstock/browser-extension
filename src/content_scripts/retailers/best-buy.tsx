@@ -1,16 +1,72 @@
-import { ItemAvailability, OfferItemCondition, Product, Offer, AggregateOffer } from "../../@types/linked-data";
-import { findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer } from "../../utils/helpers";
-import { observeProducts } from "../../utils/observers"
-import { calculateInventoryState } from "../../utils/inventory-state";
-import { findProducts, notFoundCallback, productCallback } from "../../utils/products";
-import { insertWidget } from "../../elements/widget";
-import { MessageAction } from "../../@types/messages";
-import { InventoryState } from "../../@types/inventory-states";
-import { findNearbyInventory } from "../../utils/nearby-inventory";
-import { NearbyInventoryProductRequest, NearbyInventorySearchProductStore } from "../../@types/api";
-import { Retailer } from "../../@types/retailers";
+import { findProducts } from "../../utils/products"
+import { MessageAction } from "../../@types/messages"
+import { InventoryState } from "../../@types/inventory-states"
+import { findNearbyInventory } from "../../utils/nearby-inventory"
+import { NearbyInventoryProductRequest, NearbyInventorySearchProductStore } from "../../@types/api"
+import { Retailer } from "../../@types/retailers"
+import { broadcastInventoryState, calculateInventoryState } from "../../utils/inventory-state"
+
+
+// Default callback when a product is found
+export const productCallback = (href: string) => {
+  const url = new URL(href)
+  const sku = url.searchParams.get("skuId")
+
+  if (sku) {
+    const storeId = findStoreId()
+    let store: NearbyInventorySearchProductStore | undefined = undefined
+    if (storeId) {
+      console.log("Likely found product with SKU", storeId)
+      store = {
+        identifier: storeId,
+      }
+    }
+
+    const products = findProducts()
+    const productSchema = products.find(product => product.sku == sku)
+
+    // Broadcast inventory state
+    if (productSchema) {
+      const inventoryState = calculateInventoryState(productSchema)
+      broadcastInventoryState(inventoryState)
+    } else {
+      broadcastInventoryState(InventoryState.Unknown)
+    }
+
+    const nearbyInventoryRequest: NearbyInventoryProductRequest = {
+      context: {
+        url: href,
+        userAgent: navigator.userAgent,
+      },
+      product: {
+        retailer: Retailer.BestBuy,
+        sku,
+        store,
+      },
+      productSchema,
+    }
+
+    findNearbyInventory(nearbyInventoryRequest)
+  }
+}
 
 const findStoreId = (): string | null => {
+  const url = new URL(window.location.href)
+  const sku = url.searchParams.get("skuId")
+  if (sku) {
+    return sku
+  }
+
+  // Backup SKU detection if skuId search parameter is not present.
+  const matches = url.pathname.match(/^\/site\/.*\/(?<sku>\d+)\.p$/)
+  if (!matches || !matches.groups || !matches.groups.sku) {
+    return null
+  }
+
+  return matches.groups.sku
+}
+
+const findSku = (): string | null => {
   const store = document.querySelector<HTMLAnchorElement>(`#store-loc-overlay a[href^="https://stores.bestbuy.com"]`)
   if (!store) {
     return null
@@ -25,47 +81,11 @@ const findStoreId = (): string | null => {
   return matches.groups.storeId
 }
 
+// Can we detect store location changing and re-issue request?
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action == MessageAction.URLChanged) {
     console.log("URL changed to", request.url)
-
-    const url = new URL(request.url)
-    const sku = url.searchParams.get("skuId")
-
-    if (sku) {
-      console.log("Likely found product with SKU", sku)
-      const storeId = findStoreId()
-      let store: NearbyInventorySearchProductStore | undefined = undefined
-      if (storeId) {
-        console.log("Likely found product with SKU", storeId)
-        store = {
-          identifier: storeId,
-        }
-      }
-
-      const products = findProducts()
-      const productSchema = products.find(product => product.sku == sku)
-
-      const nearbyInventoryRequest: NearbyInventoryProductRequest = {
-        context: {
-          url: request.url,
-          userAgent: navigator.userAgent,
-        },
-        product: {
-          retailer: Retailer.BestBuy,
-          sku,
-          store,
-        },
-        productSchema,
-      }
-
-      findNearbyInventory(nearbyInventoryRequest)
-    } else {
-      chrome.runtime.sendMessage({
-        action: MessageAction.InventoryState,
-        value: InventoryState.Unknown,
-      })
-    }
+    productCallback(request.url)
   } else {
     console.log("Unknown action", request.action)
   }

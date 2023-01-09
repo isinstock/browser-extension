@@ -32,11 +32,15 @@
   "content_scripts": [
     {
       "js": ["js/content_scripts/retailers/best-buy.js"],
-      "matches": ["https://*.bestbuy.com/*"]
+      "matches": [
+        "*://*.bestbuy.com/*"
+      ]
     },
     {
       "js": ["js/content_scripts/retailers/target.js"],
-      "matches": ["https://*.target.com/*"]
+      "matches": [
+        "*://*.target.com/*"
+      ]
     },
     {
       "js": ["js/content_scripts/content_script.js"],
@@ -44,8 +48,8 @@
         "<all_urls>"
       ],
       "exclude_matches": [
-        "https://*.bestbuy.com/*",
-        "https://*.target.com/*"
+        "*://*.bestbuy.com/*",
+        "*://*.target.com/*"
       ]
     }
   ]

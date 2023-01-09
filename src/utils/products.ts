@@ -3,7 +3,7 @@ import { Product } from "../@types/linked-data"
 import { MessageAction } from "../@types/messages"
 import { insertWidget } from "../elements/widget"
 import { isProduct } from "./helpers"
-import { calculateInventoryState } from "./inventory-state"
+import { broadcastInventoryState, calculateInventoryState } from "./inventory-state"
 import { findNearbyInventory, requestFromProduct } from "./nearby-inventory"
 
 interface ScriptElement extends Element {
@@ -41,11 +41,7 @@ export const productCallback = (product: Product) => {
   const inventoryState = calculateInventoryState(product)
   const request = requestFromProduct(product)
 
-  chrome.runtime.sendMessage({
-    action: MessageAction.InventoryState,
-    value: inventoryState,
-  })
-
+  broadcastInventoryState(inventoryState)
   findNearbyInventory(request, inventoryState)
 }
 

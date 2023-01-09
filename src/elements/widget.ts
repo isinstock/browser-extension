@@ -2,7 +2,7 @@ export const insertWidget = (html: string) => {
   let wrapper = document.querySelector<HTMLElement>("isinstock-widget")
   if (!wrapper) {
     wrapper = document.createElement("isinstock-widget")
-    wrapper.attachShadow({mode: "open"})
+    wrapper.attachShadow({ mode: "open" })
     wrapper.style.position = "fixed"
     wrapper.style.zIndex = "999999"
     wrapper.style.bottom = "5px"
@@ -11,6 +11,7 @@ export const insertWidget = (html: string) => {
     wrapper.style.maxWidth = "500px"
     wrapper.style.maxHeight = "500px"
     wrapper.style.overflowY = "scroll"
+    wrapper.style.fontSize = "16px"
 
     document.body.appendChild(wrapper)
   }
