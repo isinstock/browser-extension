@@ -29,7 +29,7 @@ export const findNearbyInventory = (request: NearbyInventoryRequestType, invento
     value: request,
   })
 
-  fetch("http://localhost:3000/extension/inventory/nearby", {
+  fetch("https://www.isinstock.com/extension/inventory/nearby", {
     method: "POST",
     mode: "cors",
     cache: "no-cache",
