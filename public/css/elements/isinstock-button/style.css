@@ -1,3 +1,7 @@
+*, :after, :before {
+  box-sizing: border-box;
+}
+
 details {
   font-family: ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;
 }
@@ -18,7 +22,7 @@ details[data-inventory-state="IsInStock"] {
 .isinstock-logo {
   width: 16px;
   height: 16px;
-  margin-right: 4px;
+  margin-right: 10px;
 }
 
 summary {
