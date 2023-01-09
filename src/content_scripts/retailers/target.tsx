@@ -15,8 +15,8 @@ const storeIdSelectors = `
   #pageBodyContainer [id^="store-name-"]
 `
 
-const findStoreId = async (): Promise<string | null> => {
-  const store = await selectorAdded(storeIdSelectors)
+const findStoreId = async (timeout: number = 2000): Promise<string | null> => {
+  const store = await selectorAdded({ selector: storeIdSelectors, timeout })
   if (!store) {
     return null
   }
@@ -75,14 +75,24 @@ export const productCallback = async (href: string) => {
       broadcastInventoryState(InventoryState.Unknown)
     }
 
-    const addToCartButton = await selectorAdded(`[data-test="showInStockPrimaryButton"]`)
-    if (addToCartButton?.parentElement) {
-      const element = insertIsInStockButton(addToCartButton.parentElement, { inventoryState })
-      element.style.marginTop = "6px"
-    } else {
-      console.log("Add to cart button not found")
-      // Insert somewhere else?
-    }
+    // Add the Is In Stock button once selector is matched on page, even if findNearbyInventory is fired
+    selectorAdded({
+      selector: `
+        [data-test="showInStockPrimaryButton"],
+        [data-test="quantity-picker"],
+        [data-test="scheduledDeliveryButton"],
+        [data-test="orderPickupButton"],
+        button[id^="addToCartButtonOrTextIdFor"]
+      `
+    }).then(addToCartButton => {
+      if (addToCartButton?.parentElement) {
+        const element = insertIsInStockButton(addToCartButton.parentElement, { inventoryState })
+        element.style.marginTop = "6px"
+      } else {
+        console.log("Add to cart button not found")
+        // Insert somewhere else?
+      }
+    })
 
     const nearbyInventoryRequest: NearbyInventoryProductRequest = {
       context: {

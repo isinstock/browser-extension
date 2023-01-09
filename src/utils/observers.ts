@@ -19,7 +19,7 @@ export const observeSelector = (
         element.fired = true
         callback(element)
       } else {
-        console.log("Already fired on", element)
+        console.debug("Already fired on", element)
       }
     })
   })
@@ -38,18 +38,18 @@ export const observeSelector = (
   return { observe, disconnect }
 }
 
+type SelectorAddedOptions = {
+  selector: string
+  timeout?: number
+}
+
 // TODO: Add a timeout to reject promise after N seconds
 export const selectorAdded = (
-  selector: string,
-  options: MutationObserverInit = {
-    attributes: true,
-    childList: true,
-    subtree: true,
-  }
-): Promise<HTMLElement> => {
-  return new Promise((resolve, reject) => {
+  options: SelectorAddedOptions
+): Promise<HTMLElement | null> => {
+  const promise = new Promise<HTMLElement | null>((resolve, reject) => {
     const observer = new MutationObserver(mutations => {
-      const element = document.querySelector<HTMLElement>(selector)
+      const element = document.querySelector<HTMLElement>(options.selector)
       if (element) {
         observer.disconnect()
 
@@ -57,7 +57,25 @@ export const selectorAdded = (
       }
     })
 
-    console.log("Starting MutationObserver for selectorAdded", selector)
-    observer.observe(document, options)
+    console.log("Starting MutationObserver for selectorAdded", options.selector)
+    const observerOptions: MutationObserverInit = {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    }
+    observer.observe(document, observerOptions)
   })
+
+  if (options.timeout) {
+    const timeout = new Promise<null>((resolve, reject) => {
+      setTimeout(() => resolve(null), options.timeout)
+    })
+
+    return Promise.race<HTMLElement | null>([
+      promise,
+      timeout
+    ])
+  } else {
+    return promise
+  }
 }
