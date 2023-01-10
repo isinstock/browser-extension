@@ -1,4 +1,3 @@
-import { insertIsInStockButton } from "../../elements/isinstock-button"
 import {findProducts} from '../../utils/products'
 import {MessageAction} from '../../@types/messages'
 import {InventoryState} from '../../@types/inventory-states'
@@ -6,6 +5,7 @@ import {findNearbyInventory} from '../../utils/nearby-inventory'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
 import {Retailer} from '../../@types/retailers'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
+import { insertIsInStockButton } from '../../elements/isinstock-button'
 
 // Default callback when a product is found
 export const productCallback = (href: string) => {
