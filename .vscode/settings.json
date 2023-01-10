@@ -1,11 +1,15 @@
 {
   "typescript.tsdk": "./node_modules/typescript/lib",
   "json.schemas": [
-      {
-          "fileMatch": [
-              "/manifest.json"
-          ],
-          "url": "http://json.schemastore.org/chrome-manifest"
-      }
-  ]
+    {
+      "fileMatch": ["/manifest.json"],
+      "url": "http://json.schemastore.org/chrome-manifest"
+    }
+  ],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "editor.quickSuggestions": {
+    "strings": true
+  }
 }

@@ -1,8 +1,8 @@
-import { NearbyInventoryRequestType } from "../@types/api"
-import { InventoryState } from "../@types/inventory-states"
-import { Product } from "../@types/linked-data"
-import { MessageAction } from "../@types/messages"
-import { insertWidget } from "../elements/widget"
+import {NearbyInventoryRequestType} from '../@types/api'
+import {InventoryState} from '../@types/inventory-states'
+import {Product} from '../@types/linked-data'
+import {MessageAction} from '../@types/messages'
+import {insertWidget} from '../elements/widget'
 
 export const requestFromProduct = (product: Product): NearbyInventoryRequestType => {
   return {
@@ -29,13 +29,13 @@ export const findNearbyInventory = (request: NearbyInventoryRequestType, invento
     value: request,
   })
 
-  fetch("https://www.isinstock.com/extension/inventory/nearby", {
-    method: "POST",
-    mode: "cors",
-    cache: "no-cache",
+  fetch('https://www.isinstock.com/extension/inventory/nearby', {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'text/html',
+      Accept: 'text/html',
     },
     body: JSON.stringify(request),
   })

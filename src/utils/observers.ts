@@ -1,6 +1,6 @@
-import { Product } from "../@types/linked-data"
-import { ObservableElement } from "../@types/observables"
-import { searchProducts } from "./products"
+import {Product} from '../@types/linked-data'
+import {ObservableElement} from '../@types/observables'
+import {searchProducts} from './products'
 
 export const observeSelector = (
   selector: string,
@@ -9,33 +9,32 @@ export const observeSelector = (
     attributes: true,
     childList: true,
     subtree: true,
-  }
-): { observe: () => void, disconnect: () => void } => {
+  },
+): {observe: () => void; disconnect: () => void} => {
   const observer = new MutationObserver(mutations => {
-    console.log("Searching for", selector)
+    console.log('Searching for', selector)
     const elements: NodeListOf<ObservableElement> = document.querySelectorAll(selector)
     elements.forEach(element => {
       if (!element.fired) {
         element.fired = true
         callback(element)
       } else {
-        console.debug("Already fired on", element)
+        console.debug('Already fired on', element)
       }
     })
   })
 
   const observe = () => {
-    console.log("Starting MutationObserver")
+    console.log('Starting MutationObserver')
     observer.observe(document, options)
   }
 
   const disconnect = () => {
-    console.log("Disconnecting MutationObserver")
+    console.log('Disconnecting MutationObserver')
     observer.disconnect()
   }
 
-
-  return { observe, disconnect }
+  return {observe, disconnect}
 }
 
 type SelectorAddedOptions = {
@@ -44,9 +43,7 @@ type SelectorAddedOptions = {
 }
 
 // TODO: Add a timeout to reject promise after N seconds
-export const selectorAdded = (
-  options: SelectorAddedOptions
-): Promise<HTMLElement | null> => {
+export const selectorAdded = (options: SelectorAddedOptions): Promise<HTMLElement | null> => {
   const promise = new Promise<HTMLElement | null>((resolve, reject) => {
     const observer = new MutationObserver(mutations => {
       const element = document.querySelector<HTMLElement>(options.selector)
@@ -57,7 +54,7 @@ export const selectorAdded = (
       }
     })
 
-    console.log("Starting MutationObserver for selectorAdded", options.selector)
+    console.log('Starting MutationObserver for selectorAdded', options.selector)
     const observerOptions: MutationObserverInit = {
       attributes: true,
       childList: true,
@@ -71,10 +68,7 @@ export const selectorAdded = (
       setTimeout(() => resolve(null), options.timeout)
     })
 
-    return Promise.race<HTMLElement | null>([
-      promise,
-      timeout
-    ])
+    return Promise.race<HTMLElement | null>([promise, timeout])
   } else {
     return promise
   }

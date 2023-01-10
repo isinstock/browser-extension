@@ -7,7 +7,7 @@
 ## Retailer support
 
 | Retailer | JSON-LD | RDFa | Microdata |
-|--|--|--|--|
-| Best Buy | ✅ |  | |
-| Target | ✅ |  | |
-| Ubiquiti | | | ✅ |
+| -------- | ------- | ---- | --------- |
+| Best Buy | ✅      |      |           |
+| Target   | ✅      |      |           |
+| Ubiquiti |         |      | ✅        |

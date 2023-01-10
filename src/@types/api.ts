@@ -1,7 +1,7 @@
-import { Product } from "./linked-data"
-import { Retailer } from "./retailers"
+import {Product} from './linked-data'
+import {Retailer} from './retailers'
 
-type RequireAtLeastOne<T> = { [K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>; }[keyof T]
+type RequireAtLeastOne<T> = {[K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>}[keyof T]
 
 export interface NearbyInventorySearch {
   manufacture?: string
@@ -50,3 +50,62 @@ export interface NearbyInventoryProductRequest extends NearbyInventoryRequest {
 }
 
 export type NearbyInventoryRequestType = NearbyInventorySearchRequest | NearbyInventoryProductRequest
+
+interface NearbyInventoryResponseSku {
+  sku: string
+  model: string
+  upc: string
+  salePrice?: number
+  price: number
+  currency: string
+}
+
+interface NearbyInventoryResponseRetailer {
+  name: string
+  url: string
+}
+
+interface NearbyInventoryResponseLocationCoordinate {
+  latitude: number
+  longitude: number
+}
+
+interface NearbyInventoryResponseInventoryCheck {
+  state: string
+  quantity?: number
+  checkedAt?: Date
+  createdAt: Date
+}
+
+interface NearbyInventoryResponseSkuLocationLocation {
+  name: string
+  url: string
+  meters?: number
+  coordinate?: NearbyInventoryResponseLocationCoordinate
+  inventoryCheck?: NearbyInventoryResponseInventoryCheck
+}
+
+interface NearbyInventoryResponseSkuLocation {
+  sku: string
+  model: string
+  upc: string
+  salePrice: number
+  price: number
+  currency: string
+  url: string
+  retailer: NearbyInventoryResponseRetailer
+  locations: NearbyInventoryResponseSkuLocationLocation[]
+}
+
+interface NearbyInventoryResponseLocation {
+  name: string
+  url: string
+  style: string
+  coordinate?: NearbyInventoryResponseLocationCoordinate
+}
+
+export interface NearbyInventoryResponse {
+  sku?: NearbyInventoryResponseSku
+  location?: NearbyInventoryResponseLocation
+  skus: NearbyInventoryResponseSkuLocation[]
+}

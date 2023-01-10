@@ -1,22 +1,22 @@
-import { ItemAvailability, OfferItemCondition, Product, Offer, AggregateOffer } from "../@types/linked-data";
-import { findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer } from "../utils/helpers";
-import { observeSelector } from "../utils/observers"
-import { calculateInventoryState } from "../utils/inventory-state";
-import { searchProducts, notFoundCallback, productCallback, loadProduct } from "../utils/products";
-import { insertWidget } from "../elements/widget";
-import { MessageAction } from "../@types/messages";
-import { InventoryState } from "../@types/inventory-states";
+import {ItemAvailability, OfferItemCondition, Product, Offer, AggregateOffer} from '../@types/linked-data'
+import {findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer} from '../utils/helpers'
+import {observeSelector} from '../utils/observers'
+import {calculateInventoryState} from '../utils/inventory-state'
+import {searchProducts, notFoundCallback, productCallback, loadProduct} from '../utils/products'
+import {insertWidget} from '../elements/widget'
+import {MessageAction} from '../@types/messages'
+import {InventoryState} from '../@types/inventory-states'
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action == MessageAction.URLChanged) {
-    console.log("URL changed to", request.url)
+    console.log('URL changed to', request.url)
   } else {
-    console.log("Unknown action", request.action)
+    console.log('Unknown action', request.action)
   }
 })
 
 // Detect page transitions or DOM changes for single page based applications.
-const { observe, disconnect } = observeSelector(`script[type="application/ld+json"]`, (element) => {
+const {observe, disconnect} = observeSelector(`script[type="application/ld+json"]`, element => {
   const product = loadProduct(element)
   if (product) {
     productCallback(product)
@@ -24,7 +24,7 @@ const { observe, disconnect } = observeSelector(`script[type="application/ld+jso
 })
 
 const run = (runFired?: boolean) => {
-  searchProducts({ runFired, productCallback, notFoundCallback })
+  searchProducts({runFired, productCallback, notFoundCallback})
   observe()
 }
 
