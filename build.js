@@ -4,7 +4,7 @@ const postCssPlugin = require('esbuild-style-plugin')
 
 const isProduction = process.argv[2] === '--production'
 const watch = process.argv[2] === '--watch'
-const API_URL = isProduction ? 'https://www.isinstock.com' : 'http://localhost:3000'
+const API_URL = isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"'
 
 const res = build({
   logLevel: 'info',

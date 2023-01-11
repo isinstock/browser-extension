@@ -7,7 +7,7 @@ import {Retailer} from '../../@types/retailers'
 import {observeSelector, selectorAdded} from '../../utils/observers'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
 import {ObservableElement} from '../../@types/observables'
-import {insertIsInStockButton} from '../../elements/isinstock-button'
+import {insertIsInStockButton} from '../../elements/isinstock-button-new'
 
 const storeIdSelectors = `
   #pageBodyContainer [data-test="@web/AddToCart/FulfillmentSection"] [id^="store-name-"],

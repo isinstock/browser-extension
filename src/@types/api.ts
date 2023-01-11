@@ -1,8 +1,7 @@
 import {InventoryState} from './inventory-states'
 import {Product} from './linked-data'
+import {Coordinate, LocationStyle, LocationStyleNormalized} from './locations'
 import {Retailer} from './retailers'
-
-type RequireAtLeastOne<T> = {[K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>}[keyof T]
 
 export interface NearbyInventorySearch {
   manufacture?: string
@@ -24,11 +23,6 @@ export interface NearbyInventoryContext {
 export interface NearbyInventoryRequest {
   context: NearbyInventoryContext
   productSchema?: Product
-}
-
-export interface Coordinate {
-  latitude: number
-  longitude: number
 }
 
 export interface NearbyInventorySearchProductStore {
@@ -56,20 +50,24 @@ export interface NearbyInventoryResponseSku {
   sku: string
   model?: string
   upc?: string
-  salePrice?: number
-  price: number
   currency: string
+  price: number
+  formattedPrice: string
+  salePrice?: number
+  formattedSalePrice?: string
+  discount?: number
+  discountedPercentage?: number
+  formattedDiscountPrice?: string
+  productUrl: string
+  url: string
+  retailer: NearbyInventoryResponseRetailer
+  locations: NearbyInventoryResponseSkuLocation[]
 }
 
 export interface NearbyInventoryResponseRetailer {
   name: string
-  url: string
+  retailerUrl: string
   imageUrl: string
-}
-
-export interface NearbyInventoryResponseLocationCoordinate {
-  latitude: number
-  longitude: number
 }
 
 export interface NearbyInventoryResponseInventoryCheck {
@@ -79,35 +77,24 @@ export interface NearbyInventoryResponseInventoryCheck {
   createdAt: Date
 }
 
-export interface NearbyInventoryResponseSkuLocationLocation {
-  name: string
-  url: string
-  meters?: number
-  coordinate?: NearbyInventoryResponseLocationCoordinate
-  inventoryCheck?: NearbyInventoryResponseInventoryCheck
-}
-
 export interface NearbyInventoryResponseSkuLocation {
-  sku: string
-  model: string
-  upc: string
-  salePrice: number
-  price: number
-  currency: string
-  url: string
-  retailer: NearbyInventoryResponseRetailer
-  locations: NearbyInventoryResponseSkuLocationLocation[]
+  name: string
+  locationUrl: string
+  meters?: number
+  coordinate?: Coordinate
+  inventoryCheck?: NearbyInventoryResponseInventoryCheck
 }
 
 export interface NearbyInventoryResponseLocation {
   name: string
-  url: string
-  style: string
-  coordinate?: NearbyInventoryResponseLocationCoordinate
+  locationUrl: string
+  coordinate?: Coordinate
+  style: LocationStyle
+  normalizedStyle: LocationStyleNormalized
 }
 
 export interface NearbyInventoryResponse {
   sku?: NearbyInventoryResponseSku
   location?: NearbyInventoryResponseLocation
-  skus: NearbyInventoryResponseSkuLocation[]
+  skus: NearbyInventoryResponseSku[]
 }

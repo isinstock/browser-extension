@@ -1,5 +1,5 @@
 export enum InventoryState {
-  IsInStock = 'IsInStock',
-  NotInStock = 'NotInStock',
+  Available = 'available',
+  Unavailable = 'unavailable',
   Unknown = 'unknown',
 }

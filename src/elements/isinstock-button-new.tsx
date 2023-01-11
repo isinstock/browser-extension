@@ -4,7 +4,7 @@ import {
   NearbyInventoryProductRequest,
   NearbyInventoryResponse,
   NearbyInventoryResponseSkuLocation,
-  NearbyInventoryResponseSkuLocationLocation,
+  NearbyInventoryResponseSku,
 } from '../@types/api'
 import {InventoryState} from '../@types/inventory-states'
 
@@ -46,7 +46,7 @@ const ViewProductLink = ({href}: {href: string}) => {
 }
 
 type SkuProps = {
-  sku: NearbyInventoryResponseSkuLocation
+  sku: NearbyInventoryResponseSku
 }
 
 const Sku = ({sku}: SkuProps) => {
@@ -60,7 +60,8 @@ const Sku = ({sku}: SkuProps) => {
 const SkuHeader = ({sku}: SkuProps) => {
   const states = sku.locations.flatMap(location => location.inventoryCheck?.state ?? [])
   const availableStates = states.filter(state => state === InventoryState.Available)
-  const link = availableStates.length > 0 ? <BuyNowLink href={sku.url} /> : <ViewProductLink href={sku.url} />
+  const link =
+    availableStates.length > 0 ? <BuyNowLink href={sku.productUrl} /> : <ViewProductLink href={sku.productUrl} />
 
   return (
     <div class="flex items-center space-x-2 py-2 text-gray-900">
@@ -86,13 +87,19 @@ const SkuHeader = ({sku}: SkuProps) => {
         </div>
       </div>
       <div class="whitespace-nowrap">
-        <div class="font-medium">$129.99</div>
-        <div class="text-xs">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            $70 off
-          </span>
-          was $199.99
-        </div>
+        {sku.formattedSalePrice ? (
+          <>
+            <div class="font-medium">{sku.formattedSalePrice}</div>
+            <div class="text-xs">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                {sku.formattedDiscountPrice} off
+              </span>
+              was {sku.formattedPrice}
+            </div>
+          </>
+        ) : (
+          <span class="font-medium">{sku.formattedPrice}</span>
+        )}
       </div>
       <div>{link}</div>
     </div>
@@ -124,6 +131,9 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
       if (response.ok) {
         const json = (await response.json()) as NearbyInventoryResponse
         setData(json)
+      } else {
+        // Set proper error state
+        setLabel('Oh no')
       }
     }
 
