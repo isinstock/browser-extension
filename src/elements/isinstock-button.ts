@@ -181,7 +181,14 @@ class IsInStockButtonElement extends HTMLElement {
         const locationsUl = document.createElement("ul")
         sku.locations.forEach(location => {
           const row = document.createElement("li")
-          row.innerText = location.name
+
+          if (location.inventoryCheck?.state == "available") {
+            const strong = document.createElement("strong")
+            strong.innerText = location.name
+            row.appendChild(strong)
+          } else {
+            row.innerText = location.name
+          }
           locationsUl.appendChild(row)
         })
         innerDiv.appendChild(locationsUl)
