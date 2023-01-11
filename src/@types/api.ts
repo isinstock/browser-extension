@@ -77,14 +77,39 @@ export interface NearbyInventoryResponseInventoryCheck {
   createdAt: Date
 }
 
-export interface NearbyInventoryResponseSkuLocation {
+export interface NearbyInventoryResponseSkuLocationBase {
   name: string
   locationUrl: string
-  meters?: number
-  coordinate?: Coordinate
   inventoryCheck?: NearbyInventoryResponseInventoryCheck
+  style: LocationStyle
+  normalizedStyle: LocationStyleNormalized
 }
 
+export interface NearbyInventoryResponseSkuLocationPhysical extends NearbyInventoryResponseSkuLocationBase {
+  address: string
+  meters: number
+  coordinate: Coordinate
+}
+
+export interface NearbyInventoryResponseSkuLocationOnline extends NearbyInventoryResponseSkuLocationBase {}
+
+export type NearbyInventoryResponseSkuLocation =
+  | NearbyInventoryResponseSkuLocationPhysical
+  | NearbyInventoryResponseSkuLocationOnline
+
+export const isOnlineSkuLocation = (
+  skuLocation: NearbyInventoryResponseSkuLocation,
+): skuLocation is NearbyInventoryResponseSkuLocationOnline => {
+  return skuLocation.normalizedStyle === LocationStyleNormalized.Online
+}
+
+export const isPhysicalSkuLocation = (
+  skuLocation: NearbyInventoryResponseSkuLocation,
+): skuLocation is NearbyInventoryResponseSkuLocationPhysical => {
+  return skuLocation.normalizedStyle === LocationStyleNormalized.Physical
+}
+
+// Can this be one of the other types?
 export interface NearbyInventoryResponseLocation {
   name: string
   locationUrl: string

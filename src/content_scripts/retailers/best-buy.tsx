@@ -60,6 +60,21 @@ export const productCallback = (href: string) => {
 }
 
 const findStoreId = (): string | null => {
+  const store = document.querySelector<HTMLAnchorElement>(`#store-loc-overlay a[href^="https://stores.bestbuy.com"]`)
+  if (!store) {
+    return null
+  }
+
+  const url = new URL(store.href)
+  const matches = url.pathname.match(/^\/(?<storeId>\d+)$/)
+  if (!matches || !matches.groups || !matches.groups.storeId) {
+    return null
+  }
+
+  return matches.groups.storeId
+}
+
+const findSku = (): string | null => {
   const url = new URL(window.location.href)
   const sku = url.searchParams.get('skuId')
   if (sku) {
@@ -73,21 +88,6 @@ const findStoreId = (): string | null => {
   }
 
   return matches.groups.sku
-}
-
-const findSku = (): string | null => {
-  const store = document.querySelector<HTMLAnchorElement>(`#store-loc-overlay a[href^="https://stores.bestbuy.com"]`)
-  if (!store) {
-    return null
-  }
-
-  const url = new URL(store.href)
-  const matches = url.pathname.match(/^\/(?<storeId>\d+)$/)
-  if (!matches || !matches.groups || !matches.groups.storeId) {
-    return null
-  }
-
-  return matches.groups.storeId
 }
 
 // Can we detect store location changing and re-issue request?
