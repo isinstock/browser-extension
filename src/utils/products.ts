@@ -1,14 +1,14 @@
-import { InventoryState } from "../@types/inventory-states"
-import { Product } from "../@types/linked-data"
-import { ObservableElement } from "../@types/observables"
-import { MessageAction } from "../@types/messages"
-import { insertWidget } from "../elements/widget"
-import { isProduct } from "./helpers"
-import { broadcastInventoryState, calculateInventoryState } from "./inventory-state"
-import { findNearbyInventory, requestFromProduct } from "./nearby-inventory"
+import {InventoryState} from '../@types/inventory-states'
+import {Product} from '../@types/linked-data'
+import {ObservableElement} from '../@types/observables'
+import {MessageAction} from '../@types/messages'
+import {insertWidget} from '../elements/widget'
+import {isProduct} from './helpers'
+import {broadcastInventoryState, calculateInventoryState} from './inventory-state'
+import {findNearbyInventory, requestFromProduct} from './nearby-inventory'
 
 const loadJSON = (script: Element): any[] => {
-  if (!script.textContent || script.textContent == "") {
+  if (!script.textContent || script.textContent == '') {
     return []
   }
 
@@ -76,7 +76,7 @@ type LocateProductsOptions = {
 }
 
 // Allows callbacks for each product found and if none were found
-export const searchProducts = ({ runFired = false, productCallback, notFoundCallback }: LocateProductsOptions) => {
+export const searchProducts = ({runFired = false, productCallback, notFoundCallback}: LocateProductsOptions) => {
   const scripts: NodeListOf<ObservableElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
   if (scripts.length) {
     scripts.forEach(script => {
@@ -88,7 +88,7 @@ export const searchProducts = ({ runFired = false, productCallback, notFoundCall
           productCallback(product)
         }
       } else {
-        console.warn("Already loaded script for", script)
+        console.warn('Already loaded script for', script)
       }
     })
   } else if (notFoundCallback) {

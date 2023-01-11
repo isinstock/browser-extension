@@ -7,9 +7,9 @@ There are a few ways to detect a product within a content script:
 ```ts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action == MessageAction.URLChanged) {
-    console.log("URL changed to", request.url)
+    console.log('URL changed to', request.url)
   } else {
-    console.log("Unknown action", request.action)
+    console.log('Unknown action', request.action)
   }
 })
 ```
@@ -18,10 +18,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 ```ts
 // Detect page transitions or DOM changes for single page based applications.
-const { observe, disconnect } = observeProducts(productCallback)
+const {observe, disconnect} = observeProducts(productCallback)
 
 const run = (runLoaded?: boolean) => {
-  locateProducts({ runLoaded, productCallback, notFoundCallback })
+  locateProducts({runLoaded, productCallback, notFoundCallback})
   observe()
 }
 

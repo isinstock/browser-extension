@@ -3,10 +3,7 @@
   "name": "Is In Stock",
   "description": "Base Level Extension",
   "version": "1.0.1",
-  "permissions": [
-    "activeTab",
-    "tabs"
-  ],
+  "permissions": ["activeTab", "tabs"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -27,12 +24,12 @@
     "128": "images/inventory-states/unknown/128.png"
   },
   "background": {
-    "service_worker": "js/background.js"
+    "service_worker": "background.js"
   },
   "web_accessible_resources": [
     {
       "resources": [
-        "css/elements/isinstock-button/style.css",
+        "elements/isinstock-button/style.css",
         "images/inventory-states/unknown/16.png",
         "images/inventory-states/unknown/24.png",
         "images/inventory-states/unknown/32.png",
@@ -52,33 +49,22 @@
         "images/inventory-states/unavailable/64.png",
         "images/inventory-states/unavailable/128.png"
       ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "matches": ["<all_urls>"]
     }
   ],
   "content_scripts": [
     {
-      "js": ["js/content_scripts/retailers/best-buy.js"],
-      "matches": [
-        "*://*.bestbuy.com/*"
-      ]
+      "js": ["content_scripts/retailers/best-buy.js"],
+      "matches": ["*://*.bestbuy.com/*"]
     },
     {
-      "js": ["js/content_scripts/retailers/target.js"],
-      "matches": [
-        "*://*.target.com/*"
-      ]
+      "js": ["content_scripts/retailers/target.js"],
+      "matches": ["*://*.target.com/*"]
     },
     {
-      "js": ["js/content_scripts/content_script.js"],
-      "matches": [
-        "<all_urls>"
-      ],
-      "exclude_matches": [
-        "*://*.bestbuy.com/*",
-        "*://*.target.com/*"
-      ]
+      "js": ["content_scripts/content_script.js"],
+      "matches": ["<all_urls>"],
+      "exclude_matches": ["*://*.bestbuy.com/*", "*://*.target.com/*"]
     }
   ]
 }
