@@ -5,7 +5,7 @@ import {findNearbyInventory} from '../../utils/nearby-inventory'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
 import {Retailer} from '../../@types/retailers'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
-import { insertIsInStockButton } from '../../elements/isinstock-button'
+import {insertIsInStockButton} from '../../elements/isinstock-button-new'
 
 // Default callback when a product is found
 export const productCallback = (href: string) => {
@@ -50,12 +50,10 @@ export const productCallback = (href: string) => {
     const addToCartButton = document.querySelector<HTMLElement>('.fulfillment-add-to-cart-button')
     if (addToCartButton) {
       const element = insertIsInStockButton(addToCartButton, {inventoryState, request: nearbyInventoryRequest})
-      // element.style.marginTop = '6px'
+      element.style.marginTop = '6px'
     } else {
       // Insert somewhere else?
     }
-
-
 
     // findNearbyInventory(nearbyInventoryRequest)
   }

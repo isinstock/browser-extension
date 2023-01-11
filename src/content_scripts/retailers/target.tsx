@@ -7,7 +7,7 @@ import {Retailer} from '../../@types/retailers'
 import {observeSelector, selectorAdded} from '../../utils/observers'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
 import {ObservableElement} from '../../@types/observables'
-import { insertIsInStockButton } from '../../elements/isinstock-button'
+import {insertIsInStockButton} from '../../elements/isinstock-button'
 
 const storeIdSelectors = `
   #pageBodyContainer [data-test="@web/AddToCart/FulfillmentSection"] [id^="store-name-"],
@@ -99,7 +99,10 @@ export const productCallback = async (href: string) => {
       `,
     }).then(addToCartButton => {
       if (addToCartButton?.parentElement) {
-        const element = insertIsInStockButton(addToCartButton.parentElement, {inventoryState, request: nearbyInventoryRequest})
+        const element = insertIsInStockButton(addToCartButton.parentElement, {
+          inventoryState,
+          request: nearbyInventoryRequest,
+        })
         element.style.marginTop = '6px'
       } else {
         console.log('Add to cart button not found')

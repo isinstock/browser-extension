@@ -2,7 +2,7 @@
 // https://github.com/github/include-fragment-element/blob/main/src/index.ts
 
 import '@webcomponents/custom-elements'
-import { NearbyInventoryProductRequest, NearbyInventoryResponse } from '../@types/api'
+import {NearbyInventoryProductRequest, NearbyInventoryResponse} from '../@types/api'
 import {InventoryState} from '../@types/inventory-states'
 
 class IsInStockButtonElement extends HTMLElement {
@@ -74,14 +74,14 @@ class IsInStockButtonElement extends HTMLElement {
     shadowRoot.appendChild(stylesheet)
 
     const details = document.createElement('details')
-    details.role = "dialog"
-    details.ariaModal = "true"
+    details.role = 'dialog'
+    details.ariaModal = 'true'
 
     const summary = document.createElement('summary')
     summary.ariaHasPopup = 'menu'
     summary.ariaExpanded = 'false'
     summary.role = 'button'
-    summary.style.userSelect = "none"
+    summary.style.userSelect = 'none'
     details.appendChild(summary)
 
     const detailsMenu = document.createElement('details-menu')
@@ -124,7 +124,7 @@ class IsInStockButtonElement extends HTMLElement {
     if (this.loading === 'lazy') {
       this.#observer.observe(this)
     }
-      // .then((json: NearbyInventoryResponse) => this.processInventoryResponse(json))
+    // .then((json: NearbyInventoryResponse) => this.processInventoryResponse(json))
 
     // const subscriptions = [
     //   fromEvent(details, 'compositionstart', e => trackComposition(this, e)),
@@ -156,34 +156,34 @@ class IsInStockButtonElement extends HTMLElement {
     })
     // Check to see if its cheaper anywhere else
 
-    const availableStates = states.filter(state => state === "available")
+    const availableStates = states.filter(state => state === 'available')
     if (availableStates.length > 0) {
       label.innerText = `In stock at ${availableStates.length} locations near you`
     } else {
-      label.innerText = "Not in stock near you"
+      label.innerText = 'Not in stock near you'
     }
 
     const detailsMenu = this.shadowRoot?.querySelector('details-menu')
     if (detailsMenu) {
-      const innerDiv = document.createElement("div")
-      innerDiv.classList.add("select-menu")
+      const innerDiv = document.createElement('div')
+      innerDiv.classList.add('select-menu')
 
       json.skus.forEach(sku => {
-        const retailer = document.createElement("h1")
+        const retailer = document.createElement('h1')
         retailer.innerText = sku.retailer.name
         innerDiv.appendChild(retailer)
 
-        const purchaseLink = document.createElement("a")
+        const purchaseLink = document.createElement('a')
         purchaseLink.href = sku.url
-        purchaseLink.innerText = "Buy Now"
+        purchaseLink.innerText = 'Buy Now'
         innerDiv.appendChild(purchaseLink)
 
-        const locationsUl = document.createElement("ul")
+        const locationsUl = document.createElement('ul')
         sku.locations.forEach(location => {
-          const row = document.createElement("li")
+          const row = document.createElement('li')
 
-          if (location.inventoryCheck?.state == "available") {
-            const strong = document.createElement("strong")
+          if (location.inventoryCheck?.state == 'available') {
+            const strong = document.createElement('strong')
             strong.innerText = location.name
             row.appendChild(strong)
           } else {
@@ -238,8 +238,8 @@ class IsInStockButtonElement extends HTMLElement {
       // 2 keyboard-down-arrow presses away from being visible in the viewport,
       // giving us some time to fetch it before the contents are made visible
       rootMargin: '0px 0px 256px 0px',
-      threshold: 0.01
-    }
+      threshold: 0.01,
+    },
   )
 
   async #getData(): Promise<NearbyInventoryResponse> {
@@ -271,7 +271,7 @@ class IsInStockButtonElement extends HTMLElement {
       }
       console.log(this)
       const canceled = !this.dispatchEvent(
-        new CustomEvent('nearby-inventory-response', {cancelable: true, detail: {data}})
+        new CustomEvent('nearby-inventory-response', {cancelable: true, detail: {data}}),
       )
       if (canceled) {
         this.#busy = false
@@ -279,7 +279,7 @@ class IsInStockButtonElement extends HTMLElement {
       }
 
       //
-      console.log("do custom logic here")
+      console.log('do custom logic here')
     } catch {
       this.classList.add('is-error')
     } finally {
@@ -329,10 +329,8 @@ type Subscription = {unsubscribe(): void}
 const NullSubscription = {
   unsubscribe() {
     /* Do nothing */
-  }
+  },
 }
-
-
 
 declare global {
   interface Window {
@@ -356,11 +354,7 @@ interface InsertIsInStockButtonOptions {
 
 export function insertIsInStockButton(
   element: HTMLElement,
-  {
-    insertPosition = 'afterend',
-    inventoryState = InventoryState.Unknown,
-    request,
-  }: InsertIsInStockButtonOptions,
+  {insertPosition = 'afterend', inventoryState = InventoryState.Unknown, request}: InsertIsInStockButtonOptions,
 ): IsInStockButtonElement {
   let existingButton = document.querySelector<IsInStockButtonElement>('isinstock-button')
   if (existingButton) {
@@ -368,7 +362,7 @@ export function insertIsInStockButton(
   }
 
   const button = document.createElement('isinstock-button')
-  button.loading = "lazy"
+  button.loading = 'lazy'
   button.dataset.inventoryState = inventoryState
   button.dataset.request = JSON.stringify(request)
 
@@ -377,18 +371,17 @@ export function insertIsInStockButton(
   return button
 }
 
-
 function fromEvent(
   target: EventTarget,
   eventName: string,
   onNext: EventListenerOrEventListenerObject,
-  options: boolean | AddEventListenerOptions = false
+  options: boolean | AddEventListenerOptions = false,
 ): Subscription {
   target.addEventListener(eventName, onNext, options)
   return {
     unsubscribe: () => {
       target.removeEventListener(eventName, onNext, options)
-    }
+    },
   }
 }
 
@@ -422,7 +415,7 @@ function focusOnOpen(details: Element): Subscription[] {
   return [
     fromEvent(details, 'mousedown', onmousedown),
     fromEvent(details, 'keydown', onkeydown),
-    fromEvent(details, 'toggle', ontoggle)
+    fromEvent(details, 'toggle', ontoggle),
   ]
 }
 
@@ -518,8 +511,8 @@ function commit(selected: Element, details: Element) {
   const dispatched = menu.dispatchEvent(
     new CustomEvent('details-menu-select', {
       cancelable: true,
-      detail: {relatedTarget: selected}
-    })
+      detail: {relatedTarget: selected},
+    }),
   )
   if (!dispatched) return
 
@@ -528,8 +521,8 @@ function commit(selected: Element, details: Element) {
   if (selected.getAttribute('role') !== 'menuitemcheckbox') close(details)
   menu.dispatchEvent(
     new CustomEvent('details-menu-selected', {
-      detail: {relatedTarget: selected}
-    })
+      detail: {relatedTarget: selected},
+    }),
   )
 }
 
