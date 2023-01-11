@@ -4,7 +4,7 @@
   "prettier": "@github/prettier-config",
   "scripts": {
     "watch": "node ./build.js --watch",
-    "build": "node ./build.js",
+    "build": "node ./build.js --production",
     "clean": "rimraf dist",
     "test": "npx jest",
     "lint": "eslint src",

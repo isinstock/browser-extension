@@ -1,11 +1,13 @@
-const build = require("esbuild").build
-const copy = require("esbuild-plugin-copy").copy
-const postCssPlugin = require("esbuild-style-plugin")
+const build = require('esbuild').build
+const copy = require('esbuild-plugin-copy').copy
+const postCssPlugin = require('esbuild-style-plugin')
 
-const watch = process.argv[2] === "--watch"
+const isProduction = process.argv[2] === '--production'
+const watch = process.argv[2] === '--watch'
+const API_URL = isProduction ? 'https://www.isinstock.com' : 'http://localhost:3000'
 
 const res = build({
-  logLevel: "info",
+  logLevel: 'info',
   entryPoints: [
     './src/elements/isinstock-button/style.css',
     './src/content_scripts/content_script.tsx',
@@ -14,20 +16,18 @@ const res = build({
     './src/background.ts',
     './src/popup.ts',
   ],
-  outdir: "dist",
+  outdir: 'dist',
   bundle: true,
-  sourcemap: "inline",
+  sourcemap: 'inline',
   watch,
-  target: [
-    "chrome58"
-  ],
+  target: ['chrome58'],
+  define: {
+    API_URL,
+  },
   plugins: [
     postCssPlugin({
       postcss: {
-        plugins: [
-          require("tailwindcss"),
-          require("autoprefixer"),
-        ],
+        plugins: [require('tailwindcss'), require('autoprefixer')],
       },
     }),
     copy({

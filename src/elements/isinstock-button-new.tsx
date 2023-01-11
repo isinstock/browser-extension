@@ -108,7 +108,7 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch('http://localhost:3000/extension/inventory/nearby', {
+      const response = await fetch(`${API_URL}/extension/inventory/nearby`, {
         method: 'POST',
         mode: 'cors',
         cache: 'no-cache',
