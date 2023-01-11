@@ -3,7 +3,7 @@
 
 import '@webcomponents/custom-elements'
 import {NearbyInventoryProductRequest, NearbyInventoryResponse} from '../@types/api'
-import {InventoryState} from '../@types/inventory-states'
+import {InventoryStateNormalized} from '../@types/inventory-states'
 
 class IsInStockButtonElement extends HTMLElement {
   static get observedAttributes(): string[] {
@@ -66,7 +66,7 @@ class IsInStockButtonElement extends HTMLElement {
     this.style.maxWidth = '500px'
     this.style.fontSize = '16px'
     this.style.display = 'block'
-    const inventoryState = this.dataset.inventoryState as InventoryState
+    const inventoryState = this.dataset.inventoryState as InventoryStateNormalized
 
     const stylesheet = document.createElement('link')
     stylesheet.rel = 'stylesheet'
@@ -96,13 +96,13 @@ class IsInStockButtonElement extends HTMLElement {
     const span = document.createElement('span')
     span.classList.add('isinstock-button-label')
     switch (inventoryState) {
-      case InventoryState.Available:
+      case InventoryStateNormalized.Available:
         image.src = chrome.runtime.getURL('images/inventory-states/available/128.png')
         span.innerText = 'Checking nearby stores…'
 
         break
 
-      case InventoryState.Unavailable:
+      case InventoryStateNormalized.Unavailable:
         image.src = chrome.runtime.getURL('images/inventory-states/unavailable/128.png')
         span.innerText = 'Checking nearby stores…'
         break
@@ -156,7 +156,7 @@ class IsInStockButtonElement extends HTMLElement {
     })
     // Check to see if its cheaper anywhere else
 
-    const availableStates = states.filter(state => state === InventoryState.Available)
+    const availableStates = states.filter(state => state === InventoryStateNormalized.Available)
     if (availableStates.length > 0) {
       label.innerText = `In stock at ${availableStates.length} locations near you`
     } else {
@@ -182,7 +182,7 @@ class IsInStockButtonElement extends HTMLElement {
         sku.locations.forEach(location => {
           const row = document.createElement('li')
 
-          if (location.inventoryCheck?.state == InventoryState.Available) {
+          if (location.inventoryCheck?.state == InventoryStateNormalized.Available) {
             const strong = document.createElement('strong')
             strong.innerText = location.name
             row.appendChild(strong)
@@ -348,13 +348,17 @@ if (!window.customElements.get('isinstock-button')) {
 
 interface InsertIsInStockButtonOptions {
   insertPosition?: InsertPosition
-  inventoryState?: InventoryState
+  inventoryState?: InventoryStateNormalized
   request: NearbyInventoryProductRequest
 }
 
 export function insertIsInStockButton(
   element: HTMLElement,
-  {insertPosition = 'afterend', inventoryState = InventoryState.Unknown, request}: InsertIsInStockButtonOptions,
+  {
+    insertPosition = 'afterend',
+    inventoryState = InventoryStateNormalized.Unknown,
+    request,
+  }: InsertIsInStockButtonOptions,
 ): IsInStockButtonElement {
   let existingButton = document.querySelector<IsInStockButtonElement>('isinstock-button')
   if (existingButton) {

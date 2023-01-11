@@ -5,7 +5,7 @@ import {calculateInventoryState} from '../utils/inventory-state'
 import {searchProducts, notFoundCallback, productCallback, loadProduct} from '../utils/products'
 import {insertWidget} from '../elements/widget'
 import {MessageAction} from '../@types/messages'
-import {InventoryState} from '../@types/inventory-states'
+import {InventoryStateNormalized} from '../@types/inventory-states'
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action == MessageAction.URLChanged) {

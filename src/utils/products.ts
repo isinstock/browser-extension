@@ -1,4 +1,4 @@
-import {InventoryState} from '../@types/inventory-states'
+import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
 import {MessageAction} from '../@types/messages'
@@ -40,7 +40,7 @@ export const productCallback = (product: Product) => {
 export const notFoundCallback = () => {
   chrome.runtime.sendMessage({
     action: MessageAction.InventoryState,
-    value: InventoryState.Unknown,
+    value: InventoryStateNormalized.Unknown,
   })
 }
 

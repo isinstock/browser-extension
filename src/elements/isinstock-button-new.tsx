@@ -12,7 +12,15 @@ import {
   NearbyInventoryResponseSkuLocationOnline,
   NearbyInventoryResponseLocation,
 } from '../@types/api'
-import {InventoryState} from '../@types/inventory-states'
+import {InventoryStateNormalized} from '../@types/inventory-states'
+
+const InventoryStatePill = ({state}: {state: InventoryStateNormalized}) => {
+  if (state === InventoryStateNormalized.Available) {
+    return <span class="px-2 inline-flex leading-5 rounded-full bg-green-100 text-green-800">In Stock</span>
+  }
+
+  return <span class="px-2 inline-flex leading-5 rounded-full bg-red-100 text-red-800">Out of Stock</span>
+}
 
 const BuyNowLink = ({href}: {href: string}) => {
   return (
@@ -59,7 +67,7 @@ const SkuLocationOnline = ({
   skuLocation: NearbyInventoryResponseSkuLocationOnline
 }) => {
   return (
-    <div class="flex w-full items-center border-t border-gray-300">
+    <div class="flex w-full items-center border-t border-gray-300 px-2">
       <div class="py-2 pl-2 sm:pl-0 text-sm text-gray-400 align-middle">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -79,8 +87,7 @@ const SkuLocationOnline = ({
       <div class="whitespace-nowrap px-2 py-2 text-sm text-gray-900 w-full">
         <div class="flex items-center space-x-2">
           <span class="font-medium">
-            <span class="hidden sm:inline-block">{sku.retailer.name} </span>
-            Online
+            <span class="hidden sm:inline">{sku.retailer.name}</span> Online
           </span>
         </div>
       </div>
@@ -88,7 +95,7 @@ const SkuLocationOnline = ({
         <div class="flex items-center space-x-2 sm:space-x-4">{/* <div class="flex space-x-2">As of …</div> */}</div>
       </div>
       <div class="whitespace-nowrap py-2 pr-2 sm:pr-0 text-xs font-semibold text-right">
-        {skuLocation.inventoryCheck?.state}
+        {skuLocation.inventoryCheck?.state && <InventoryStatePill state={skuLocation.inventoryCheck.state} />}
       </div>
     </div>
   )
@@ -112,9 +119,8 @@ const SkuLocationPhysical = ({
   skuLocation: NearbyInventoryResponseSkuLocationPhysical
   centerCoordinate?: Coordinate
 }) => {
-  console.log(centerCoordinate, skuLocation.coordinate)
   return (
-    <div class="flex w-full items-center border-t border-gray-300">
+    <div class="flex w-full items-center border-t border-gray-300 px-2">
       <div class="py-2 pl-2 sm:pl-0 text-sm text-gray-400 align-middle">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -134,8 +140,7 @@ const SkuLocationPhysical = ({
       <div class="whitespace-nowrap px-2 py-2 text-sm text-gray-900 w-full">
         <div class="flex items-center space-x-2">
           <span class="font-medium">
-            <span class="hidden sm:inline-block">{sku.retailer.name} </span>
-            {skuLocation.name}
+            <span class="hidden sm:inline">{sku.retailer.name}</span> {skuLocation.name}
           </span>
 
           {/* This should be its own component */}
@@ -149,7 +154,7 @@ const SkuLocationPhysical = ({
         <div class="flex items-center space-x-2 sm:space-x-4">{/* <div class="flex space-x-2">As of …</div> */}</div>
       </div>
       <div class="whitespace-nowrap py-2 pr-2 sm:pr-0 text-xs font-semibold text-right">
-        {skuLocation.inventoryCheck?.state}
+        {skuLocation.inventoryCheck?.state && <InventoryStatePill state={skuLocation.inventoryCheck.state} />}
       </div>
     </div>
   )
@@ -203,12 +208,12 @@ const Sku = ({sku, location}: SkuProps) => {
 
 const SkuHeader = ({sku}: SkuProps) => {
   const states = sku.locations.flatMap(location => location.inventoryCheck?.state ?? [])
-  const availableStates = states.filter(state => state === InventoryState.Available)
+  const availableStates = states.filter(state => state === InventoryStateNormalized.Available)
   const link =
     availableStates.length > 0 ? <BuyNowLink href={sku.productUrl} /> : <ViewProductLink href={sku.productUrl} />
 
   return (
-    <div class="flex items-center space-x-2 py-2 text-gray-900">
+    <div class="flex items-center space-x-2 py-2 text-gray-900 px-2">
       <div>
         <span class="inline-block align-middle w-6">
           <img class="max-w-6" src={sku.retailer.imageUrl} />
@@ -219,15 +224,9 @@ const SkuHeader = ({sku}: SkuProps) => {
         <div class="space-x-2">
           {sku.model && (
             <span class="text-xs text-gray-500">
-              Model
-              <span class="font-medium text-gray-500">{sku.model}</span>
+              Model <span class="font-medium text-gray-500">{sku.model}</span>
             </span>
           )}
-
-          <span class="text-xs text-gray-500">
-            SKU
-            <span class="font-medium text-gray-500">{sku.sku}</span>
-          </span>
         </div>
       </div>
       <div class="whitespace-nowrap">
@@ -295,7 +294,7 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
       })
     })
 
-    const availableStates = states.filter(state => state === InventoryState.Available)
+    const availableStates = states.filter(state => state === InventoryStateNormalized.Available)
     if (availableStates.length > 0) {
       const pluralize = availableStates.length === 1 ? 'location' : 'locations'
       setLabel(`In stock at ${availableStates.length} ${pluralize} near you`)
@@ -328,26 +327,41 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
 
 interface InsertIsInStockButtonOptions {
   insertPosition?: InsertPosition
-  inventoryState?: InventoryState
+  inventoryState?: InventoryStateNormalized
   request: NearbyInventoryProductRequest
 }
 
+// Can we cache buttons that are created based on URL or some other unique key?
+const buttons = new WeakMap()
+
 export function insertIsInStockButton(
   element: HTMLElement,
-  {insertPosition = 'afterend', inventoryState = InventoryState.Unknown, request}: InsertIsInStockButtonOptions,
+  {
+    insertPosition = 'afterend',
+    inventoryState = InventoryStateNormalized.Unknown,
+    request,
+  }: InsertIsInStockButtonOptions,
 ): HTMLElement {
-  const wrapper = document.createElement('div')
-  const shadowRoot = wrapper.attachShadow({mode: 'open'})
+  let wrapper = document.querySelector<HTMLElement>('#isinstock-button')
+  let shadowRoot = wrapper?.shadowRoot
+  if (wrapper) {
+    shadowRoot = wrapper.shadowRoot as ShadowRoot
+    render(<IsInStockButton request={request} />, shadowRoot)
+  } else {
+    wrapper = document.createElement('div')
+    wrapper.id = 'isinstock-button'
+    shadowRoot = wrapper.attachShadow({mode: 'open'})
 
-  render(<IsInStockButton request={request} />, shadowRoot)
+    // Can we prevent any flashing?
+    const stylesheet = document.createElement('link')
+    stylesheet.rel = 'stylesheet'
+    stylesheet.href = chrome.runtime.getURL('elements/isinstock-button/style.css')
+    shadowRoot.appendChild(stylesheet)
 
-  // Can we prevent any flashing?
-  const stylesheet = document.createElement('link')
-  stylesheet.rel = 'stylesheet'
-  stylesheet.href = chrome.runtime.getURL('elements/isinstock-button/style.css')
-  shadowRoot.appendChild(stylesheet)
+    element.insertAdjacentElement(insertPosition, wrapper)
 
-  element.insertAdjacentElement(insertPosition, wrapper)
+    render(<IsInStockButton request={request} />, shadowRoot)
+  }
 
   return wrapper
 }

@@ -1,5 +1,5 @@
 import {ItemAvailability, OfferItemCondition, Product, Offer} from './@types/linked-data'
-import {InventoryState} from './@types/inventory-states'
+import {InventoryStateNormalized} from './@types/inventory-states'
 import {MessageAction} from './@types/messages'
 
 // To fire a message to detect for product on page
@@ -21,8 +21,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Receives messages from content scripts
 chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
   if (action === MessageAction.InventoryState) {
-    switch (value as InventoryState) {
-      case InventoryState.Available:
+    switch (value as InventoryStateNormalized) {
+      case InventoryStateNormalized.Available:
         chrome.action.setIcon({
           path: {
             '16': '/images/inventory-states/available/16.png',
@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
         })
         break
 
-      case InventoryState.Unavailable:
+      case InventoryStateNormalized.Unavailable:
         chrome.action.setIcon({
           path: {
             '16': '/images/inventory-states/unavailable/16.png',

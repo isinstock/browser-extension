@@ -1,6 +1,6 @@
 import {findProducts} from '../../utils/products'
 import {MessageAction} from '../../@types/messages'
-import {InventoryState} from '../../@types/inventory-states'
+import {InventoryStateNormalized} from '../../@types/inventory-states'
 import {findNearbyInventory} from '../../utils/nearby-inventory'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
 import {Retailer} from '../../@types/retailers'
@@ -65,14 +65,14 @@ export const productCallback = async (href: string) => {
 
     const products = findProducts()
     const productSchema = products.find(product => product.sku == sku)
-    let inventoryState: InventoryState | undefined = undefined
+    let inventoryState: InventoryStateNormalized | undefined = undefined
 
     // Broadcast inventory state
     if (productSchema) {
       inventoryState = calculateInventoryState(productSchema)
       broadcastInventoryState(inventoryState)
     } else {
-      broadcastInventoryState(InventoryState.Unknown)
+      broadcastInventoryState(InventoryStateNormalized.Unknown)
     }
 
     const nearbyInventoryRequest: NearbyInventoryProductRequest = {
@@ -95,7 +95,8 @@ export const productCallback = async (href: string) => {
         [data-test="quantity-picker"],
         [data-test="scheduledDeliveryButton"],
         [data-test="orderPickupButton"],
-        button[id^="addToCartButtonOrTextIdFor"]
+        button[id^="addToCartButtonOrTextIdFor"],
+        [data-test="shippingButton"]
       `,
     }).then(addToCartButton => {
       if (addToCartButton?.parentElement) {

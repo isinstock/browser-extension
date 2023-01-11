@@ -1,5 +1,5 @@
 import {NearbyInventoryRequestType} from '../@types/api'
-import {InventoryState} from '../@types/inventory-states'
+import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
 import {MessageAction} from '../@types/messages'
 import {insertWidget} from '../elements/widget'
@@ -23,7 +23,7 @@ export const requestFromProduct = (product: Product): NearbyInventoryRequestType
   }
 }
 
-export const findNearbyInventory = (request: NearbyInventoryRequestType, inventoryState?: InventoryState) => {
+export const findNearbyInventory = (request: NearbyInventoryRequestType, inventoryState?: InventoryStateNormalized) => {
   chrome.runtime.sendMessage({
     action: MessageAction.Product,
     value: request,

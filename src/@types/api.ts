@@ -1,4 +1,4 @@
-import {InventoryState} from './inventory-states'
+import {InventoryStateNormalized} from './inventory-states'
 import {Product} from './linked-data'
 import {Coordinate, LocationStyle, LocationStyleNormalized} from './locations'
 import {Retailer} from './retailers'
@@ -71,7 +71,7 @@ export interface NearbyInventoryResponseRetailer {
 }
 
 export interface NearbyInventoryResponseInventoryCheck {
-  state: InventoryState
+  state: InventoryStateNormalized
   quantity?: number
   checkedAt?: Date
   createdAt: Date
