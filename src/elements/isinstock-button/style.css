@@ -20,7 +20,7 @@ details summary::marker {
   @apply hidden;
 }
 
-details[data-inventory-state='IsInStock'] {
+details[data-inventory-state='available'] {
 }
 
 
@@ -34,8 +34,8 @@ summary:hover {
 }
 
 summary span {
-  @apply text-xs font-medium;
-  @apply leading-3;
+  @apply text-sm font-medium;
+  @apply leading-4;
 }
 
 .isinstock-logo {
@@ -68,4 +68,21 @@ details-menu {
   .select-menu {
     animation-name: select-menu-animation-sm;
   }
+}
+
+
+.inventory-button {
+  @apply relative inline-flex items-center rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.inventory-button-available {
+  @apply bg-green-600 text-white hover:bg-green-700  focus:ring-green-500;
+}
+
+.inventory-button-unavailable {
+  @apply bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-indigo-500;
+}
+
+.inventory-button-icon {
+  @apply -ml-0.5 mr-2 h-4 w-4;
 }

@@ -96,13 +96,13 @@ class IsInStockButtonElement extends HTMLElement {
     const span = document.createElement('span')
     span.classList.add('isinstock-button-label')
     switch (inventoryState) {
-      case InventoryState.IsInStock:
+      case InventoryState.Available:
         image.src = chrome.runtime.getURL('images/inventory-states/available/128.png')
         span.innerText = 'Checking nearby stores…'
 
         break
 
-      case InventoryState.NotInStock:
+      case InventoryState.Unavailable:
         image.src = chrome.runtime.getURL('images/inventory-states/unavailable/128.png')
         span.innerText = 'Checking nearby stores…'
         break
@@ -156,7 +156,7 @@ class IsInStockButtonElement extends HTMLElement {
     })
     // Check to see if its cheaper anywhere else
 
-    const availableStates = states.filter(state => state === 'available')
+    const availableStates = states.filter(state => state === InventoryState.Available)
     if (availableStates.length > 0) {
       label.innerText = `In stock at ${availableStates.length} locations near you`
     } else {
@@ -182,7 +182,7 @@ class IsInStockButtonElement extends HTMLElement {
         sku.locations.forEach(location => {
           const row = document.createElement('li')
 
-          if (location.inventoryCheck?.state == 'available') {
+          if (location.inventoryCheck?.state == InventoryState.Available) {
             const strong = document.createElement('strong')
             strong.innerText = location.name
             row.appendChild(strong)

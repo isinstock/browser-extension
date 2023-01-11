@@ -1,3 +1,4 @@
+import {InventoryState} from './inventory-states'
 import {Product} from './linked-data'
 import {Retailer} from './retailers'
 
@@ -51,33 +52,34 @@ export interface NearbyInventoryProductRequest extends NearbyInventoryRequest {
 
 export type NearbyInventoryRequestType = NearbyInventorySearchRequest | NearbyInventoryProductRequest
 
-interface NearbyInventoryResponseSku {
+export interface NearbyInventoryResponseSku {
   sku: string
-  model: string
-  upc: string
+  model?: string
+  upc?: string
   salePrice?: number
   price: number
   currency: string
 }
 
-interface NearbyInventoryResponseRetailer {
+export interface NearbyInventoryResponseRetailer {
   name: string
   url: string
+  imageUrl: string
 }
 
-interface NearbyInventoryResponseLocationCoordinate {
+export interface NearbyInventoryResponseLocationCoordinate {
   latitude: number
   longitude: number
 }
 
-interface NearbyInventoryResponseInventoryCheck {
-  state: string
+export interface NearbyInventoryResponseInventoryCheck {
+  state: InventoryState
   quantity?: number
   checkedAt?: Date
   createdAt: Date
 }
 
-interface NearbyInventoryResponseSkuLocationLocation {
+export interface NearbyInventoryResponseSkuLocationLocation {
   name: string
   url: string
   meters?: number
@@ -85,7 +87,7 @@ interface NearbyInventoryResponseSkuLocationLocation {
   inventoryCheck?: NearbyInventoryResponseInventoryCheck
 }
 
-interface NearbyInventoryResponseSkuLocation {
+export interface NearbyInventoryResponseSkuLocation {
   sku: string
   model: string
   upc: string
@@ -97,7 +99,7 @@ interface NearbyInventoryResponseSkuLocation {
   locations: NearbyInventoryResponseSkuLocationLocation[]
 }
 
-interface NearbyInventoryResponseLocation {
+export interface NearbyInventoryResponseLocation {
   name: string
   url: string
   style: string

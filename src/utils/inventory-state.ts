@@ -9,9 +9,9 @@ export const calculateInventoryState = (product: Product): InventoryState => {
   const offer = findOffer(product)
   if (offer) {
     if (isNewCondition(offer) && isInStock(offer)) {
-      return InventoryState.IsInStock
+      return InventoryState.Available
     } else {
-      return InventoryState.NotInStock
+      return InventoryState.Unavailable
     }
   } else {
     return InventoryState.Unknown

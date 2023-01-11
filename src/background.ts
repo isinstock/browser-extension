@@ -22,7 +22,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
   if (action === MessageAction.InventoryState) {
     switch (value as InventoryState) {
-      case InventoryState.IsInStock:
+      case InventoryState.Available:
         chrome.action.setIcon({
           path: {
             '16': '/images/inventory-states/available/16.png',
@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
         })
         break
 
-      case InventoryState.NotInStock:
+      case InventoryState.Unavailable:
         chrome.action.setIcon({
           path: {
             '16': '/images/inventory-states/unavailable/16.png',
