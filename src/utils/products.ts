@@ -2,10 +2,8 @@ import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
 import {MessageAction} from '../@types/messages'
-import {insertWidget} from '../elements/widget'
 import {isProduct} from './helpers'
 import {broadcastInventoryState, calculateInventoryState} from './inventory-state'
-import {findNearbyInventory, requestFromProduct} from './nearby-inventory'
 
 const loadJSON = (script: Element): any[] => {
   if (!script.textContent || script.textContent == '') {
@@ -30,10 +28,8 @@ const findProduct = (obj?: any): Product | null => {
 // Default callback when a product is found
 export const productCallback = (product: Product) => {
   const inventoryState = calculateInventoryState(product)
-  const request = requestFromProduct(product)
 
   broadcastInventoryState(inventoryState)
-  findNearbyInventory(request, inventoryState)
 }
 
 // Default callback when a product is not found

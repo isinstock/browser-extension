@@ -1,7 +1,6 @@
 import {findProducts} from '../../utils/products'
 import {MessageAction} from '../../@types/messages'
 import {InventoryStateNormalized} from '../../@types/inventory-states'
-import {findNearbyInventory} from '../../utils/nearby-inventory'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
 import {Retailer} from '../../@types/retailers'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
@@ -54,8 +53,6 @@ export const productCallback = (href: string) => {
     } else {
       // Insert somewhere else?
     }
-
-    // findNearbyInventory(nearbyInventoryRequest)
   }
 }
 

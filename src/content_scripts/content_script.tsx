@@ -3,7 +3,6 @@ import {findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition
 import {observeSelector} from '../utils/observers'
 import {calculateInventoryState} from '../utils/inventory-state'
 import {searchProducts, notFoundCallback, productCallback, loadProduct} from '../utils/products'
-import {insertWidget} from '../elements/widget'
 import {MessageAction} from '../@types/messages'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 
