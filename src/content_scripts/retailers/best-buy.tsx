@@ -4,7 +4,7 @@ import {InventoryStateNormalized} from '../../@types/inventory-states'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
 import {Retailer} from '../../@types/retailers'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
-import {insertIsInStockButton} from '../../elements/isinstock-button-new'
+import {insertIsInStockButton} from '../../elements/isinstock-button'
 
 // Default callback when a product is found
 export const productCallback = (href: string) => {

@@ -27,6 +27,7 @@ export interface NearbyInventoryRequest {
 
 export interface NearbyInventorySearchProductStore {
   identifier?: string
+  name?: string
   coordinate?: Coordinate
 }
 
@@ -118,8 +119,45 @@ export interface NearbyInventoryResponseLocation {
   normalizedStyle: LocationStyleNormalized
 }
 
+export enum NearbyInventoryResponseState {
+  Found = 'found',
+  Importable = 'importable',
+  Unsupported = 'unsupported',
+}
+
 export interface NearbyInventoryResponse {
+  state: NearbyInventoryResponseState
   sku?: NearbyInventoryResponseSku
   location?: NearbyInventoryResponseLocation
   skus: NearbyInventoryResponseSku[]
+}
+
+export interface NearbyInventoryResponseFound extends NearbyInventoryResponse {
+  state: NearbyInventoryResponseState.Found
+  sku: NearbyInventoryResponseSku
+}
+
+export interface NearbyInventoryResponseImportable extends NearbyInventoryResponse {
+  state: NearbyInventoryResponseState.Importable
+  sku: undefined
+}
+
+export interface NearbyInventoryResponseUnsupported extends NearbyInventoryResponse {
+  state: NearbyInventoryResponseState.Unsupported
+}
+
+export const isFoundNearbyInventoryResponse = (data: NearbyInventoryResponse): data is NearbyInventoryResponseFound => {
+  return data.state === NearbyInventoryResponseState.Found
+}
+
+export const isImportableNearbyInventoryResponse = (
+  data: NearbyInventoryResponse,
+): data is NearbyInventoryResponseImportable => {
+  return data.state === NearbyInventoryResponseState.Importable
+}
+
+export const isUnsupportedNearbyInventoryResponse = (
+  data: NearbyInventoryResponse,
+): data is NearbyInventoryResponseUnsupported => {
+  return data.state === NearbyInventoryResponseState.Unsupported
 }

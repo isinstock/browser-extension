@@ -1,13 +1,12 @@
 import {findProducts} from '../../utils/products'
 import {MessageAction} from '../../@types/messages'
 import {InventoryStateNormalized} from '../../@types/inventory-states'
-import {findNearbyInventory} from '../../utils/nearby-inventory'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
 import {Retailer} from '../../@types/retailers'
 import {observeSelector, selectorAdded} from '../../utils/observers'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
 import {ObservableElement} from '../../@types/observables'
-import {insertIsInStockButton} from '../../elements/isinstock-button-new'
+import {insertIsInStockButton} from '../../elements/isinstock-button'
 
 const storeIdSelectors = `
   #pageBodyContainer [data-test="@web/AddToCart/FulfillmentSection"] [id^="store-name-"],
@@ -27,6 +26,15 @@ const findStoreId = async (timeout: number = 2000): Promise<string | null> => {
   }
 
   return matches.groups.storeId
+}
+
+const findStoreName = (): string | null => {
+  const storeName = document.querySelector<HTMLMetaElement>(`[data-test="@web/StoreMessage/StoreName"]`)
+  if (!storeName?.textContent) {
+    return null
+  }
+
+  return storeName.textContent.trim()
 }
 
 const findSku = (href?: string): string | null => {
@@ -60,6 +68,13 @@ export const productCallback = async (href: string) => {
       console.log('Likely found location with identifier', storeId)
       store = {
         identifier: storeId,
+      }
+    } else {
+      const name = findStoreName()
+      if (name) {
+        store = {
+          name,
+        }
       }
     }
 
@@ -110,8 +125,6 @@ export const productCallback = async (href: string) => {
         // Insert somewhere else?
       }
     })
-
-    // findNearbyInventory(nearbyInventoryRequest)
   }
 }
 
