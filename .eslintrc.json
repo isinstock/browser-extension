@@ -1,15 +1,37 @@
 {
   "root": true,
-  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:github/recommended",
+    "plugin:github/typescript",
+    "plugin:prettier/recommended",
+    "plugin:react-hooks/recommended"
+  ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {"project": ["./tsconfig.json"]},
-  "plugins": ["@typescript-eslint", "plugin:github/recommended", "plugin:github/typescript"],
+  "plugins": ["@typescript-eslint", "github"],
   "rules": {
+    "eol-last": ["error", "always"],
+    "no-empty": "error",
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error",
+    "import/first": "error",
+    "import/newline-after-import": "error",
+    "import/no-duplicates": "error",
+    "import/no-deprecated": "warn",
+    "sort-imports": "off",
     "@typescript-eslint/strict-boolean-expressions": [
       2,
       {
         "allowString": false,
         "allowNumber": false
+      }
+    ],
+    "react-hooks/exhaustive-deps": [
+      "error",
+      {
+        "additionalHooks": "useRecoilCallback"
       }
     ]
   },

@@ -20,7 +20,7 @@ const res = build({
   bundle: true,
   sourcemap: 'inline',
   watch,
-  minimize: isProduction,
+  minify: isProduction,
   target: ['chrome58'],
   define: {
     API_URL,

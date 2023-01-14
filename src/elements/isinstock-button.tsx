@@ -63,7 +63,7 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
   if (isFoundNearbyInventoryResponse(data)) {
     return <FoundSku data={data} />
   } else if (isImportableNearbyInventoryResponse(data)) {
-    return <ImportableSku request={request} />
+    return <ImportableSku request={request} onImported={setData} />
   } else {
     return <UnsupportedSku />
   }
