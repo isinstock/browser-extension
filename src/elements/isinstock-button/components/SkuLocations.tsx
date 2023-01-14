@@ -1,5 +1,5 @@
-import {NearbyInventoryResponseLocation, NearbyInventoryResponseSku} from 'src/@types/api'
-import {InventoryStateNormalized} from 'src/@types/inventory-states'
+import {NearbyInventoryResponseLocation, NearbyInventoryResponseSku} from '../../../@types/api'
+import {InventoryStateNormalized} from '../../../@types/inventory-states'
 import SkuLocation from './SkuLocation'
 
 const SkuLocations = ({
@@ -17,13 +17,17 @@ const SkuLocations = ({
     return (
       <div class="sku-locations">
         {availableSkuLocations.map(skuLocation => (
-          <SkuLocation centerCoordinate={location?.coordinate} sku={sku} skuLocation={skuLocation} />
+          <SkuLocation
+            key={skuLocation.locationUrl}
+            centerCoordinate={location?.coordinate}
+            sku={sku}
+            skuLocation={skuLocation}
+          />
         ))}
       </div>
     )
-  } else {
-    return <div class="sku-locations">None available</div>
   }
+  return <div class="sku-locations">None available</div>
 }
 
 export default SkuLocations

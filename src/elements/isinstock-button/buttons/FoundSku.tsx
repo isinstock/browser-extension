@@ -1,13 +1,20 @@
-import {useEffect, useState} from 'preact/hooks'
-import {NearbyInventoryResponseFound} from 'src/@types/api'
-import {InventoryStateNormalized} from 'src/@types/inventory-states'
+import {useEffect, useRef, useState} from 'preact/hooks'
+import fetchPoll from 'src/utils/fetchPoll'
+
+import {NearbyInventoryProductRequest, NearbyInventoryResponse, NearbyInventoryResponseFound} from '../../../@types/api'
+import {InventoryStateNormalized} from '../../../@types/inventory-states'
 import Sku from '../components/Sku'
 
-const FoundSku = ({data}: {data: NearbyInventoryResponseFound}) => {
+const FoundSku = ({
+  data: responseData,
+  request,
+}: {
+  data: NearbyInventoryResponseFound
+  request: NearbyInventoryProductRequest
+}) => {
+  const [data, setData] = useState<NearbyInventoryResponseFound>(responseData)
   const [label, setLabel] = useState('Checking nearby stores…')
   const [inventoryState, setInventoryState] = useState(InventoryStateNormalized.Unknown)
-  const {sku, skus, location} = data
-
   useEffect(() => {
     if (!data) {
       return
@@ -30,6 +37,29 @@ const FoundSku = ({data}: {data: NearbyInventoryResponseFound}) => {
     }
   }, [data])
 
+  useEffect(() => {
+    const tick = async () => {
+      const response = await fetch(`${API_URL}/extension/inventory/nearby`, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(request),
+      })
+      if (response.ok) {
+        const json = (await response.json()) as NearbyInventoryResponseFound
+        setData(json)
+      }
+    }
+
+    // Refresh inventory every minute
+    const id = setInterval(tick, 60000)
+    return () => clearInterval(id)
+  }, [request])
+
   return (
     <details>
       <summary>
@@ -41,13 +71,13 @@ const FoundSku = ({data}: {data: NearbyInventoryResponseFound}) => {
         />
         <span class="isinstock-button-label">{label}</span>
       </summary>
-      {skus.length > 0 && (
+      {data.skus.length > 0 && (
         <details-menu>
           <div class="select-menu">
-            {skus.map(sku => (
-              <Sku sku={sku} location={location} />
+            {data.skus.map(sku => (
+              <Sku key={sku.sku} sku={sku} location={data.location} />
             ))}
-            <a href={sku.url} class="select-menu-item">
+            <a href={data.sku.url} class="select-menu-item">
               View on Is In Stock
             </a>
           </div>

@@ -2,6 +2,7 @@
 // https://github.com/github/include-fragment-element/blob/main/src/index.ts
 
 import '@webcomponents/custom-elements'
+
 import {NearbyInventoryProductRequest, NearbyInventoryResponse} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 
@@ -182,7 +183,7 @@ class IsInStockButtonElement extends HTMLElement {
         sku.locations.forEach(location => {
           const row = document.createElement('li')
 
-          if (location.inventoryCheck?.state == InventoryStateNormalized.Available) {
+          if (location.inventoryCheck?.state === InventoryStateNormalized.Available) {
             const strong = document.createElement('strong')
             strong.innerText = location.name
             row.appendChild(strong)
@@ -360,7 +361,7 @@ export function insertIsInStockButton(
     request,
   }: InsertIsInStockButtonOptions,
 ): IsInStockButtonElement {
-  let existingButton = document.querySelector<IsInStockButtonElement>('isinstock-button')
+  const existingButton = document.querySelector<IsInStockButtonElement>('isinstock-button')
   if (existingButton) {
     return existingButton
   }
@@ -440,9 +441,8 @@ function autofocus(details: Element): boolean {
   if (input) {
     input.focus()
     return true
-  } else {
-    return false
   }
+  return false
 }
 
 // Focus first item unless an item is already focused.

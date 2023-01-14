@@ -1,12 +1,12 @@
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
-import {ObservableElement} from '../@types/observables'
 import {MessageAction} from '../@types/messages'
+import {ObservableElement} from '../@types/observables'
 import {isProduct} from './helpers'
 import {broadcastInventoryState, calculateInventoryState} from './inventory-state'
 
 const loadJSON = (script: Element): any[] => {
-  if (!script.textContent || script.textContent == '') {
+  if (!script.textContent || script.textContent === '') {
     return []
   }
 
@@ -60,9 +60,8 @@ export const loadProduct = (script: Element): Product | null => {
   const json = loadJSON(script)
   if (json) {
     return findProduct(json)
-  } else {
-    return null
   }
+  return null
 }
 
 type LocateProductsOptions = {

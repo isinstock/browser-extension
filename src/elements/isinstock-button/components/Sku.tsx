@@ -1,4 +1,4 @@
-import {NearbyInventoryResponseLocation, NearbyInventoryResponseSku} from 'src/@types/api'
+import {NearbyInventoryResponseLocation, NearbyInventoryResponseSku} from '../../../@types/api'
 import SkuHeader from './SkuHeader'
 import SkuLocations from './SkuLocations'
 

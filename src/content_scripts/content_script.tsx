@@ -1,13 +1,13 @@
-import {ItemAvailability, OfferItemCondition, Product, Offer, AggregateOffer} from '../@types/linked-data'
-import {findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer} from '../utils/helpers'
-import {observeSelector} from '../utils/observers'
-import {calculateInventoryState} from '../utils/inventory-state'
-import {searchProducts, notFoundCallback, productCallback, loadProduct} from '../utils/products'
-import {MessageAction} from '../@types/messages'
 import {InventoryStateNormalized} from '../@types/inventory-states'
+import {AggregateOffer, ItemAvailability, Offer, OfferItemCondition, Product} from '../@types/linked-data'
+import {MessageAction} from '../@types/messages'
+import {findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer} from '../utils/helpers'
+import {calculateInventoryState} from '../utils/inventory-state'
+import {observeSelector} from '../utils/observers'
+import {loadProduct, notFoundCallback, productCallback, searchProducts} from '../utils/products'
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action == MessageAction.URLChanged) {
+  if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
   } else {
     console.log('Unknown action', request.action)

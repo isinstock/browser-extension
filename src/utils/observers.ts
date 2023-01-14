@@ -69,7 +69,6 @@ export const selectorAdded = (options: SelectorAddedOptions): Promise<HTMLElemen
     })
 
     return Promise.race<HTMLElement | null>([promise, timeout])
-  } else {
-    return promise
   }
+  return promise
 }

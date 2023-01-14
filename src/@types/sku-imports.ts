@@ -8,4 +8,10 @@ export enum SkuImportState {
 export interface SkuImportResponse {
   state: SkuImportState
   url: string
+  skuUrl?: string
+}
+
+export interface SkuImportResponseFinished extends SkuImportResponse {
+  state: SkuImportState.Finished
+  skuUrl: string
 }

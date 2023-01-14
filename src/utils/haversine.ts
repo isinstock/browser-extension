@@ -6,7 +6,7 @@ const EarthRadius = 3958.8
 export const haversineLabel = ({center, location}: {center: Coordinate; location: Coordinate}): string => {
   const miles = haversineDistance({center, location})
   const roundedMiles = Math.floor(miles)
-  const suffix = roundedMiles == 1 ? 'mile' : 'miles'
+  const suffix = roundedMiles === 1 ? 'mile' : 'miles'
 
   return `${roundedMiles} ${suffix}`
 }

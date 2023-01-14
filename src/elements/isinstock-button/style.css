@@ -59,7 +59,7 @@ details-menu {
 }
 
 .select-menu {
-  @apply pointer-events-auto relative z-[100] my-auto mx-0 flex max-h-[66%] min-w-max flex-col overflow-hidden rounded-md bg-white py-1.5 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:mt-2 sm:mb-4 sm:h-auto sm:max-h-96 sm:w-60;
+  @apply pointer-events-auto relative z-[100] my-auto mx-0 flex max-h-[66%] min-w-max flex-col overflow-scroll rounded-md bg-white py-1.5 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:mt-2 sm:mb-4 sm:h-auto sm:max-h-96 sm:w-60;
     animation: select-menu-animation 0.12s cubic-bezier(0, 0.1, 0.1, 1)
       backwards;
 }

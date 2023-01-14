@@ -1,10 +1,10 @@
-import {findProducts} from '../../utils/products'
-import {MessageAction} from '../../@types/messages'
-import {InventoryStateNormalized} from '../../@types/inventory-states'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
+import {InventoryStateNormalized} from '../../@types/inventory-states'
+import {MessageAction} from '../../@types/messages'
 import {Retailer} from '../../@types/retailers'
-import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
 import {insertIsInStockButton} from '../../elements/isinstock-button'
+import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
+import {findProducts} from '../../utils/products'
 
 // Default callback when a product is found
 export const productCallback = (href: string) => {
@@ -13,7 +13,7 @@ export const productCallback = (href: string) => {
 
   if (sku) {
     const storeId = findStoreId()
-    let store: NearbyInventorySearchProductStore | undefined = undefined
+    let store: NearbyInventorySearchProductStore | undefined
     if (storeId) {
       console.log('Likely found product with SKU', storeId)
       store = {
@@ -22,8 +22,8 @@ export const productCallback = (href: string) => {
     }
 
     const products = findProducts()
-    const productSchema = products.find(product => product.sku == sku)
-    let inventoryState: InventoryStateNormalized | undefined = undefined
+    const productSchema = products.find(product => product.sku === sku)
+    let inventoryState: InventoryStateNormalized | undefined
 
     // Broadcast inventory state
     if (productSchema) {
@@ -89,7 +89,7 @@ const findSku = (): string | null => {
 
 // Can we detect store location changing and re-issue request?
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action == MessageAction.URLChanged) {
+  if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
     productCallback(request.url)
   } else {

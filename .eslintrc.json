@@ -1,16 +1,22 @@
 {
   "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {"project": ["./tsconfig.json"]},
+  "plugins": [
+    "@typescript-eslint",
+    "github",
+    "jest",
+    "simple-import-sort"
+  ],
   "extends": [
     "eslint:recommended",
+    "preact",
     "plugin:@typescript-eslint/recommended",
     "plugin:github/recommended",
     "plugin:github/typescript",
     "plugin:prettier/recommended",
     "plugin:react-hooks/recommended"
   ],
-  "parser": "@typescript-eslint/parser",
-  "parserOptions": {"project": ["./tsconfig.json"]},
-  "plugins": ["@typescript-eslint", "github"],
   "rules": {
     "eol-last": ["error", "always"],
     "no-empty": "error",
@@ -21,6 +27,9 @@
     "import/no-duplicates": "error",
     "import/no-deprecated": "warn",
     "sort-imports": "off",
+    "filenames/match-regex": "off",
+    "filenames/match-exported": 2,
+    "i18n-text/no-en": "off",
     "@typescript-eslint/strict-boolean-expressions": [
       2,
       {

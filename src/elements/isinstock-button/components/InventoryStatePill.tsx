@@ -1,4 +1,4 @@
-import {InventoryStateNormalized} from 'src/@types/inventory-states'
+import {InventoryStateNormalized} from '../../../@types/inventory-states'
 
 type InventoryStatePillProps = {
   inventoryState: InventoryStateNormalized

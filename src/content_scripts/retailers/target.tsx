@@ -1,12 +1,12 @@
-import {findProducts} from '../../utils/products'
-import {MessageAction} from '../../@types/messages'
-import {InventoryStateNormalized} from '../../@types/inventory-states'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
-import {Retailer} from '../../@types/retailers'
-import {observeSelector, selectorAdded} from '../../utils/observers'
-import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
+import {InventoryStateNormalized} from '../../@types/inventory-states'
+import {MessageAction} from '../../@types/messages'
 import {ObservableElement} from '../../@types/observables'
+import {Retailer} from '../../@types/retailers'
 import {insertIsInStockButton} from '../../elements/isinstock-button'
+import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
+import {observeSelector, selectorAdded} from '../../utils/observers'
+import {findProducts} from '../../utils/products'
 
 const storeIdSelectors = `
   #pageBodyContainer [data-test="@web/AddToCart/FulfillmentSection"] [id^="store-name-"],
@@ -14,7 +14,7 @@ const storeIdSelectors = `
   #pageBodyContainer [id^="store-name-"]
 `
 
-const findStoreId = async (timeout: number = 2000): Promise<string | null> => {
+const findStoreId = async (timeout = 2000): Promise<string | null> => {
   const store = await selectorAdded({selector: storeIdSelectors, timeout})
   if (!store) {
     return null
@@ -63,7 +63,7 @@ export const productCallback = async (href: string) => {
   if (sku) {
     console.log('Likely found product with SKU', sku)
     const storeId = await findStoreId()
-    let store: NearbyInventorySearchProductStore | undefined = undefined
+    let store: NearbyInventorySearchProductStore | undefined
     if (storeId) {
       console.log('Likely found location with identifier', storeId)
       store = {
@@ -79,8 +79,8 @@ export const productCallback = async (href: string) => {
     }
 
     const products = findProducts()
-    const productSchema = products.find(product => product.sku == sku)
-    let inventoryState: InventoryStateNormalized | undefined = undefined
+    const productSchema = products.find(product => product.sku === sku)
+    let inventoryState: InventoryStateNormalized | undefined
 
     // Broadcast inventory state
     if (productSchema) {
@@ -130,7 +130,7 @@ export const productCallback = async (href: string) => {
 
 // Can we detect store location changing and re-issue request?
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  if (request.action == MessageAction.URLChanged) {
+  if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
 
     productCallback(request.url)

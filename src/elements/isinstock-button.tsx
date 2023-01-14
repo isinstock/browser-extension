@@ -1,23 +1,24 @@
 import {render} from 'preact'
 import {useCallback, useEffect, useState} from 'preact/hooks'
-import {Coordinate, LocationStyleNormalized} from 'src/@types/locations'
-import {haversineLabel} from 'src/utils/haversine'
+
 import {
-  NearbyInventoryResponseState,
-  NearbyInventoryProductRequest,
-  NearbyInventoryResponse,
-  NearbyInventoryResponseSkuLocation,
-  NearbyInventoryResponseSku,
-  NearbyInventoryResponseSkuLocationPhysical,
-  isOnlineSkuLocation,
-  NearbyInventoryResponseSkuLocationOnline,
-  NearbyInventoryResponseLocation,
-  NearbyInventoryResponseFound,
   isFoundNearbyInventoryResponse,
   isImportableNearbyInventoryResponse,
+  isOnlineSkuLocation,
+  NearbyInventoryProductRequest,
+  NearbyInventoryResponse,
+  NearbyInventoryResponseFound,
   NearbyInventoryResponseImportable,
+  NearbyInventoryResponseLocation,
+  NearbyInventoryResponseSku,
+  NearbyInventoryResponseSkuLocation,
+  NearbyInventoryResponseSkuLocationOnline,
+  NearbyInventoryResponseSkuLocationPhysical,
+  NearbyInventoryResponseState,
 } from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
+import {Coordinate, LocationStyleNormalized} from '../@types/locations'
+import {haversineLabel} from '../utils/haversine'
 import FoundSku from './isinstock-button/buttons/FoundSku'
 import ImportableSku from './isinstock-button/buttons/ImportableSku'
 import UnsupportedSku from './isinstock-button/buttons/UnsupportedSku'
@@ -61,12 +62,12 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
   const {state} = data
 
   if (isFoundNearbyInventoryResponse(data)) {
-    return <FoundSku data={data} />
+    // Can we always just rely on sending original request?
+    return <FoundSku data={data} request={request} />
   } else if (isImportableNearbyInventoryResponse(data)) {
     return <ImportableSku request={request} onImported={setData} />
-  } else {
-    return <UnsupportedSku />
   }
+  return <UnsupportedSku />
 }
 
 interface InsertIsInStockButtonOptions {

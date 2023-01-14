@@ -1,5 +1,5 @@
-import {ItemAvailability, OfferItemCondition, Product, Offer} from './@types/linked-data'
 import {InventoryStateNormalized} from './@types/inventory-states'
+import {ItemAvailability, Offer, OfferItemCondition, Product} from './@types/linked-data'
 import {MessageAction} from './@types/messages'
 
 // To fire a message to detect for product on page
@@ -10,7 +10,7 @@ chrome.tabs.onActivated.addListener(activeInfo => {
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   console.log(tabId, changeInfo, tab)
-  if (changeInfo.status == 'complete') {
+  if (changeInfo.status === 'complete') {
     chrome.tabs.sendMessage(tabId, {
       action: MessageAction.URLChanged,
       url: tab.url,
@@ -49,7 +49,6 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
         break
 
       default:
-        console.log('setIcon(default)')
         chrome.action.setIcon({
           path: {
             '16': '/images/default/16.png',

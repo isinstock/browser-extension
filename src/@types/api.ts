@@ -92,7 +92,7 @@ export interface NearbyInventoryResponseSkuLocationPhysical extends NearbyInvent
   coordinate: Coordinate
 }
 
-export interface NearbyInventoryResponseSkuLocationOnline extends NearbyInventoryResponseSkuLocationBase {}
+export type NearbyInventoryResponseSkuLocationOnline = NearbyInventoryResponseSkuLocationBase
 
 export type NearbyInventoryResponseSkuLocation =
   | NearbyInventoryResponseSkuLocationPhysical

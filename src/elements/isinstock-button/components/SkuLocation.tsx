@@ -4,9 +4,9 @@ import {
   NearbyInventoryResponseSkuLocation,
   NearbyInventoryResponseSkuLocationOnline,
   NearbyInventoryResponseSkuLocationPhysical,
-} from 'src/@types/api'
-import {Coordinate} from 'src/@types/locations'
-import {haversineLabel} from 'src/utils/haversine'
+} from '../../../@types/api'
+import {Coordinate} from '../../../@types/locations'
+import {haversineLabel} from '../../../utils/haversine'
 import InventoryStatePill from './InventoryStatePill'
 
 const SkuLocation = ({
@@ -20,9 +20,8 @@ const SkuLocation = ({
 }) => {
   if (isOnlineSkuLocation(skuLocation)) {
     return <SkuLocationOnline sku={sku} skuLocation={skuLocation} />
-  } else {
-    return <SkuLocationPhysical centerCoordinate={centerCoordinate} sku={sku} skuLocation={skuLocation} />
   }
+  return <SkuLocationPhysical centerCoordinate={centerCoordinate} sku={sku} skuLocation={skuLocation} />
 }
 
 export default SkuLocation

@@ -1,7 +1,7 @@
-import {ItemAvailability, Product} from '../@types/linked-data'
-import {findOffer, isInStock, isNewCondition} from './helpers'
 import {InventoryStateNormalized} from '../@types/inventory-states'
+import {Product} from '../@types/linked-data'
 import {MessageAction} from '../@types/messages'
+import {findOffer, isInStock, isNewCondition} from './helpers'
 
 export const calculateInventoryState = (product: Product): InventoryStateNormalized => {
   console.log('Found product', product)
@@ -10,12 +10,10 @@ export const calculateInventoryState = (product: Product): InventoryStateNormali
   if (offer) {
     if (isNewCondition(offer) && isInStock(offer)) {
       return InventoryStateNormalized.Available
-    } else {
-      return InventoryStateNormalized.Unavailable
     }
-  } else {
-    return InventoryStateNormalized.Unknown
+    return InventoryStateNormalized.Unavailable
   }
+  return InventoryStateNormalized.Unknown
 }
 
 export const broadcastInventoryState = (inventoryState: InventoryStateNormalized) => {

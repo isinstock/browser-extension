@@ -1,4 +1,4 @@
-import {AggregateOffer, ItemAvailability, Offer, OfferItemCondition, Product} from '../@types/linked-data'
+import {AggregateOffer, Offer, Product} from '../@types/linked-data'
 
 export const isAggregateOffer = (obj?: Offer | Offer[] | AggregateOffer): obj is AggregateOffer => {
   if (!obj || obj instanceof Array) {
@@ -36,7 +36,7 @@ export const findOffer = (obj: Product | AggregateOffer): Offer | undefined => {
   if (isMultipleOffers(obj.offers)) {
     if (obj.offers.length > 1) {
       return obj.offers.find(offer => isNewCondition(offer))
-    } else if (obj.offers.length == 1) {
+    } else if (obj.offers.length === 1) {
       return obj.offers[0]
     }
   }
@@ -50,9 +50,9 @@ export const isNewCondition = (offer: Offer): boolean => {
   }
 
   return (
-    offer.itemCondition == 'http://schema.org/NewCondition' ||
-    offer.itemCondition == 'https://schema.org/NewCondition' ||
-    offer.itemCondition == 'NewCondition'
+    offer.itemCondition === 'http://schema.org/NewCondition' ||
+    offer.itemCondition === 'https://schema.org/NewCondition' ||
+    offer.itemCondition === 'NewCondition'
   )
 }
 
@@ -62,24 +62,24 @@ export const isInStock = (offer: Offer): boolean => {
   }
 
   return (
-    offer.availability == 'http://schema.org/InStock' ||
-    offer.availability == 'https://schema.org/InStock' ||
-    offer.availability == 'InStock' ||
-    offer.availability == 'http://schema.org/InStoreOnly' ||
-    offer.availability == 'https://schema.org/InStoreOnly' ||
-    offer.availability == 'InStoreOnly' ||
-    offer.availability == 'http://schema.org/LimitedAvailability' ||
-    offer.availability == 'https://schema.org/LimitedAvailability' ||
-    offer.availability == 'LimitedAvailability' ||
-    offer.availability == 'http://schema.org/OnlineOnly' ||
-    offer.availability == 'https://schema.org/OnlineOnly' ||
-    offer.availability == 'OnlineOnly' ||
-    offer.availability == 'http://schema.org/PreSale' ||
-    offer.availability == 'https://schema.org/PreSale' ||
-    offer.availability == 'PreSale' ||
-    offer.availability == 'http://schema.org/PreOrder' ||
-    offer.availability == 'https://schema.org/PreOrder' ||
-    offer.availability == 'PreOrder'
+    offer.availability === 'http://schema.org/InStock' ||
+    offer.availability === 'https://schema.org/InStock' ||
+    offer.availability === 'InStock' ||
+    offer.availability === 'http://schema.org/InStoreOnly' ||
+    offer.availability === 'https://schema.org/InStoreOnly' ||
+    offer.availability === 'InStoreOnly' ||
+    offer.availability === 'http://schema.org/LimitedAvailability' ||
+    offer.availability === 'https://schema.org/LimitedAvailability' ||
+    offer.availability === 'LimitedAvailability' ||
+    offer.availability === 'http://schema.org/OnlineOnly' ||
+    offer.availability === 'https://schema.org/OnlineOnly' ||
+    offer.availability === 'OnlineOnly' ||
+    offer.availability === 'http://schema.org/PreSale' ||
+    offer.availability === 'https://schema.org/PreSale' ||
+    offer.availability === 'PreSale' ||
+    offer.availability === 'http://schema.org/PreOrder' ||
+    offer.availability === 'https://schema.org/PreOrder' ||
+    offer.availability === 'PreOrder'
   )
 }
 

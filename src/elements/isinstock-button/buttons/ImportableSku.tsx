@@ -1,32 +1,8 @@
 import {StateUpdater, useCallback, useEffect, useState} from 'preact/hooks'
-import {NearbyInventoryProductRequest, NearbyInventoryResponse} from 'src/@types/api'
-import {SkuImportResponse, SkuImportState} from 'src/@types/sku-imports'
+import fetchPoll from 'src/utils/fetchPoll'
 
-const fetchPoll = async (url: RequestInfo, options: RequestInit, pollInterval: number = 1000): Promise<Response> => {
-  const poll = async (wait: number): Promise<Response> => {
-    const request = new Request(url, options)
-    const response = await fetch(request)
-    const {status} = response
-    if (status < 200 || status >= 300) {
-      throw new Error(`Bad response status ${status}`)
-    }
-
-    if (response.redirected) {
-      return response
-    }
-
-    const json = (await response.json()) as SkuImportResponse
-    const {state} = json
-
-    if (state === SkuImportState.Errored || state === SkuImportState.Finished) {
-      return response
-    }
-
-    await new Promise(resolve => setTimeout(resolve, wait))
-    return poll(wait)
-  }
-  return poll(pollInterval)
-}
+import {NearbyInventoryProductRequest, NearbyInventoryResponse} from '../../../@types/api'
+import {SkuImportResponse, SkuImportResponseFinished} from '../../../@types/sku-imports'
 
 const ImportableSku = ({
   request,
@@ -54,9 +30,31 @@ const ImportableSku = ({
       const json = (await response.json()) as SkuImportResponse
 
       setSkuImportUrl(json.url)
-    } else if (response.redirected) {
-      const skuResponse = await fetch(response.url, {
-        method: 'get',
+    } else {
+      throw new Error(`Bad response status ${response.status}`)
+    }
+  }, [request])
+
+  useEffect(() => {
+    const fetchSkuImport = async () => {
+      if (!skuImportUrl) {
+        return
+      }
+
+      const response = await fetchPoll(skuImportUrl, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+        redirect: 'follow',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+      })
+      const json = (await response.json()) as SkuImportResponseFinished
+
+      const skuResponse = await fetch(json.skuUrl, {
+        method: 'POST',
         mode: 'cors',
         cache: 'no-cache',
         headers: {
@@ -67,56 +65,15 @@ const ImportableSku = ({
       })
 
       if (skuResponse.ok) {
-        const json = (await skuResponse.json()) as NearbyInventoryResponse
-        onImported(json)
+        const skuResponseJson = (await skuResponse.json()) as NearbyInventoryResponse
+        onImported(skuResponseJson)
       } else {
+        throw new Error('what!')
         // some error state here
       }
     }
-  }, [request, onImported])
-
-  useEffect(() => {
-    if (!skuImportUrl) {
-      return
-    }
-
-    fetchPoll(skuImportUrl, {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-cache',
-      redirect: 'follow',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-    })
-      .then(async response => {
-        if (response.redirected) {
-          const skuResponse = await fetch(response.url, {
-            method: 'get',
-            mode: 'cors',
-            cache: 'no-cache',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            },
-            body: JSON.stringify(request),
-          })
-
-          if (skuResponse.ok) {
-            const json = (await skuResponse.json()) as NearbyInventoryResponse
-            onImported(json)
-          } else {
-            // some error state here
-          }
-        } else {
-          console.log('skuImport response', response)
-        }
-      })
-      .catch(error => {
-        console.log(error)
-      })
-  }, [skuImportUrl])
+    fetchSkuImport()
+  }, [skuImportUrl, onImported, request])
 
   return (
     <details>

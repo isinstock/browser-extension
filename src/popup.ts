@@ -1,5 +1,5 @@
 chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
-  if (action == 'product') {
+  if (action === 'product') {
     document.body.innerHTML = JSON.stringify(value)
   }
 })
