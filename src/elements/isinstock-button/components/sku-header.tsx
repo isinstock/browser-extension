@@ -1,5 +1,5 @@
 import {InventoryStateNormalized} from '../../../@types/inventory-states'
-import RetailerProductLink from './RetailerProductLink'
+import RetailerProductLink from './retailer-product-link'
 import {SkuProps} from './Sku'
 
 const SkuHeader = ({sku}: SkuProps) => {
