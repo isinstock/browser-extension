@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'preact/hooks'
 
-export function useAuth() {
+export default function useAuth(): {isLoggedIn: boolean; accessToken: string | null} {
   const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
@@ -13,8 +13,7 @@ export function useAuth() {
   }, [])
 
   useEffect(() => {
-    const handleStorageOnChanged = (changes: Record<string, chrome.storage.StorageChange>, namespace: string) => {
-      console.log('handleStorageOnChanged', namespace)
+    const handleStorageOnChanged = (changes: Record<string, chrome.storage.StorageChange>, _areaName: string) => {
       if ('accessToken' in changes) {
         setAccessToken(changes.accessToken.newValue)
       }
@@ -29,5 +28,6 @@ export function useAuth() {
 
   return {
     accessToken,
+    isLoggedIn: accessToken !== null && accessToken !== '',
   }
 }

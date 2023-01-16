@@ -1,6 +1,6 @@
 import {NearbyInventoryResponseLocation, NearbyInventoryResponseSku} from '../../../@types/api'
 import {InventoryStateNormalized} from '../../../@types/inventory-states'
-import SkuLocation from './SkuLocation'
+import SkuLocation from './sku-location'
 
 const SkuLocations = ({
   sku,

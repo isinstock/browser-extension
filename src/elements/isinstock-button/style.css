@@ -71,7 +71,6 @@ details-menu {
   }
 }
 
-
 .inventory-button {
   @apply relative inline-flex items-center rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2;
 }

@@ -39,6 +39,21 @@
     },
     {
       "resources": [
+        "pages/action-popup/style.css",
+        "images/logos/isinstock.svg",
+        "images/logos/isinstock/16.png",
+        "images/logos/isinstock/24.png",
+        "images/logos/isinstock/32.png",
+        "images/logos/isinstock/48.png",
+        "images/logos/isinstock/64.png",
+        "images/logos/isinstock/128.png"
+      ],
+      "extension_ids": [
+        "jbokheigkkbbkonejaipdkhnbdefdegg"
+      ]
+    },
+    {
+      "resources": [
         "elements/isinstock-button/style.css",
         "images/inventory-states/unknown.svg",
         "images/inventory-states/unknown/16.png",

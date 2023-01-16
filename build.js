@@ -4,17 +4,18 @@ const postCssPlugin = require('esbuild-style-plugin')
 
 const isProduction = process.argv[2] === '--production'
 const watch = process.argv[2] === '--watch'
-const API_URL = isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"'
+const ISINSTOCK_URL = isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"'
 
 build({
   logLevel: 'info',
   entryPoints: [
     './src/elements/isinstock-button/style.css',
+    './src/pages/action-popup/style.css',
     './src/content_scripts/content_script.tsx',
     './src/content_scripts/retailers/best-buy.tsx',
     './src/content_scripts/retailers/target.tsx',
+    './src/pages/action-popup.tsx',
     './src/background.ts',
-    './src/popup.ts',
   ],
   outdir: 'dist',
   bundle: true,
@@ -23,7 +24,7 @@ build({
   minify: isProduction,
   target: ['chrome58'],
   define: {
-    API_URL,
+    ISINSTOCK_URL,
   },
   plugins: [
     postCssPlugin({

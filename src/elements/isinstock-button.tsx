@@ -1,6 +1,5 @@
 import {render} from 'preact'
 import {useEffect, useState} from 'preact/hooks'
-import {UserProvider} from '../contexts/user-context'
 
 import {
   isFoundNearbyInventoryResponse,
@@ -9,10 +8,11 @@ import {
   NearbyInventoryResponse,
 } from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
+import {UserProvider} from '../contexts/user-context'
+import {useAuth} from '../hooks'
 import FoundSku from './isinstock-button/buttons/found-sku'
 import ImportableSku from './isinstock-button/buttons/importable-sku'
 import UnsupportedSku from './isinstock-button/buttons/unsupported-sku'
-import {useAuth} from '../hooks/use-auth'
 
 type IsInStockButtonProps = {
   request: NearbyInventoryProductRequest
@@ -23,7 +23,7 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch(`${API_URL}/extension/inventory/nearby`, {
+      const response = await fetch(`${ISINSTOCK_URL}/extension/inventory/nearby`, {
         method: 'POST',
         mode: 'cors',
         cache: 'no-cache',

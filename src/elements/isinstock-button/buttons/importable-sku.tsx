@@ -1,20 +1,25 @@
 import {StateUpdater, useCallback, useEffect, useState} from 'preact/hooks'
-import fetchPoll from 'src/utils/fetchPoll'
 
 import {NearbyInventoryProductRequest, NearbyInventoryResponse} from '../../../@types/api'
 import {SkuImportResponse, SkuImportResponseFinished} from '../../../@types/sku-imports'
+import {useAuth} from '../../../hooks'
+import fetchPoll from '../../../utils/fetchPoll'
 
-const ImportableSku = ({
-  request,
-  onImported,
-}: {
-  request: NearbyInventoryProductRequest
-  onImported: StateUpdater<null | NearbyInventoryResponse>
-}) => {
+const SelectMenu = ({request, onImported}: ImportableSkuProps) => {
+  const {isLoggedIn} = useAuth()
+
+  if (isLoggedIn) {
+    return <LoggedInMenu request={request} onImported={onImported} />
+  }
+
+  return <LoggedOutMenu />
+}
+
+const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
   const [skuImportUrl, setSkuImportUrl] = useState<string | null>(null)
 
   const importSku = useCallback(async () => {
-    const response = await fetch(`${API_URL}/extension/skus/import`, {
+    const response = await fetch(`${ISINSTOCK_URL}/extension/skus/import`, {
       method: 'POST',
       mode: 'cors',
       cache: 'no-cache',
@@ -76,6 +81,23 @@ const ImportableSku = ({
   }, [skuImportUrl, onImported, request])
 
   return (
+    <button type="button" onClick={importSku}>
+      Import!
+    </button>
+  )
+}
+
+const LoggedOutMenu = () => {
+  return <a href={`${ISINSTOCK_URL}/users/sign_in?redirect_to=${encodeURIComponent(location.href)}`}>Login</a>
+}
+
+type ImportableSkuProps = {
+  request: NearbyInventoryProductRequest
+  onImported: StateUpdater<null | NearbyInventoryResponse>
+}
+
+const ImportableSku = ({request, onImported}: ImportableSkuProps) => {
+  return (
     <details>
       <summary>
         <img
@@ -84,13 +106,11 @@ const ImportableSku = ({
           height="16"
           src={chrome.runtime.getURL(`images/inventory-states/unknown.svg`)}
         />
-        <span class="isinstock-button-label">Track</span>
+        <span>Track</span>
       </summary>
       <details-menu>
         <div class="select-menu">
-          <button type="button" onClick={importSku}>
-            Import!
-          </button>
+          <SelectMenu request={request} onImported={onImported} />
         </div>
       </details-menu>
     </details>
