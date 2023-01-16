@@ -101,11 +101,11 @@ const SkuLocationPhysical = ({
             <span class="hidden sm:inline">{sku.retailer.name}</span> {skuLocation.name}
           </span>
 
-          {/* This should be its own component */}
-          <span class="text-xs text-gray-600">
-            {centerCoordinate && <LocationDistance center={centerCoordinate} location={skuLocation.coordinate} />}
-            <span class="hidden sm:inline-block">&bull; {skuLocation.address}</span>
-          </span>
+          {centerCoordinate && (
+            <span class="text-xs text-gray-600">
+              <LocationDistance center={centerCoordinate} location={skuLocation.coordinate} />
+            </span>
+          )}
         </div>
       </div>
       <div class="whitespace-nowrap p-2 align-middle text-xs text-gray-500">

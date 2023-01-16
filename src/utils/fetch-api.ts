@@ -11,7 +11,9 @@ const fetchApi = async (path: string, method: string, body: BodyInit | null | un
     headers['Authorization'] = `Bearer ${accessToken}`
   }
 
-  return fetch(`${ISINSTOCK_URL}${path}`, {
+  const input = path[0] === '/' ? `${ISINSTOCK_URL}${path}` : path
+
+  return fetch(input, {
     method,
     mode: 'cors',
     cache: 'no-cache',

@@ -19,6 +19,7 @@ const SelectMenu = ({request, onImported}: ImportableSkuProps) => {
 
 const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
   const [skuImportUrl, setSkuImportUrl] = useState<string | null>(null)
+  const {accessToken} = useAuth()
 
   const importSku = useCallback(async () => {
     const response = await fetchApi('/extension/skus/import', 'POST', JSON.stringify(request))
@@ -34,7 +35,7 @@ const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
 
   useEffect(() => {
     const fetchSkuImport = async () => {
-      if (!skuImportUrl) {
+      if (skuImportUrl === null || skuImportUrl === '') {
         return
       }
 
@@ -46,6 +47,7 @@ const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          Authorization: `Bearer ${accessToken}`,
         },
       })
       const json = (await response.json()) as SkuImportResponseFinished
@@ -61,7 +63,7 @@ const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
       }
     }
     fetchSkuImport()
-  }, [skuImportUrl, onImported, request])
+  }, [skuImportUrl, onImported, request, accessToken])
 
   return (
     <button type="button" onClick={importSku}>

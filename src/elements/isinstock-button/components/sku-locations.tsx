@@ -15,7 +15,7 @@ const SkuLocations = ({
 
   if (availableSkuLocations.length > 0) {
     return (
-      <div class="sku-locations">
+      <div>
         {availableSkuLocations.map(skuLocation => (
           <SkuLocation
             key={skuLocation.locationUrl}
@@ -27,7 +27,11 @@ const SkuLocations = ({
       </div>
     )
   }
-  return <div class="sku-locations">None available</div>
+  return (
+    <div class="flex w-full items-center border-t border-gray-300 px-2">
+      <div class="py-2 pl-2 align-middle text-sm text-gray-400 sm:pl-0">None Available</div>
+    </div>
+  )
 }
 
 export default SkuLocations
