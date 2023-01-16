@@ -9,14 +9,14 @@ const SkuHeader = ({sku}: SkuProps) => {
     availableStates.length > 0 ? InventoryStateNormalized.Available : InventoryStateNormalized.Unavailable
 
   return (
-    <div class="flex items-center space-x-2 py-2 text-gray-900 px-2">
+    <div class="flex items-center space-x-2 p-2 text-gray-900">
       <div>
-        <span class="inline-block align-middle w-6">
-          <img class="max-w-6" src={sku.retailer.imageUrl} />
+        <span class="inline-block w-6 align-middle">
+          <img class="max-w-fit" src={sku.retailer.imageUrl} />
         </span>
       </div>
       <div class="w-full leading-3">
-        <span class="text-lg font-semibold block">{sku.retailer.name}</span>
+        <span class="block text-lg font-semibold">{sku.retailer.name}</span>
         <div class="space-x-2">
           {sku.model && (
             <span class="text-xs text-gray-500">
@@ -30,7 +30,7 @@ const SkuHeader = ({sku}: SkuProps) => {
           <>
             <div class="font-medium">{sku.formattedSalePrice}</div>
             <div class="text-xs">
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
                 {sku.formattedDiscountPrice} off
               </span>
               was {sku.formattedPrice}

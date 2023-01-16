@@ -1,35 +1,25 @@
 import {render} from 'preact'
-import {useCallback, useEffect, useState} from 'preact/hooks'
+import {useEffect, useState} from 'preact/hooks'
+import {UserProvider} from '../contexts/user-context'
 
 import {
   isFoundNearbyInventoryResponse,
   isImportableNearbyInventoryResponse,
-  isOnlineSkuLocation,
   NearbyInventoryProductRequest,
   NearbyInventoryResponse,
-  NearbyInventoryResponseFound,
-  NearbyInventoryResponseImportable,
-  NearbyInventoryResponseLocation,
-  NearbyInventoryResponseSku,
-  NearbyInventoryResponseSkuLocation,
-  NearbyInventoryResponseSkuLocationOnline,
-  NearbyInventoryResponseSkuLocationPhysical,
-  NearbyInventoryResponseState,
 } from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
-import {Coordinate, LocationStyleNormalized} from '../@types/locations'
-import {haversineLabel} from '../utils/haversine'
-import FoundSku from './isinstock-button/buttons/FoundSku'
-import ImportableSku from './isinstock-button/buttons/ImportableSku'
-import UnsupportedSku from './isinstock-button/buttons/UnsupportedSku'
-import InventoryStatePill from './isinstock-button/components/InventoryStatePill'
-import RetailerProductLink from './isinstock-button/components/RetailerProductLink'
+import FoundSku from './isinstock-button/buttons/found-sku'
+import ImportableSku from './isinstock-button/buttons/importable-sku'
+import UnsupportedSku from './isinstock-button/buttons/unsupported-sku'
+import {useAuth} from '../hooks/use-auth'
 
 type IsInStockButtonProps = {
   request: NearbyInventoryProductRequest
 }
 const IsInStockButton = ({request}: IsInStockButtonProps) => {
   const [data, setData] = useState<null | NearbyInventoryResponse>(null)
+  const {accessToken} = useAuth()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,6 +45,11 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
     fetchData()
   }, [request])
 
+  console.log(accessToken)
+  if (!accessToken) {
+    return <span>No auth</span>
+  }
+
   if (!data) {
     return <></>
   }
@@ -79,19 +74,24 @@ interface InsertIsInStockButtonOptions {
 // Can we cache buttons that are created based on URL or some other unique key?
 const buttons = new WeakMap()
 
-export function insertIsInStockButton(
+export const insertIsInStockButton = (
   element: HTMLElement,
   {
     insertPosition = 'afterend',
     inventoryState = InventoryStateNormalized.Unknown,
     request,
   }: InsertIsInStockButtonOptions,
-): HTMLElement {
+): HTMLElement => {
   let wrapper = document.querySelector<HTMLElement>('#isinstock-button')
   let shadowRoot = wrapper?.shadowRoot
+  const app = (
+    <UserProvider>
+      <IsInStockButton request={request} />
+    </UserProvider>
+  )
   if (wrapper) {
     shadowRoot = wrapper.shadowRoot as ShadowRoot
-    render(<IsInStockButton request={request} />, shadowRoot)
+    render(app, shadowRoot)
   } else {
     wrapper = document.createElement('div')
     wrapper.id = 'isinstock-button'
@@ -105,7 +105,7 @@ export function insertIsInStockButton(
 
     element.insertAdjacentElement(insertPosition, wrapper)
 
-    render(<IsInStockButton request={request} />, shadowRoot)
+    render(app, shadowRoot)
   }
 
   return wrapper

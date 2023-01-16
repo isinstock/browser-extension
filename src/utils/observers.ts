@@ -1,6 +1,4 @@
-import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
-import {searchProducts} from './products'
 
 export const observeSelector = (
   selector: string,

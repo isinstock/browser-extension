@@ -1,6 +1,6 @@
 import {NearbyInventoryResponseLocation, NearbyInventoryResponseSku} from '../../../@types/api'
-import SkuHeader from './SkuHeader'
-import SkuLocations from './SkuLocations'
+import SkuHeader from './sku-header'
+import SkuLocations from './sku-locations'
 
 export type SkuProps = {
   sku: NearbyInventoryResponseSku

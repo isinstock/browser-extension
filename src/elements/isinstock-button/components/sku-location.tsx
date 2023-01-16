@@ -7,7 +7,7 @@ import {
 } from '../../../@types/api'
 import {Coordinate} from '../../../@types/locations'
 import {haversineLabel} from '../../../utils/haversine'
-import InventoryStatePill from './InventoryStatePill'
+import InventoryStateBadge from './inventory-state-badge'
 
 const SkuLocation = ({
   sku,
@@ -35,7 +35,7 @@ const SkuLocationOnline = ({
 }) => {
   return (
     <div class="flex w-full items-center border-t border-gray-300 px-2">
-      <div class="py-2 pl-2 sm:pl-0 text-sm text-gray-400 align-middle">
+      <div class="py-2 pl-2 align-middle text-sm text-gray-400 sm:pl-0">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-5 w-5 text-gray-400"
@@ -51,18 +51,18 @@ const SkuLocationOnline = ({
           />
         </svg>
       </div>
-      <div class="whitespace-nowrap px-2 py-2 text-sm text-gray-900 w-full">
+      <div class="w-full whitespace-nowrap p-2 text-sm text-gray-900">
         <div class="flex items-center space-x-2">
           <span class="font-medium">
             <span class="hidden sm:inline">{sku.retailer.name}</span> Online
           </span>
         </div>
       </div>
-      <div class="whitespace-nowrap px-2 py-2 text-xs text-gray-500 align-middle">
+      <div class="whitespace-nowrap p-2 align-middle text-xs text-gray-500">
         <div class="flex items-center space-x-2 sm:space-x-4">{/* <div class="flex space-x-2">As of …</div> */}</div>
       </div>
-      <div class="whitespace-nowrap py-2 pr-2 sm:pr-0 text-xs font-semibold text-right">
-        {skuLocation.inventoryCheck?.state && <InventoryStatePill inventoryState={skuLocation.inventoryCheck.state} />}
+      <div class="whitespace-nowrap py-2 pr-2 text-right text-xs font-semibold sm:pr-0">
+        {skuLocation.inventoryCheck?.state && <InventoryStateBadge inventoryState={skuLocation.inventoryCheck.state} />}
       </div>
     </div>
   )
@@ -79,7 +79,7 @@ const SkuLocationPhysical = ({
 }) => {
   return (
     <div class="flex w-full items-center border-t border-gray-300 px-2">
-      <div class="py-2 pl-2 sm:pl-0 text-sm text-gray-400 align-middle">
+      <div class="py-2 pl-2 align-middle text-sm text-gray-400 sm:pl-0">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-5 w-5 text-gray-400"
@@ -95,24 +95,24 @@ const SkuLocationPhysical = ({
           />
         </svg>
       </div>
-      <div class="whitespace-nowrap px-2 py-2 text-sm text-gray-900 w-full">
+      <div class="w-full whitespace-nowrap p-2 text-sm text-gray-900">
         <div class="flex items-center space-x-2">
           <span class="font-medium">
             <span class="hidden sm:inline">{sku.retailer.name}</span> {skuLocation.name}
           </span>
 
           {/* This should be its own component */}
-          <span class="text-gray-600 text-xs">
+          <span class="text-xs text-gray-600">
             {centerCoordinate && <LocationDistance center={centerCoordinate} location={skuLocation.coordinate} />}
             <span class="hidden sm:inline-block">&bull; {skuLocation.address}</span>
           </span>
         </div>
       </div>
-      <div class="whitespace-nowrap px-2 py-2 text-xs text-gray-500 align-middle">
+      <div class="whitespace-nowrap p-2 align-middle text-xs text-gray-500">
         <div class="flex items-center space-x-2 sm:space-x-4">{/* <div class="flex space-x-2">As of …</div> */}</div>
       </div>
-      <div class="whitespace-nowrap py-2 pr-2 sm:pr-0 text-xs font-semibold text-right">
-        {skuLocation.inventoryCheck?.state && <InventoryStatePill inventoryState={skuLocation.inventoryCheck.state} />}
+      <div class="whitespace-nowrap py-2 pr-2 text-right text-xs font-semibold sm:pr-0">
+        {skuLocation.inventoryCheck?.state && <InventoryStateBadge inventoryState={skuLocation.inventoryCheck.state} />}
       </div>
     </div>
   )

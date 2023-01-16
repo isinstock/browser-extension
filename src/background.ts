@@ -1,10 +1,13 @@
 import {InventoryStateNormalized} from './@types/inventory-states'
-import {ItemAvailability, Offer, OfferItemCondition, Product} from './@types/linked-data'
 import {MessageAction} from './@types/messages'
 
 // To fire a message to detect for product on page
 chrome.tabs.onActivated.addListener(activeInfo => {
   console.log(activeInfo)
+})
+
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  console.log('chrome.storage.onChanged', changes, namespace)
 })
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.

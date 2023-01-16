@@ -1,7 +1,6 @@
-import {useEffect, useRef, useState} from 'preact/hooks'
-import fetchPoll from 'src/utils/fetchPoll'
+import {useEffect, useState} from 'preact/hooks'
 
-import {NearbyInventoryProductRequest, NearbyInventoryResponse, NearbyInventoryResponseFound} from '../../../@types/api'
+import {NearbyInventoryProductRequest, NearbyInventoryResponseFound} from '../../../@types/api'
 import {InventoryStateNormalized} from '../../../@types/inventory-states'
 import Sku from '../components/Sku'
 

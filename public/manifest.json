@@ -3,7 +3,7 @@
   "name": "Is In Stock",
   "description": "Base Level Extension",
   "version": "1.0.1",
-  "permissions": ["activeTab", "tabs"],
+  "permissions": ["storage", "activeTab", "tabs"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -27,6 +27,16 @@
     "service_worker": "background.js"
   },
   "web_accessible_resources": [
+    {
+      "resources": [
+        "popup.html",
+        "popup.js"
+      ],
+      "matches": [
+        "http://localhost:3000/*",
+        "https://*.isinstock.com/*"
+      ]
+    },
     {
       "resources": [
         "elements/isinstock-button/style.css",

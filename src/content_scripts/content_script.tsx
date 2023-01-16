@@ -1,8 +1,4 @@
-import {InventoryStateNormalized} from '../@types/inventory-states'
-import {AggregateOffer, ItemAvailability, Offer, OfferItemCondition, Product} from '../@types/linked-data'
 import {MessageAction} from '../@types/messages'
-import {findOffer, isAggregateOffer, isInStock, isMultipleOffers, isNewCondition, isOffer} from '../utils/helpers'
-import {calculateInventoryState} from '../utils/inventory-state'
 import {observeSelector} from '../utils/observers'
 import {loadProduct, notFoundCallback, productCallback, searchProducts} from '../utils/products'
 
