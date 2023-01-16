@@ -36,3 +36,7 @@ window.addEventListener('focus', () => {
   run(true)
 })
 ```
+
+## Design Goals
+
+- Never cover retailers buy now button or product image.

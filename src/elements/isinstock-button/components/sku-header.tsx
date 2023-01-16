@@ -12,7 +12,7 @@ const SkuHeader = ({sku}: SkuProps) => {
     <div class="flex items-center space-x-2 p-2 text-gray-900">
       <div>
         <span class="inline-block w-6 align-middle">
-          <img class="max-w-fit" src={sku.retailer.imageUrl} />
+          <img class="max-w-6" src={sku.retailer.imageUrl} />
         </span>
       </div>
       <div class="w-full leading-3">

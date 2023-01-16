@@ -1,6 +1,6 @@
-import type {ComponentChildren, Provider} from 'preact'
+import type {ComponentChildren} from 'preact'
 import {createContext} from 'preact'
-import {useEffect, useState} from 'preact/hooks'
+
 import {useAuth} from '../hooks'
 
 type UserContextValues = {

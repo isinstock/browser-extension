@@ -15,11 +15,8 @@ const FoundSku = ({
   const [data, setData] = useState<NearbyInventoryResponseFound>(responseData)
   const [label, setLabel] = useState('Checking nearby stores…')
   const [inventoryState, setInventoryState] = useState(InventoryStateNormalized.Unknown)
-  useEffect(() => {
-    if (!data) {
-      return
-    }
 
+  useEffect(() => {
     const states = data.skus.flatMap(sku => {
       return sku.locations.flatMap(location => {
         return location.inventoryCheck?.state
@@ -33,7 +30,7 @@ const FoundSku = ({
       setLabel(`In stock at ${availableStates.length} ${pluralize} near you`)
     } else {
       setInventoryState(InventoryStateNormalized.Unavailable)
-      setLabel('Notify me')
+      setLabel('Not in stock nearby or online')
     }
   }, [data])
 
@@ -60,12 +57,14 @@ const FoundSku = ({
           height="16"
           src={chrome.runtime.getURL(`images/inventory-states/${inventoryState}.svg`)}
         />
-        <span class="isinstock-button-label">{label}</span>
+        <span>{label}</span>
       </summary>
       <details-menu>
         <div class="select-menu">
-          {data.skus.length > 0 && data.skus.map(sku => <Sku key={sku.sku} sku={sku} location={data.location} />)}
-          <a href={data.sku.url} class="select-menu-item">
+          <div class="overflow-y-scroll">
+            {data.skus.length > 0 && data.skus.map(sku => <Sku key={sku.sku} sku={sku} location={data.location} />)}
+          </div>
+          <a href={data.sku.url} target="_blank" class="bg-gray-50 p-4 text-center sm:px-6" rel="noreferrer">
             View on Is In Stock
           </a>
         </div>
