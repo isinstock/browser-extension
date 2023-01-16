@@ -4,6 +4,7 @@ import {NearbyInventoryProductRequest, NearbyInventoryResponse} from '../../../@
 import {SkuImportResponse, SkuImportResponseFinished} from '../../../@types/sku-imports'
 import LoginLink from '../../../components/login-link'
 import {useAuth} from '../../../hooks'
+import fetchApi from '../../../utils/fetch-api'
 import fetchPoll from '../../../utils/fetchPoll'
 
 const SelectMenu = ({request, onImported}: ImportableSkuProps) => {
@@ -20,17 +21,7 @@ const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
   const [skuImportUrl, setSkuImportUrl] = useState<string | null>(null)
 
   const importSku = useCallback(async () => {
-    const response = await fetch(`${ISINSTOCK_URL}/extension/skus/import`, {
-      method: 'POST',
-      mode: 'cors',
-      cache: 'no-cache',
-      redirect: 'follow',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(request),
-    })
+    const response = await fetchApi('/extension/skus/import', 'POST', JSON.stringify(request))
 
     if (response.status === 201) {
       const json = (await response.json()) as SkuImportResponse
@@ -59,16 +50,7 @@ const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
       })
       const json = (await response.json()) as SkuImportResponseFinished
 
-      const skuResponse = await fetch(json.skuUrl, {
-        method: 'POST',
-        mode: 'cors',
-        cache: 'no-cache',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(request),
-      })
+      const skuResponse = await fetchApi(json.skuUrl, 'POST', JSON.stringify(request))
 
       if (skuResponse.ok) {
         const skuResponseJson = (await skuResponse.json()) as NearbyInventoryResponse

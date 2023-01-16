@@ -10,6 +10,7 @@ import {
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {UserProvider} from '../contexts/user-context'
 import {useAuth} from '../hooks'
+import fetchApi from '../utils/fetch-api'
 import FoundSku from './isinstock-button/buttons/found-sku'
 import ImportableSku from './isinstock-button/buttons/importable-sku'
 import UnsupportedSku from './isinstock-button/buttons/unsupported-sku'
@@ -23,16 +24,7 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch(`${ISINSTOCK_URL}/extension/inventory/nearby`, {
-        method: 'POST',
-        mode: 'cors',
-        cache: 'no-cache',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(request),
-      })
+      const response = await fetchApi('/extension/inventory/nearby', 'POST', JSON.stringify(request))
 
       if (response.ok) {
         const json = (await response.json()) as NearbyInventoryResponse

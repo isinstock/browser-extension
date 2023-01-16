@@ -1,24 +1,28 @@
 {
   "compilerOptions": {
-      "strict": true,
-      "module": "commonjs",
-      "target": "es6",
-      "esModuleInterop": true,
-      "sourceMap": false,
-      "rootDir": "src",
-      "outDir": "dist/js",
-      "noEmitOnError": true,
-      "jsx": "react-jsx",
-      "jsxImportSource": "preact",
-      "skipLibCheck": true,
-      "baseUrl": "./",
-      "paths": {
-        "react": ["./node_modules/preact/compat/"],
-        "react-dom": ["./node_modules/preact/compat/"]
-      },
-      "typeRoots": [
-        "./node_modules/@types",
-        "./src/@types"
-      ]
-  }
+    "strict": true,
+    "module": "commonjs",
+    "target": "es6",
+    "esModuleInterop": true,
+    "sourceMap": false,
+    "rootDir": "src",
+    "outDir": "dist/js",
+    "noEmitOnError": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "skipLibCheck": true,
+    "baseUrl": "./",
+    "paths": {
+      "react": ["./node_modules/preact/compat/"],
+      "react-dom": ["./node_modules/preact/compat/"]
+    },
+    "types": ["chrome"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/@types"
+    ]
+  },
+  "include": [
+    "src/**/*"
+  ]
 }

@@ -2,6 +2,7 @@ import {useEffect, useState} from 'preact/hooks'
 
 import {NearbyInventoryProductRequest, NearbyInventoryResponseFound} from '../../../@types/api'
 import {InventoryStateNormalized} from '../../../@types/inventory-states'
+import fetchApi from '../../../utils/fetch-api'
 import Sku from '../components/sku'
 
 const FoundSku = ({
@@ -38,16 +39,7 @@ const FoundSku = ({
 
   useEffect(() => {
     const tick = async () => {
-      const response = await fetch(`${ISINSTOCK_URL}/extension/inventory/nearby`, {
-        method: 'POST',
-        mode: 'cors',
-        cache: 'no-cache',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(request),
-      })
+      const response = await fetchApi('/extension/inventory/nearby', 'POST', JSON.stringify(request))
       if (response.ok) {
         const json = (await response.json()) as NearbyInventoryResponseFound
         setData(json)
