@@ -65,7 +65,7 @@ const FoundSku = ({
             {data.skus.length > 0 && data.skus.map(sku => <Sku key={sku.sku} sku={sku} location={data.location} />)}
           </div>
           <a href={data.sku.url} target="_blank" class="bg-gray-50 p-4 text-center sm:px-6" rel="noreferrer">
-            View on Is In Stock
+            View on Is In Stock <span aria-hidden="true"> &rarr;</span>
           </a>
         </div>
       </details-menu>
