@@ -70,18 +70,14 @@ const FoundSku = ({
         />
         <span class="isinstock-button-label">{label}</span>
       </summary>
-      {data.skus.length > 0 && (
-        <details-menu>
-          <div class="select-menu">
-            {data.skus.map(sku => (
-              <Sku key={sku.sku} sku={sku} location={data.location} />
-            ))}
-            <a href={data.sku.url} class="select-menu-item">
-              View on Is In Stock
-            </a>
-          </div>
-        </details-menu>
-      )}
+      <details-menu>
+        <div class="select-menu">
+          {data.skus.length > 0 && data.skus.map(sku => <Sku key={sku.sku} sku={sku} location={data.location} />)}
+          <a href={data.sku.url} class="select-menu-item">
+            View on Is In Stock
+          </a>
+        </div>
+      </details-menu>
     </details>
   )
 }

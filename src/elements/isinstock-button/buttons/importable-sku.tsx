@@ -2,6 +2,7 @@ import {StateUpdater, useCallback, useEffect, useState} from 'preact/hooks'
 
 import {NearbyInventoryProductRequest, NearbyInventoryResponse} from '../../../@types/api'
 import {SkuImportResponse, SkuImportResponseFinished} from '../../../@types/sku-imports'
+import LoginLink from '../../../components/login-link'
 import {useAuth} from '../../../hooks'
 import fetchPoll from '../../../utils/fetchPoll'
 
@@ -88,7 +89,7 @@ const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
 }
 
 const LoggedOutMenu = () => {
-  return <a href={`${ISINSTOCK_URL}/users/sign_in?redirect_to=${encodeURIComponent(location.href)}`}>Login</a>
+  return <LoginLink />
 }
 
 type ImportableSkuProps = {

@@ -1,6 +1,7 @@
 import {useCallback} from 'preact/hooks'
 
 const LoggedInView = () => {
+  // TODO: Send DELETE request to /devices then on 200 OK do callback
   const logoutCallback = useCallback(() => {
     chrome.storage.local.set({accessToken: null})
   }, [])

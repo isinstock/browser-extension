@@ -45,11 +45,6 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
     fetchData()
   }, [request])
 
-  console.log(accessToken)
-  if (!accessToken) {
-    return <span>No auth</span>
-  }
-
   if (!data) {
     return <></>
   }
