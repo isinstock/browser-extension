@@ -3,6 +3,73 @@ import {Product} from './linked-data'
 import {Coordinate, LocationStyle, LocationStyleNormalized} from './locations'
 import {Retailer} from './retailers'
 
+export interface InventorySubscriptionManufactureImage {
+  thumbnail: string
+  small: string
+  medium: string
+  open_graph: string
+}
+
+export interface InventorySubscriptionManufacture {
+  id: number
+  name: string
+  slug: string
+  url: string
+  image: InventorySubscriptionManufactureImage
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscriptionProduct {
+  id: number
+  name: string
+  slug: string
+  url: string
+  product_variant_style: string
+  state: string
+  image: InventorySubscriptionProductVariantImage
+  description: string
+  featured: boolean
+  released_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscriptionProductVariantImage {
+  thumbnail: string
+  listing: string
+  gallery: string
+  open_graph: string
+}
+
+export interface InventorySubscriptionProductVariant {
+  id: number
+  name: string
+  slug: string
+  url: string
+  color: string
+  image: InventorySubscriptionProductVariantImage
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscription {
+  id: number
+  url: string
+  manufacture: InventorySubscriptionManufacture
+  product: InventorySubscriptionProduct
+  product_variant: InventorySubscriptionProductVariant
+  disabled_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscriptionsResponse {
+  total_count: number
+  total_pages: number
+  results: InventorySubscription[]
+}
+
 export interface NearbyInventorySearch {
   manufacture?: string
   name?: string

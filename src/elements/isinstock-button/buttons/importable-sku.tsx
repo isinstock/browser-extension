@@ -7,28 +7,26 @@ import {useAuth} from '../../../hooks'
 import fetchApi from '../../../utils/fetch-api'
 import fetchPoll from '../../../utils/fetchPoll'
 
-const SelectMenu = ({request, onImported}: ImportableSkuProps) => {
-  const {isLoggedIn} = useAuth()
-
-  if (isLoggedIn) {
-    return <LoggedInMenu request={request} onImported={onImported} />
-  }
-
-  return <LoggedOutMenu />
-}
-
+// Candidate for its own hook, like `const [state] = importSku(request)`
 const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
   const [skuImportUrl, setSkuImportUrl] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [label, setLabel] = useState('Find nearby')
+
   const {accessToken} = useAuth()
 
   const importSku = useCallback(async () => {
-    const response = await fetchApi('/extension/skus/import', 'POST', JSON.stringify(request))
+    setImporting(true)
+    setLabel('Finding product…')
+
+    const response = await fetchApi('/api/skus/import', 'POST', JSON.stringify(request))
 
     if (response.status === 201) {
       const json = (await response.json()) as SkuImportResponse
 
       setSkuImportUrl(json.url)
     } else {
+      setImporting(false)
       throw new Error(`Bad response status ${response.status}`)
     }
   }, [request])
@@ -66,14 +64,39 @@ const LoggedInMenu = ({request, onImported}: ImportableSkuProps) => {
   }, [skuImportUrl, onImported, request, accessToken])
 
   return (
-    <button type="button" onClick={importSku}>
-      Import!
+    <button class="isinstock-button" onClick={importSku} disabled={importing}>
+      <img class="isinstock-logo" width="16" height="16" src={chrome.runtime.getURL(`images/logos/isinstock.svg`)} />
+      <span>{label}</span>
     </button>
   )
 }
 
+const LoginPrompt = () => {
+  return (
+    <div class="select-menu login-prompt">
+      <div class="grow">
+        <img class="mx-auto h-12 w-auto" src={chrome.runtime.getURL('images/logos/isinstock.svg')} />
+        <h1 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Is In Stock</h1>
+      </div>
+      <div>
+        <LoginLink />
+      </div>
+    </div>
+  )
+}
+
 const LoggedOutMenu = () => {
-  return <LoginLink />
+  return (
+    <details>
+      <summary class="isinstock-button">
+        <img class="isinstock-logo" width="16" height="16" src={chrome.runtime.getURL('images/logos/isinstock.svg')} />
+        <span>Find nearby</span>
+      </summary>
+      <details-menu>
+        <LoginPrompt />
+      </details-menu>
+    </details>
+  )
 }
 
 type ImportableSkuProps = {
@@ -82,24 +105,13 @@ type ImportableSkuProps = {
 }
 
 const ImportableSku = ({request, onImported}: ImportableSkuProps) => {
-  return (
-    <details>
-      <summary>
-        <img
-          class="isinstock-logo"
-          width="16"
-          height="16"
-          src={chrome.runtime.getURL(`images/inventory-states/unknown.svg`)}
-        />
-        <span>Track</span>
-      </summary>
-      <details-menu>
-        <div class="select-menu">
-          <SelectMenu request={request} onImported={onImported} />
-        </div>
-      </details-menu>
-    </details>
-  )
+  const {isLoggedIn} = useAuth()
+
+  if (isLoggedIn) {
+    return <LoggedInMenu request={request} onImported={onImported} />
+  }
+
+  return <LoggedOutMenu />
 }
 
 export default ImportableSku

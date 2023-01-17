@@ -24,7 +24,7 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetchApi('/extension/inventory/nearby', 'POST', JSON.stringify(request))
+      const response = await fetchApi('/api/inventory/nearby', 'POST', JSON.stringify(request))
 
       if (response.ok) {
         const json = (await response.json()) as NearbyInventoryResponse

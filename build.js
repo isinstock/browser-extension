@@ -9,13 +9,13 @@ const ISINSTOCK_URL = isProduction ? '"https://www.isinstock.com"' : '"http://lo
 build({
   logLevel: 'info',
   entryPoints: [
-    './src/elements/isinstock-button/style.css',
-    './src/pages/action-popup/style.css',
+    './src/background.ts',
     './src/content_scripts/content_script.tsx',
     './src/content_scripts/retailers/best-buy.tsx',
     './src/content_scripts/retailers/target.tsx',
+    './src/elements/isinstock-button/style.css',
     './src/pages/action-popup.tsx',
-    './src/background.ts',
+    './src/pages/action-popup/style.css',
   ],
   outdir: 'dist',
   bundle: true,
@@ -25,6 +25,10 @@ build({
   target: ['chrome58'],
   define: {
     ISINSTOCK_URL,
+  },
+  loader: {
+    '.png': 'dataurl',
+    '.svg': 'dataurl',
   },
   plugins: [
     postCssPlugin({
