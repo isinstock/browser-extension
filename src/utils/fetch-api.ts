@@ -1,3 +1,4 @@
+import {ISINSTOCK_URL} from './config'
 const fetchApi = async (path: string, method: string, body?: BodyInit | null | undefined) => {
   const {accessToken} = await chrome.storage.local.get({
     accessToken: '',

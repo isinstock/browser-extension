@@ -1,6 +1,6 @@
 import {InventoryStateNormalized} from '../../../@types/inventory-states'
 import RetailerProductLink from './retailer-product-link'
-import {SkuProps} from './Sku'
+import {SkuProps} from './sku'
 
 const SkuHeader = ({sku}: SkuProps) => {
   const states = sku.locations.flatMap(location => location.inventoryCheck?.state ?? [])

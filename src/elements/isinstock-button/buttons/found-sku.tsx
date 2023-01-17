@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'preact/hooks'
 
+import {ISINSTOCK_URL} from '../../../utils/config'
 import {NearbyInventoryProductRequest, NearbyInventoryResponseFound} from '../../../@types/api'
 import {InventoryStateNormalized} from '../../../@types/inventory-states'
 import fetchApi from '../../../utils/fetch-api'
