@@ -8,8 +8,8 @@ import {
   NearbyInventoryResponse,
 } from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
+import {ExtensionSearchTokenContext} from '../contexts/extension-search-token-context'
 import {UserProvider} from '../contexts/user-context'
-import {useAuth} from '../hooks'
 import fetchApi from '../utils/fetch-api'
 import FoundSku from './isinstock-button/buttons/found-sku'
 import ImportableSku from './isinstock-button/buttons/importable-sku'
@@ -19,8 +19,8 @@ type IsInStockButtonProps = {
   request: NearbyInventoryProductRequest
 }
 const IsInStockButton = ({request}: IsInStockButtonProps) => {
-  const [data, setData] = useState<null | NearbyInventoryResponse>(null)
-  const {accessToken} = useAuth()
+  const [data, setData] = useState<NearbyInventoryResponse | null>(null)
+  const [extensionSearchToken, setExtensionSearchToken] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,6 +28,7 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
 
       if (response.ok) {
         const json = (await response.json()) as NearbyInventoryResponse
+        setExtensionSearchToken(response.headers.get('X-Extension-Search-Token'))
         setData(json)
       } else {
         setData(null)
@@ -41,11 +42,13 @@ const IsInStockButton = ({request}: IsInStockButtonProps) => {
     return <></>
   }
 
-  const {state} = data
-
   if (isFoundNearbyInventoryResponse(data)) {
     // Can we always just rely on sending original request?
-    return <FoundSku data={data} request={request} />
+    return (
+      <ExtensionSearchTokenContext.Provider value={extensionSearchToken}>
+        <FoundSku data={data} request={request} />
+      </ExtensionSearchTokenContext.Provider>
+    )
   } else if (isImportableNearbyInventoryResponse(data)) {
     return <ImportableSku request={request} onImported={setData} />
   }

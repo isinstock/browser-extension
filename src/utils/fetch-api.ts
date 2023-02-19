@@ -1,4 +1,3 @@
-import {ISINSTOCK_URL} from './config'
 const fetchApi = async (path: string, method: string, body?: BodyInit | null | undefined) => {
   const {accessToken} = await chrome.storage.local.get({
     accessToken: '',
@@ -7,6 +6,7 @@ const fetchApi = async (path: string, method: string, body?: BodyInit | null | u
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
+    'X-Extension-Version': VERSION,
   }
   if (accessToken !== '' && accessToken !== null) {
     headers['Authorization'] = `Bearer ${accessToken}`

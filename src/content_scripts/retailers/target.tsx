@@ -93,7 +93,6 @@ export const productCallback = async (href: string) => {
     const nearbyInventoryRequest: NearbyInventoryProductRequest = {
       context: {
         url: href,
-        userAgent: navigator.userAgent,
       },
       product: {
         retailer: Retailer.Target,

@@ -1,6 +1,5 @@
 import {useEffect, useState} from 'preact/hooks'
 
-import {ISINSTOCK_URL} from '../../../utils/config'
 import {NearbyInventoryProductRequest, NearbyInventoryResponseFound} from '../../../@types/api'
 import {InventoryStateNormalized} from '../../../@types/inventory-states'
 import fetchApi from '../../../utils/fetch-api'
@@ -36,6 +35,7 @@ const FoundSku = ({
 }) => {
   const [data, setData] = useState<NearbyInventoryResponseFound>(responseData)
   const [label, setLabel] = useState('Checking nearby stores…')
+
   const [inventoryState, setInventoryState] = useState(InventoryStateNormalized.Unknown)
 
   useEffect(() => {
@@ -47,7 +47,7 @@ const FoundSku = ({
 
     const availableStates = states.filter(state => state === InventoryStateNormalized.Available)
     if (availableStates.length > 0) {
-      const pluralize = availableStates.length === 1 ? 'location' : 'locations'
+      const pluralize = availableStates.length === 1 ? 'store' : 'stores'
       setInventoryState(InventoryStateNormalized.Available)
       setLabel(`In stock at ${availableStates.length} ${pluralize} near you`)
     } else {
@@ -61,6 +61,7 @@ const FoundSku = ({
       const response = await fetchApi('/api/inventory/nearby', 'POST', JSON.stringify(request))
       if (response.ok) {
         const json = (await response.json()) as NearbyInventoryResponseFound
+
         setData(json)
       }
     }

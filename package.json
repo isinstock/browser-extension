@@ -1,6 +1,7 @@
 {
   "name": "isinstock-chrome-extension",
   "private": true,
+  "version": "0.0.1-alpha+9565626",
   "prettier": "@github/prettier-config",
   "eslintConfig": {
     "extends": "preact"

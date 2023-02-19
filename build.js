@@ -1,10 +1,10 @@
 const build = require('esbuild').build
 const copy = require('esbuild-plugin-copy').copy
 const postCssPlugin = require('esbuild-style-plugin')
+const pkg = require('./package.json')
 
 const isProduction = process.argv[2] === '--production'
 const watch = process.argv[2] === '--watch'
-const ISINSTOCK_URL = isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"'
 
 build({
   logLevel: 'info',
@@ -24,7 +24,8 @@ build({
   minify: isProduction,
   target: ['chrome58'],
   define: {
-    ISINSTOCK_URL,
+    VERSION: `"${pkg.version}"`,
+    ISINSTOCK_URL: isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"',
   },
   loader: {
     '.png': 'dataurl',

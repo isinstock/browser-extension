@@ -84,7 +84,6 @@ export interface NearbyInventorySearch {
 
 export interface NearbyInventoryContext {
   url: string
-  userAgent: string
 }
 
 export interface NearbyInventoryRequest {
@@ -115,6 +114,7 @@ export interface NearbyInventoryProductRequest extends NearbyInventoryRequest {
 export type NearbyInventoryRequestType = NearbyInventorySearchRequest | NearbyInventoryProductRequest
 
 export interface NearbyInventoryResponseSku {
+  id: number
   sku: string
   model?: string
   upc?: string

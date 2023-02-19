@@ -41,7 +41,7 @@ const SkuHeader = ({sku}: SkuProps) => {
         )}
       </div>
       <div>
-        <RetailerProductLink inventoryState={inventoryStateNormalized} href={sku.productUrl} />
+        <RetailerProductLink inventoryState={inventoryStateNormalized} href={sku.productUrl} skuId={sku.id} />
       </div>
     </div>
   )

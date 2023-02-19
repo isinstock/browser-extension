@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from 'preact/hooks'
-import {InventorySubscription, InventorySubscriptionsResponse} from '../../@types/api'
 
+import {InventorySubscription, InventorySubscriptionsResponse} from '../../@types/api'
 import fetchApi from '../../utils/fetch-api'
 
 const InventorySubscriptionsEmpty = () => {
@@ -22,7 +22,7 @@ const InventorySubscriptionsEmpty = () => {
 }
 
 const InventorySubscriptionsList = ({inventorySubscriptions}: {inventorySubscriptions: InventorySubscription[]}) => {
-  if (!inventorySubscriptions.length) {
+  if (inventorySubscriptions.length === 0) {
     return <InventorySubscriptionsEmpty />
   }
 
@@ -33,9 +33,9 @@ const InventorySubscriptionsList = ({inventorySubscriptions}: {inventorySubscrip
         return (
           <li>
             <a href="" class="block hover:bg-gray-50">
-              <div class="flex items-center px-4 py-4 sm:px-6">
+              <div class="flex items-center p-4 sm:px-6">
                 <div class="flex min-w-0 flex-1 items-center">
-                  <div class="flex-shrink-0 h-12 w-12 flex items-center">
+                  <div class="flex h-12 w-12 shrink-0 items-center">
                     <img
                       src={inventorySubscription.product_variant.image.thumbnail}
                       alt=""
@@ -88,8 +88,8 @@ const LoggedInView = () => {
     const fetchInventorySubscriptions = async () => {
       setLoading(true)
       setError(false)
-      const response = await fetchApi('/api/inventory-subscriptions', 'GET')
 
+      const response = await fetchApi('/api/inventory-subscriptions?state=enabled', 'GET')
       if (response.ok) {
         const json = (await response.json()) as InventorySubscriptionsResponse
         setInventorySubscriptions(json.results)
