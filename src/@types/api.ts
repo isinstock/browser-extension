@@ -56,6 +56,7 @@ export interface InventorySubscriptionProductVariant {
 export interface InventorySubscription {
   id: number
   url: string
+  api_url: string
   manufacture: InventorySubscriptionManufacture
   product: InventorySubscriptionProduct
   product_variant: InventorySubscriptionProductVariant

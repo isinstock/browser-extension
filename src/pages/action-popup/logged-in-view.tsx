@@ -27,14 +27,21 @@ const InventorySubscriptionsList = ({inventorySubscriptions}: {inventorySubscrip
   }
 
   console.log(inventorySubscriptions)
+
   return (
     <ul>
       {inventorySubscriptions.map(inventorySubscription => {
+        const createdAt = new Date(inventorySubscription.created_at)
         return (
-          <li>
-            <a href="" class="block hover:bg-gray-50">
-              <div class="flex items-center p-4 sm:px-6">
-                <div class="flex min-w-0 flex-1 items-center">
+          <li key={inventorySubscription.id}>
+            <a
+              href={inventorySubscription.url}
+              class="block rounded-md hover:bg-gray-50"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <div class="flex items-center p-4">
+                <div class="flex min-w-0 flex-1 items-center space-x-4">
                   <div class="flex h-12 w-12 shrink-0 items-center">
                     <img
                       src={inventorySubscription.product_variant.image.thumbnail}
@@ -42,24 +49,20 @@ const InventorySubscriptionsList = ({inventorySubscriptions}: {inventorySubscrip
                       class="mx-auto aspect-auto"
                     />
                   </div>
-                  <div class="min-w-0 flex-1 px-4">
+                  <div class="min-w-0 flex-1">
                     <p class="truncate text-sm font-medium text-indigo-600">
                       {inventorySubscription.manufacture.name} - {inventorySubscription.product.name} -{' '}
                       {inventorySubscription.product_variant.name}
                     </p>
-                    <p class="mt-1 text-sm text-gray-500">Created {inventorySubscription.created_at}</p>
+                    <p class="mt-1 text-sm text-gray-500">
+                      Created{' '}
+                      {createdAt.toLocaleDateString('en-us', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </p>
                   </div>
-                </div>
-                <div class="flex space-x-4">
-                  {inventorySubscription.disabled_at !== null ? (
-                    <span class="inline-flex items-center rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-                      Disabled
-                    </span>
-                  ) : (
-                    <span class="inline-flex items-center rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                      Active
-                    </span>
-                  )}
                 </div>
               </div>
             </a>
@@ -106,7 +109,7 @@ const LoggedInView = () => {
 
   return (
     <div class="action-window">
-      <div class="action-content action-blankslate">
+      <div class="action-content">
         <div class="grow">
           {loading ? (
             'Loading'
