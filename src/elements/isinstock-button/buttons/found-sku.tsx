@@ -49,7 +49,12 @@ const FoundSku = ({
     if (availableStates.length > 0) {
       const pluralize = availableStates.length === 1 ? 'store' : 'stores'
       setInventoryState(InventoryStateNormalized.Available)
-      setLabel(`In stock at ${availableStates.length} ${pluralize} near you`)
+
+      if (data.location) {
+        setLabel(`In stock at ${availableStates.length} ${pluralize} near ${data.location.name}`)
+      } else {
+        setLabel(`In stock at ${availableStates.length} ${pluralize} near you`)
+      }
     } else {
       setInventoryState(InventoryStateNormalized.Unavailable)
       setLabel('Not in stock nearby or online')
