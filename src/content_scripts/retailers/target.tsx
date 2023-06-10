@@ -1,13 +1,12 @@
-import {findProducts} from '../../utils/products'
-import {MessageAction} from '../../@types/messages'
-import {InventoryState} from '../../@types/inventory-states'
-import {findNearbyInventory} from '../../utils/nearby-inventory'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
-import {Retailer} from '../../@types/retailers'
-import {observeSelector, selectorAdded} from '../../utils/observers'
-import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
+import {InventoryStateNormalized} from '../../@types/inventory-states'
+import {MessageAction} from '../../@types/messages'
 import {ObservableElement} from '../../@types/observables'
-import { insertIsInStockButton } from '../../elements/isinstock-button'
+import {Retailer} from '../../@types/retailers'
+import {insertIsInStockButton} from '../../elements/isinstock-button'
+import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
+import {observeSelector, selectorAdded} from '../../utils/observers'
+import {findProducts} from '../../utils/products'
 
 const storeIdSelectors = `
   #pageBodyContainer [data-test="@web/AddToCart/FulfillmentSection"] [id^="store-name-"],
@@ -15,7 +14,7 @@ const storeIdSelectors = `
   #pageBodyContainer [id^="store-name-"]
 `
 
-const findStoreId = async (timeout: number = 2000): Promise<string | null> => {
+const findStoreId = async (timeout = 2000): Promise<string | null> => {
   const store = await selectorAdded({selector: storeIdSelectors, timeout})
   if (!store) {
     return null
@@ -27,6 +26,15 @@ const findStoreId = async (timeout: number = 2000): Promise<string | null> => {
   }
 
   return matches.groups.storeId
+}
+
+const findStoreName = (): string | null => {
+  const storeName = document.querySelector<HTMLMetaElement>(`[data-test="@web/StoreMessage/StoreName"]`)
+  if (!storeName?.textContent) {
+    return null
+  }
+
+  return storeName.textContent.trim()
 }
 
 const findSku = (href?: string): string | null => {
@@ -55,30 +63,36 @@ export const productCallback = async (href: string) => {
   if (sku) {
     console.log('Likely found product with SKU', sku)
     const storeId = await findStoreId()
-    let store: NearbyInventorySearchProductStore | undefined = undefined
+    let store: NearbyInventorySearchProductStore | undefined
     if (storeId) {
       console.log('Likely found location with identifier', storeId)
       store = {
         identifier: storeId,
       }
+    } else {
+      const name = findStoreName()
+      if (name) {
+        store = {
+          name,
+        }
+      }
     }
 
     const products = findProducts()
-    const productSchema = products.find(product => product.sku == sku)
-    let inventoryState: InventoryState | undefined = undefined
+    const productSchema = products.find(product => product.sku === sku)
+    let inventoryState: InventoryStateNormalized | undefined
 
     // Broadcast inventory state
     if (productSchema) {
       inventoryState = calculateInventoryState(productSchema)
       broadcastInventoryState(inventoryState)
     } else {
-      broadcastInventoryState(InventoryState.Unknown)
+      broadcastInventoryState(InventoryStateNormalized.Unknown)
     }
 
     const nearbyInventoryRequest: NearbyInventoryProductRequest = {
       context: {
         url: href,
-        userAgent: navigator.userAgent,
       },
       product: {
         retailer: Retailer.Target,
@@ -95,25 +109,27 @@ export const productCallback = async (href: string) => {
         [data-test="quantity-picker"],
         [data-test="scheduledDeliveryButton"],
         [data-test="orderPickupButton"],
-        button[id^="addToCartButtonOrTextIdFor"]
+        button[id^="addToCartButtonOrTextIdFor"],
+        [data-test="shippingButton"]
       `,
     }).then(addToCartButton => {
       if (addToCartButton?.parentElement) {
-        const element = insertIsInStockButton(addToCartButton.parentElement, {inventoryState, request: nearbyInventoryRequest})
+        const element = insertIsInStockButton(addToCartButton.parentElement, {
+          inventoryState,
+          request: nearbyInventoryRequest,
+        })
         element.style.marginTop = '6px'
       } else {
         console.log('Add to cart button not found')
         // Insert somewhere else?
       }
     })
-
-    // findNearbyInventory(nearbyInventoryRequest)
   }
 }
 
 // Can we detect store location changing and re-issue request?
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  if (request.action == MessageAction.URLChanged) {
+  if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
 
     productCallback(request.url)

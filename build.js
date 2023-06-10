@@ -1,33 +1,40 @@
-const build = require("esbuild").build
-const copy = require("esbuild-plugin-copy").copy
-const postCssPlugin = require("esbuild-style-plugin")
+const build = require('esbuild').build
+const copy = require('esbuild-plugin-copy').copy
+const postCssPlugin = require('esbuild-style-plugin')
+const pkg = require('./package.json')
 
-const watch = process.argv[2] === "--watch"
+const isProduction = process.argv.includes('--production')
+const watch = process.argv.includes('--watch')
 
-const res = build({
-  logLevel: "info",
+build({
+  logLevel: 'info',
   entryPoints: [
-    './src/elements/isinstock-button/style.css',
+    './src/background.ts',
     './src/content_scripts/content_script.tsx',
     './src/content_scripts/retailers/best-buy.tsx',
     './src/content_scripts/retailers/target.tsx',
-    './src/background.ts',
-    './src/popup.ts',
+    './src/elements/isinstock-button/style.css',
+    './src/pages/action-popup.tsx',
+    './src/pages/action-popup/style.css',
   ],
-  outdir: "dist",
+  outdir: 'dist',
   bundle: true,
-  sourcemap: "inline",
+  sourcemap: 'inline',
   watch,
-  target: [
-    "chrome58"
-  ],
+  minify: isProduction,
+  target: ['chrome58'],
+  define: {
+    VERSION: `"${pkg.version}"`,
+    ISINSTOCK_URL: isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"',
+  },
+  loader: {
+    '.png': 'dataurl',
+    '.svg': 'dataurl',
+  },
   plugins: [
     postCssPlugin({
       postcss: {
-        plugins: [
-          require("tailwindcss"),
-          require("autoprefixer"),
-        ],
+        plugins: [require('tailwindcss'), require('autoprefixer')],
       },
     }),
     copy({

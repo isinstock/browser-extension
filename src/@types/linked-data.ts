@@ -107,7 +107,7 @@ export declare type ItemAvailability =
 type ItemAvailabilityBackOrder = 'http://schema.org/BackOrder' | 'https://schema.org/BackOrder' | 'BackOrder'
 
 export const isBackorder = (state: string): state is ItemAvailabilityBackOrder => {
-  return state == 'http://schema.org/BackOrder' || state == 'https://schema.org/BackOrder' || state == 'BackOrder'
+  return state === 'http://schema.org/BackOrder' || state === 'https://schema.org/BackOrder' || state === 'BackOrder'
 }
 
 // A predefined value from OfferItemCondition specifying the condition of the

@@ -1,14 +1,12 @@
-import {InventoryState} from '../@types/inventory-states'
+import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
-import {ObservableElement} from '../@types/observables'
 import {MessageAction} from '../@types/messages'
-import {insertWidget} from '../elements/widget'
+import {ObservableElement} from '../@types/observables'
 import {isProduct} from './helpers'
 import {broadcastInventoryState, calculateInventoryState} from './inventory-state'
-import {findNearbyInventory, requestFromProduct} from './nearby-inventory'
 
 const loadJSON = (script: Element): any[] => {
-  if (!script.textContent || script.textContent == '') {
+  if (!script.textContent || script.textContent === '') {
     return []
   }
 
@@ -30,17 +28,15 @@ const findProduct = (obj?: any): Product | null => {
 // Default callback when a product is found
 export const productCallback = (product: Product) => {
   const inventoryState = calculateInventoryState(product)
-  const request = requestFromProduct(product)
 
   broadcastInventoryState(inventoryState)
-  findNearbyInventory(request, inventoryState)
 }
 
 // Default callback when a product is not found
 export const notFoundCallback = () => {
   chrome.runtime.sendMessage({
     action: MessageAction.InventoryState,
-    value: InventoryState.Unknown,
+    value: InventoryStateNormalized.Unknown,
   })
 }
 
@@ -64,9 +60,8 @@ export const loadProduct = (script: Element): Product | null => {
   const json = loadJSON(script)
   if (json) {
     return findProduct(json)
-  } else {
-    return null
   }
+  return null
 }
 
 type LocateProductsOptions = {

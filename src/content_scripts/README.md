@@ -6,7 +6,7 @@ There are a few ways to detect a product within a content script:
 
 ```ts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action == MessageAction.URLChanged) {
+  if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
   } else {
     console.log('Unknown action', request.action)
@@ -36,3 +36,7 @@ window.addEventListener('focus', () => {
   run(true)
 })
 ```
+
+## Design Goals
+
+- Never cover retailers buy now button or product image.

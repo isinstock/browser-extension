@@ -1,6 +1,4 @@
-import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
-import {searchProducts} from './products'
 
 export const observeSelector = (
   selector: string,
@@ -69,7 +67,6 @@ export const selectorAdded = (options: SelectorAddedOptions): Promise<HTMLElemen
     })
 
     return Promise.race<HTMLElement | null>([promise, timeout])
-  } else {
-    return promise
   }
+  return promise
 }

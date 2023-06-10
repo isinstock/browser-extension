@@ -1,7 +1,75 @@
+import {InventoryStateNormalized} from './inventory-states'
 import {Product} from './linked-data'
+import {Coordinate, LocationStyle, LocationStyleNormalized} from './locations'
 import {Retailer} from './retailers'
 
-type RequireAtLeastOne<T> = {[K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>}[keyof T]
+export interface InventorySubscriptionManufactureImage {
+  thumbnail: string
+  small: string
+  medium: string
+  open_graph: string
+}
+
+export interface InventorySubscriptionManufacture {
+  id: number
+  name: string
+  slug: string
+  url: string
+  image: InventorySubscriptionManufactureImage
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscriptionProduct {
+  id: number
+  name: string
+  slug: string
+  url: string
+  product_variant_style: string
+  state: string
+  image: InventorySubscriptionProductVariantImage
+  description: string
+  featured: boolean
+  released_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscriptionProductVariantImage {
+  thumbnail: string
+  listing: string
+  gallery: string
+  open_graph: string
+}
+
+export interface InventorySubscriptionProductVariant {
+  id: number
+  name: string
+  slug: string
+  url: string
+  color: string
+  image: InventorySubscriptionProductVariantImage
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscription {
+  id: number
+  url: string
+  api_url: string
+  manufacture: InventorySubscriptionManufacture
+  product: InventorySubscriptionProduct
+  product_variant: InventorySubscriptionProductVariant
+  disabled_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InventorySubscriptionsResponse {
+  total_count: number
+  total_pages: number
+  results: InventorySubscription[]
+}
 
 export interface NearbyInventorySearch {
   manufacture?: string
@@ -17,7 +85,6 @@ export interface NearbyInventorySearch {
 
 export interface NearbyInventoryContext {
   url: string
-  userAgent: string
 }
 
 export interface NearbyInventoryRequest {
@@ -25,13 +92,9 @@ export interface NearbyInventoryRequest {
   productSchema?: Product
 }
 
-export interface Coordinate {
-  latitude: number
-  longitude: number
-}
-
 export interface NearbyInventorySearchProductStore {
   identifier?: string
+  name?: string
   coordinate?: Coordinate
 }
 
@@ -51,61 +114,118 @@ export interface NearbyInventoryProductRequest extends NearbyInventoryRequest {
 
 export type NearbyInventoryRequestType = NearbyInventorySearchRequest | NearbyInventoryProductRequest
 
-interface NearbyInventoryResponseSku {
+export interface NearbyInventoryResponseSku {
+  id: number
   sku: string
-  model: string
-  upc: string
-  salePrice?: number
-  price: number
+  model?: string
+  upc?: string
   currency: string
-}
-
-interface NearbyInventoryResponseRetailer {
-  name: string
+  price: number
+  formattedPrice: string
+  salePrice?: number
+  formattedSalePrice?: string
+  discount?: number
+  discountedPercentage?: number
+  formattedDiscountPrice?: string
+  productUrl: string
   url: string
+  retailer: NearbyInventoryResponseRetailer
+  locations: NearbyInventoryResponseSkuLocation[]
 }
 
-interface NearbyInventoryResponseLocationCoordinate {
-  latitude: number
-  longitude: number
+export interface NearbyInventoryResponseRetailer {
+  name: string
+  retailerUrl: string
+  imageUrl: string
 }
 
-interface NearbyInventoryResponseInventoryCheck {
-  state: string
+export interface NearbyInventoryResponseInventoryCheck {
+  state: InventoryStateNormalized
   quantity?: number
   checkedAt?: Date
   createdAt: Date
 }
 
-interface NearbyInventoryResponseSkuLocationLocation {
+export interface NearbyInventoryResponseSkuLocationBase {
   name: string
-  url: string
-  meters?: number
-  coordinate?: NearbyInventoryResponseLocationCoordinate
+  locationUrl: string
   inventoryCheck?: NearbyInventoryResponseInventoryCheck
+  style: LocationStyle
+  normalizedStyle: LocationStyleNormalized
 }
 
-interface NearbyInventoryResponseSkuLocation {
-  sku: string
-  model: string
-  upc: string
-  salePrice: number
-  price: number
-  currency: string
-  url: string
-  retailer: NearbyInventoryResponseRetailer
-  locations: NearbyInventoryResponseSkuLocationLocation[]
+export interface NearbyInventoryResponseSkuLocationPhysical extends NearbyInventoryResponseSkuLocationBase {
+  address: string
+  meters: number
+  coordinate: Coordinate
 }
 
-interface NearbyInventoryResponseLocation {
+export type NearbyInventoryResponseSkuLocationOnline = NearbyInventoryResponseSkuLocationBase
+
+export type NearbyInventoryResponseSkuLocation =
+  | NearbyInventoryResponseSkuLocationPhysical
+  | NearbyInventoryResponseSkuLocationOnline
+
+export const isOnlineSkuLocation = (
+  skuLocation: NearbyInventoryResponseSkuLocation,
+): skuLocation is NearbyInventoryResponseSkuLocationOnline => {
+  return skuLocation.normalizedStyle === LocationStyleNormalized.Online
+}
+
+export const isPhysicalSkuLocation = (
+  skuLocation: NearbyInventoryResponseSkuLocation,
+): skuLocation is NearbyInventoryResponseSkuLocationPhysical => {
+  return skuLocation.normalizedStyle === LocationStyleNormalized.Physical
+}
+
+// Can this be one of the other types?
+export interface NearbyInventoryResponseLocation {
   name: string
-  url: string
-  style: string
-  coordinate?: NearbyInventoryResponseLocationCoordinate
+  locationUrl: string
+  coordinate?: Coordinate
+  style: LocationStyle
+  normalizedStyle: LocationStyleNormalized
+}
+
+export enum NearbyInventoryResponseState {
+  Found = 'found',
+  Importable = 'importable',
+  Unsupported = 'unsupported',
 }
 
 export interface NearbyInventoryResponse {
+  state: NearbyInventoryResponseState
   sku?: NearbyInventoryResponseSku
   location?: NearbyInventoryResponseLocation
-  skus: NearbyInventoryResponseSkuLocation[]
+  skus: NearbyInventoryResponseSku[]
+}
+
+export interface NearbyInventoryResponseFound extends NearbyInventoryResponse {
+  state: NearbyInventoryResponseState.Found
+  sku: NearbyInventoryResponseSku
+}
+
+export interface NearbyInventoryResponseImportable extends NearbyInventoryResponse {
+  state: NearbyInventoryResponseState.Importable
+  sku: undefined
+}
+
+export interface NearbyInventoryResponseUnsupported extends NearbyInventoryResponse {
+  state: NearbyInventoryResponseState.Unsupported
+}
+
+export const isFoundNearbyInventoryResponse = (data: NearbyInventoryResponse): data is NearbyInventoryResponseFound => {
+  return data.state === NearbyInventoryResponseState.Found
+}
+
+export const isImportableNearbyInventoryResponse = (
+  data: NearbyInventoryResponse,
+): data is NearbyInventoryResponseImportable => {
+  return data.state === NearbyInventoryResponseState.Importable
+}
+
+export const isUnsupportedNearbyInventoryResponse = (
+  data: NearbyInventoryResponse,
+): data is NearbyInventoryResponseUnsupported => {
+  return data.state === NearbyInventoryResponseState.Unsupported
 }

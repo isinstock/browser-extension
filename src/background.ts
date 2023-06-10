@@ -1,5 +1,4 @@
-import {ItemAvailability, OfferItemCondition, Product, Offer} from './@types/linked-data'
-import {InventoryState} from './@types/inventory-states'
+import {InventoryStateNormalized} from './@types/inventory-states'
 import {MessageAction} from './@types/messages'
 
 // To fire a message to detect for product on page
@@ -7,10 +6,14 @@ chrome.tabs.onActivated.addListener(activeInfo => {
   console.log(activeInfo)
 })
 
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  console.log('chrome.storage.onChanged', changes, namespace)
+})
+
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   console.log(tabId, changeInfo, tab)
-  if (changeInfo.status == 'complete') {
+  if (changeInfo.status === 'complete') {
     chrome.tabs.sendMessage(tabId, {
       action: MessageAction.URLChanged,
       url: tab.url,
@@ -21,8 +24,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Receives messages from content scripts
 chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
   if (action === MessageAction.InventoryState) {
-    switch (value as InventoryState) {
-      case InventoryState.IsInStock:
+    switch (value as InventoryStateNormalized) {
+      case InventoryStateNormalized.Available:
         chrome.action.setIcon({
           path: {
             '16': '/images/inventory-states/available/16.png',
@@ -35,7 +38,7 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
         })
         break
 
-      case InventoryState.NotInStock:
+      case InventoryStateNormalized.Unavailable:
         chrome.action.setIcon({
           path: {
             '16': '/images/inventory-states/unavailable/16.png',
@@ -49,7 +52,6 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
         break
 
       default:
-        console.log('setIcon(default)')
         chrome.action.setIcon({
           path: {
             '16': '/images/default/16.png',

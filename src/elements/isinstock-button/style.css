@@ -6,7 +6,13 @@ html, :root {
   @apply text-base;
 }
 
+#isinstock-button :root {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial,
+    Noto Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+}
+
 details {
+  @apply relative;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial,
     Noto Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
 }
@@ -20,22 +26,22 @@ details summary::marker {
   @apply hidden;
 }
 
-details[data-inventory-state='IsInStock'] {
+details[data-inventory-state='available'] {
 }
 
 
-summary {
-  @apply cursor-pointer bg-white rounded-md text-center py-3 px-2 align-middle justify-center flex w-full;
+.isinstock-button {
+  @apply cursor-pointer bg-white hover:bg-gray-50 rounded-md text-center py-3 px-2 align-middle justify-center flex w-full;
   border: 1px solid #00aae7;
 }
 
-summary:hover {
-  background-color: rgb(249 250 251);
+.isinstock-button[disabled] {
+  @apply cursor-not-allowed hover:bg-white;
 }
 
-summary span {
-  @apply text-xs font-medium;
-  @apply leading-3;
+.isinstock-button span {
+  @apply text-sm font-medium;
+  @apply leading-4;
 }
 
 .isinstock-logo {
@@ -43,7 +49,7 @@ summary span {
 }
 
 details-menu {
-  @apply absolute pointer-events-none inset-auto flex flex-col p-0 z-50;
+  @apply absolute pointer-events-none inset-y-auto inset-x-0 flex flex-col p-0 z-50;
 }
 
 @keyframes select-menu-animation {
@@ -58,8 +64,9 @@ details-menu {
   }
 }
 
+/* There should be no styling to this menu, simply a container with positioning */
 .select-menu {
-  @apply pointer-events-auto relative z-[100] my-auto mx-0 flex max-h-[66%] min-w-max flex-col overflow-hidden rounded-md bg-white py-1.5 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:mt-2 sm:mb-4 sm:h-auto sm:max-h-96 sm:w-60;
+  @apply pointer-events-auto relative z-[100] my-auto mx-0 flex max-h-[66%] min-w-max flex-col rounded-md bg-white overflow-hidden shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:mt-2 sm:mb-4 sm:h-auto sm:max-h-96;
     animation: select-menu-animation 0.12s cubic-bezier(0, 0.1, 0.1, 1)
       backwards;
 }
@@ -68,4 +75,25 @@ details-menu {
   .select-menu {
     animation-name: select-menu-animation-sm;
   }
+}
+
+.login-prompt {
+  @apply h-64 bg-white bg-repeat p-6 flex;
+  background-image: url('../../../public/images/product-icons.svg');
+}
+
+.inventory-button {
+  @apply relative inline-flex items-center rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.inventory-button-available {
+  @apply bg-green-600 text-white hover:bg-green-700  focus:ring-green-500;
+}
+
+.inventory-button-unavailable {
+  @apply bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-indigo-500;
+}
+
+.inventory-button-icon {
+  @apply -ml-0.5 mr-2 h-4 w-4;
 }

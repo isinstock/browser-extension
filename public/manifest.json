@@ -3,7 +3,7 @@
   "name": "Is In Stock",
   "description": "Base Level Extension",
   "version": "1.0.1",
-  "permissions": ["activeTab", "tabs"],
+  "permissions": ["storage", "activeTab", "tabs"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -29,19 +29,58 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "popup.html",
+        "popup.js"
+      ],
+      "matches": [
+        "http://localhost:3000/*",
+        "https://*.isinstock.com/*"
+      ]
+    },
+    {
+      "resources": [
+        "pages/action-popup/style.css",
+        "images/product-icons.svg",
+        "images/product-icons.png",
+        "images/logos/isinstock.svg",
+        "images/logos/isinstock/16.png",
+        "images/logos/isinstock/24.png",
+        "images/logos/isinstock/32.png",
+        "images/logos/isinstock/48.png",
+        "images/logos/isinstock/64.png",
+        "images/logos/isinstock/128.png"
+      ],
+      "extension_ids": [
+        "jbokheigkkbbkonejaipdkhnbdefdegg"
+      ]
+    },
+    {
+      "resources": [
         "elements/isinstock-button/style.css",
+        "images/product-icons.svg",
+        "images/product-icons.png",
+        "images/logos/isinstock.svg",
+        "images/logos/isinstock/16.png",
+        "images/logos/isinstock/24.png",
+        "images/logos/isinstock/32.png",
+        "images/logos/isinstock/48.png",
+        "images/logos/isinstock/64.png",
+        "images/logos/isinstock/128.png",
+        "images/inventory-states/unknown.svg",
         "images/inventory-states/unknown/16.png",
         "images/inventory-states/unknown/24.png",
         "images/inventory-states/unknown/32.png",
         "images/inventory-states/unknown/48.png",
         "images/inventory-states/unknown/64.png",
         "images/inventory-states/unknown/128.png",
+        "images/inventory-states/available.svg",
         "images/inventory-states/available/16.png",
         "images/inventory-states/available/24.png",
         "images/inventory-states/available/32.png",
         "images/inventory-states/available/48.png",
         "images/inventory-states/available/64.png",
         "images/inventory-states/available/128.png",
+        "images/inventory-states/unavailable.svg",
         "images/inventory-states/unavailable/16.png",
         "images/inventory-states/unavailable/24.png",
         "images/inventory-states/unavailable/32.png",

@@ -1,11 +1,10 @@
-import {findProducts} from '../../utils/products'
-import {MessageAction} from '../../@types/messages'
-import {InventoryState} from '../../@types/inventory-states'
-import {findNearbyInventory} from '../../utils/nearby-inventory'
 import {NearbyInventoryProductRequest, NearbyInventorySearchProductStore} from '../../@types/api'
+import {InventoryStateNormalized} from '../../@types/inventory-states'
+import {MessageAction} from '../../@types/messages'
 import {Retailer} from '../../@types/retailers'
+import {insertIsInStockButton} from '../../elements/isinstock-button'
 import {broadcastInventoryState, calculateInventoryState} from '../../utils/inventory-state'
-import { insertIsInStockButton } from '../../elements/isinstock-button'
+import {findProducts} from '../../utils/products'
 
 // Default callback when a product is found
 export const productCallback = (href: string) => {
@@ -14,7 +13,7 @@ export const productCallback = (href: string) => {
 
   if (sku) {
     const storeId = findStoreId()
-    let store: NearbyInventorySearchProductStore | undefined = undefined
+    let store: NearbyInventorySearchProductStore | undefined
     if (storeId) {
       console.log('Likely found product with SKU', storeId)
       store = {
@@ -23,21 +22,20 @@ export const productCallback = (href: string) => {
     }
 
     const products = findProducts()
-    const productSchema = products.find(product => product.sku == sku)
-    let inventoryState: InventoryState | undefined = undefined
+    const productSchema = products.find(product => product.sku === sku)
+    let inventoryState: InventoryStateNormalized | undefined
 
     // Broadcast inventory state
     if (productSchema) {
       inventoryState = calculateInventoryState(productSchema)
       broadcastInventoryState(inventoryState)
     } else {
-      broadcastInventoryState(InventoryState.Unknown)
+      broadcastInventoryState(InventoryStateNormalized.Unknown)
     }
 
     const nearbyInventoryRequest: NearbyInventoryProductRequest = {
       context: {
         url: href,
-        userAgent: navigator.userAgent,
       },
       product: {
         retailer: Retailer.BestBuy,
@@ -50,18 +48,29 @@ export const productCallback = (href: string) => {
     const addToCartButton = document.querySelector<HTMLElement>('.fulfillment-add-to-cart-button')
     if (addToCartButton) {
       const element = insertIsInStockButton(addToCartButton, {inventoryState, request: nearbyInventoryRequest})
-      // element.style.marginTop = '6px'
+      element.style.marginTop = '6px'
     } else {
       // Insert somewhere else?
     }
-
-
-
-    // findNearbyInventory(nearbyInventoryRequest)
   }
 }
 
 const findStoreId = (): string | null => {
+  const store = document.querySelector<HTMLAnchorElement>(`#store-loc-overlay a[href^="https://stores.bestbuy.com"]`)
+  if (!store) {
+    return null
+  }
+
+  const url = new URL(store.href)
+  const matches = url.pathname.match(/^\/(?<storeId>\d+)$/)
+  if (!matches || !matches.groups || !matches.groups.storeId) {
+    return null
+  }
+
+  return matches.groups.storeId
+}
+
+const findSku = (): string | null => {
   const url = new URL(window.location.href)
   const sku = url.searchParams.get('skuId')
   if (sku) {
@@ -77,24 +86,9 @@ const findStoreId = (): string | null => {
   return matches.groups.sku
 }
 
-const findSku = (): string | null => {
-  const store = document.querySelector<HTMLAnchorElement>(`#store-loc-overlay a[href^="https://stores.bestbuy.com"]`)
-  if (!store) {
-    return null
-  }
-
-  const url = new URL(store.href)
-  const matches = url.pathname.match(/^\/(?<storeId>\d+)$/)
-  if (!matches || !matches.groups || !matches.groups.storeId) {
-    return null
-  }
-
-  return matches.groups.storeId
-}
-
 // Can we detect store location changing and re-issue request?
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action == MessageAction.URLChanged) {
+  if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
     productCallback(request.url)
   } else {
