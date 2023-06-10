@@ -16,7 +16,7 @@ To hit `https://www.isinstock.com` while in development, run:
 npm run build -- --watch
 ```
 
-### <IsInStockButton />
+### `<IsInStockButton />`
 
 ![](./docs/isinstock-button.png)
 
