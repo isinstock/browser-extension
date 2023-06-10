@@ -3,8 +3,8 @@ const copy = require('esbuild-plugin-copy').copy
 const postCssPlugin = require('esbuild-style-plugin')
 const pkg = require('./package.json')
 
-const isProduction = process.argv[2] === '--production'
-const watch = process.argv[2] === '--watch'
+const isProduction = process.argv.includes('--production')
+const watch = process.argv.includes('--watch')
 
 build({
   logLevel: 'info',
