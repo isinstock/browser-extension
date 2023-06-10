@@ -18,7 +18,7 @@ npm run build -- --watch
 
 ### `<IsInStockButton />`
 
-![](./docs/isinstock-button.png)
+<img src="./docs/isinstock-button.png" width="300">
 
 [`<IsInStockButton />`](./src/elements/isinstock-button.tsx) is the main entry point, handles logged out view, a sku being found, or a sku not being found.
 
@@ -26,7 +26,7 @@ The styles are in [`./src/elements/isinstock-button/style.css`](./src/elements/i
 
 ### Logged in page
 
-![](./docs/logged-in-page.png)
+<img src="./docs/logged-in-page.png" width="300">
 
 To see active alerts the extension popup, click the extension icon in the top right of your browser. To edit the file that renders this page, see [`./src/pages/action-popup.tsx`](./src/pages/action-popup.tsx).
 
