@@ -26,6 +26,7 @@ build({
   define: {
     VERSION: `"${pkg.version}"`,
     ISINSTOCK_URL: isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"',
+    CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
   },
   loader: {
     '.png': 'dataurl',
