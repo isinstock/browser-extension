@@ -4,6 +4,7 @@
   "description": "Base Level Extension",
   "version": "1.0.1",
   "permissions": ["storage", "activeTab", "tabs"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiCyV7JcHQ9oCyrPPS2OFXhPL4Rruh7ldfqAW6ETcLcWBmlqCaZLtAJ/PlZjQjb5mJt4MrMDT/ahLv4kUtDJsFyoO4ERP2P4Bc0L7kyLxx0ulP2rnc++4X152HgA33CPu8jvUNIhVhC/hm1PtJAb+yt72SI0WfmTudQaRPQgdZ9MHOe95A511gnlSVYSeLphfwTCkSKh1ePrYkLCXANqJRSxUWAC9Hi6NYFm8EKNP7HCNp9c5ctg0hl+P+U9LE8LmH0+Qqb/jR/FHrcqI+141+FqjJyKhrJ25JIWvECVIm4SdWJw2x78lBP2g18NRUXfcJWa9gObCL5S3AIN3ZyUhhQIDAQAB",
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
