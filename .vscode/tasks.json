@@ -23,18 +23,32 @@
           "args": ["run", "test"]
       },
       {
-          "label": "watch",
+          "label": "development - build",
+          "type": "shell",
+          "group": "build",
+          "command": "npm",
+          "args": ["run", "build"]
+      },
+      {
+          "label": "development - watch",
           "type": "shell",
           "group": "build",
           "command": "npm",
           "args": ["run", "watch"]
       },
       {
-          "label": "build",
+          "label": "production - build",
           "type": "shell",
           "group": "build",
           "command": "npm",
-          "args": ["run", "build"]
+          "args": ["run", "build", "--", "--production"]
+      },
+      {
+          "label": "production - watch",
+          "type": "shell",
+          "group": "build",
+          "command": "npm",
+          "args": ["run", "watch", "--", "--production"]
       }
   ]
 }

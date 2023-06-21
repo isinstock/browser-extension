@@ -13,7 +13,7 @@
 To hit `https://www.isinstock.com` while in development, run:
 
 ```sh
-npm run build -- --watch
+npm run watch -- --production
 ```
 
 ### `<IsInStockButton />`

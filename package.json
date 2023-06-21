@@ -8,7 +8,7 @@
   },
   "scripts": {
     "watch": "node ./build.js --watch",
-    "build": "node ./build.js --production",
+    "build": "node ./build.js",
     "clean": "rimraf dist",
     "test": "npx jest",
     "lint": "eslint src --fix",
