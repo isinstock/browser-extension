@@ -6,7 +6,6 @@ import {
   NearbyInventoryResponseSkuLocationPhysical,
 } from '../../../@types/api'
 import {Coordinate} from '../../../@types/locations'
-import {haversineLabel} from '../../../utils/haversine'
 import InventoryStateBadge from './inventory-state-badge'
 
 const SkuLocation = ({
@@ -100,12 +99,6 @@ const SkuLocationPhysical = ({
           <span class="font-medium">
             <span class="hidden sm:inline">{sku.retailer.name}</span> {skuLocation.name}
           </span>
-
-          {centerCoordinate && (
-            <span class="text-xs text-gray-600">
-              <LocationDistance center={centerCoordinate} location={skuLocation.coordinate} />
-            </span>
-          )}
         </div>
       </div>
       <div class="whitespace-nowrap p-2 align-middle text-xs text-gray-500">
@@ -116,13 +109,4 @@ const SkuLocationPhysical = ({
       </div>
     </div>
   )
-}
-
-const LocationDistance = ({center, location}: {center: Coordinate; location: Coordinate}) => {
-  const distance = haversineLabel({
-    center,
-    location,
-  })
-
-  return <span>{distance}</span>
 }
