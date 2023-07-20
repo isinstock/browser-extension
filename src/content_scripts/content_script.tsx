@@ -2,7 +2,7 @@ import {MessageAction} from '../@types/messages'
 import {observeSelector} from '../utils/observers'
 import {loadProduct, notFoundCallback, productCallback, searchProducts} from '../utils/products'
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, _sendResponse) => {
   if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
   } else {

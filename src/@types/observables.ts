@@ -1,3 +1,3 @@
-export interface ObservableElement extends Element {
+export interface ObservableElement extends HTMLElement {
   fired: boolean
 }

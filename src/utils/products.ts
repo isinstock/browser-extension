@@ -1,24 +1,23 @@
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
-import {MessageAction} from '../@types/messages'
 import {ObservableElement} from '../@types/observables'
 import {isProduct} from './helpers'
 import {broadcastInventoryState, calculateInventoryState} from './inventory-state'
 
-const loadJSON = (script: Element): any[] => {
-  if (!script.textContent || script.textContent === '') {
-    return []
+const loadJSON = (script: HTMLElement): any | null => {
+  if (script.textContent === null || script.textContent === '') {
+    return
   }
 
   try {
     return JSON.parse(script.textContent)
   } catch (e) {
-    return []
+    return
   }
 }
 
 const findProduct = (obj?: any): Product | null => {
-  if (!obj || !isProduct(obj)) {
+  if (obj === null || !isProduct(obj)) {
     return null
   }
 
@@ -34,31 +33,28 @@ export const productCallback = (product: Product) => {
 
 // Default callback when a product is not found
 export const notFoundCallback = () => {
-  chrome.runtime.sendMessage({
-    action: MessageAction.InventoryState,
-    value: InventoryStateNormalized.Unknown,
-  })
+  broadcastInventoryState(InventoryStateNormalized.Unknown)
 }
 
 export const findProducts = (): Product[] => {
-  const scripts: NodeListOf<Element> = document.querySelectorAll(`script[type="application/ld+json"]`)
+  const scripts: NodeListOf<HTMLElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
   const products: Product[] = []
-  scripts.forEach(script => {
+  for (const script of scripts) {
     const json = loadJSON(script)
-    if (json) {
+    if (json !== null) {
       const product = findProduct(json)
       if (product) {
         products.push(product)
       }
     }
-  })
+  }
 
   return products
 }
 
-export const loadProduct = (script: Element): Product | null => {
+export const loadProduct = (script: HTMLElement): Product | null => {
   const json = loadJSON(script)
-  if (json) {
+  if (json !== null) {
     return findProduct(json)
   }
   return null
@@ -72,20 +68,12 @@ type LocateProductsOptions = {
 
 // Allows callbacks for each product found and if none were found
 export const searchProducts = ({runFired = false, productCallback, notFoundCallback}: LocateProductsOptions) => {
-  const scripts: NodeListOf<ObservableElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
-  if (scripts.length) {
-    scripts.forEach(script => {
-      if (runFired || !script.fired) {
-        script.fired = true
+  const scripts: ObservableElement[] = Array.from(document.querySelectorAll(`script[type="application/ld+json"]`))
+  const products = scripts.map(script => loadProduct(script)).filter(product => product !== null)
 
-        const product = loadProduct(script)
-        if (product) {
-          productCallback(product)
-        }
-      } else {
-        console.warn('Already loaded script for', script)
-      }
-    })
+  // Valid pages will contain one Product structured data schema
+  if (products.length === 1) {
+    productCallback(products[0] as Product)
   } else if (notFoundCallback) {
     notFoundCallback()
   }
