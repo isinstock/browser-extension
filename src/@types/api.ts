@@ -65,6 +65,16 @@ export interface InventorySubscription {
   updated_at: string
 }
 
+export enum ProductValidationResult {
+  Supported = 'supported',
+  Unsupported = 'unsupported',
+  Error = 'error',
+}
+
+export interface ProductValidationResponse {
+  result: ProductValidationResult
+}
+
 export interface InventorySubscriptionsResponse {
   total_count: number
   total_pages: number

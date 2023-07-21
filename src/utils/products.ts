@@ -1,8 +1,10 @@
+import {ProductValidationResponse} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
+import fetchApi from './fetch-api'
 import {isProduct} from './helpers'
-import {broadcastInventoryState, calculateInventoryState} from './inventory-state'
+import {broadcastInventoryState} from './inventory-state'
 
 const loadJSON = (script: HTMLElement): any | null => {
   if (script.textContent === null || script.textContent === '') {
@@ -25,10 +27,34 @@ const findProduct = (obj?: any): Product | null => {
 }
 
 // Default callback when a product is found
-export const productCallback = (product: Product) => {
-  const inventoryState = calculateInventoryState(product)
+export const productCallback = async (product: Product) => {
+  const response = await fetchApi(
+    '/api/products/validate',
+    'POST',
+    JSON.stringify({
+      url: window.location.href,
+      product,
+    }),
+  )
+  if (response.ok) {
+    const json = (await response.json()) as ProductValidationResponse
 
-  broadcastInventoryState(inventoryState)
+    switch (json.result) {
+      case 'supported':
+        broadcastInventoryState(InventoryStateNormalized.Available)
+        break
+
+      case 'unsupported':
+        broadcastInventoryState(InventoryStateNormalized.Unavailable)
+        break
+
+      default:
+        broadcastInventoryState(InventoryStateNormalized.Unknown)
+        break
+    }
+  } else {
+    notFoundCallback()
+  }
 }
 
 // Default callback when a product is not found
