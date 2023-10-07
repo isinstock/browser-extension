@@ -28,17 +28,13 @@ const findProduct = (obj?: any): Product | null => {
 
 // Default callback when a product is found
 export const productCallback = async (product: Product) => {
-  const response = await fetchApi(
-    '/api/products/validate',
-    'POST',
-    JSON.stringify({
-      url: window.location.href,
-      product,
-    }),
-  )
+  const body = JSON.stringify({
+    url: window.location.href,
+    product,
+  })
+  const response = await fetchApi('/api/products/validate', 'POST', body)
   if (response.ok) {
     const json = (await response.json()) as ProductValidationResponse
-
     switch (json.result) {
       case 'supported':
         broadcastInventoryState(InventoryStateNormalized.Available)
@@ -53,7 +49,7 @@ export const productCallback = async (product: Product) => {
         break
     }
   } else {
-    notFoundCallback()
+    broadcastInventoryState(InventoryStateNormalized.Unknown)
   }
 }
 
@@ -66,12 +62,9 @@ export const findProducts = (): Product[] => {
   const scripts: NodeListOf<HTMLElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
   const products: Product[] = []
   for (const script of scripts) {
-    const json = loadJSON(script)
-    if (json !== null) {
-      const product = findProduct(json)
-      if (product) {
-        products.push(product)
-      }
+    const product = loadProduct(script)
+    if (product) {
+      products.push(product)
     }
   }
 
@@ -80,10 +73,7 @@ export const findProducts = (): Product[] => {
 
 export const loadProduct = (script: HTMLElement): Product | null => {
   const json = loadJSON(script)
-  if (json !== null) {
-    return findProduct(json)
-  }
-  return null
+  return findProduct(json)
 }
 
 type LocateProductsOptions = {
@@ -95,11 +85,17 @@ type LocateProductsOptions = {
 // Allows callbacks for each product found and if none were found
 export const searchProducts = ({runFired = false, productCallback, notFoundCallback}: LocateProductsOptions) => {
   const scripts: ObservableElement[] = Array.from(document.querySelectorAll(`script[type="application/ld+json"]`))
-  const products = scripts.map(script => loadProduct(script)).filter(product => product !== null)
+  const products = scripts
+    .filter(script => !script.fired || runFired)
+    .map(script => loadProduct(script))
+    .filter(product => product !== null)
 
   // Valid pages will contain one Product structured data schema
   if (products.length === 1) {
-    productCallback(products[0] as Product)
+    const product = products[0]
+    if (product !== null) {
+      productCallback(product)
+    }
   } else if (notFoundCallback) {
     notFoundCallback()
   }
