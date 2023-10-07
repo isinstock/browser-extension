@@ -4,9 +4,8 @@ import {MessageAction} from '../@types/messages'
 import {findOffer, isInStock, isNewCondition} from './helpers'
 
 export const calculateInventoryState = (product: Product): InventoryStateNormalized => {
-  console.log('Found product', product)
-
   const offer = findOffer(product)
+  console.log('Found product', product, 'with offer', offer)
   if (offer) {
     if (isNewCondition(offer) && isInStock(offer)) {
       return InventoryStateNormalized.Available

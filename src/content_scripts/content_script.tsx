@@ -2,7 +2,7 @@ import {MessageAction} from '../@types/messages'
 import {observeSelector} from '../utils/observers'
 import {loadProduct, notFoundCallback, productCallback, searchProducts} from '../utils/products'
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, _sendResponse) => {
   if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
   } else {
@@ -23,13 +23,10 @@ const run = (runFired?: boolean) => {
   observe()
 }
 
-// Run product location on page load
 run()
 
-// Once user leaves the page, disconnect the MutationObserver until user returns to tab.
+// Once user leaves the page, disconnect the MutationObserver until user returns focus.
 window.addEventListener('blur', disconnect)
 
-// Once user returns to the page, start the MutationObserver again and re-process page for updated chrome action icon.
-window.addEventListener('focus', () => {
-  run(true)
-})
+// Once the user returns focus, reconnect the MutationObserver.
+window.addEventListener('focus', observe)

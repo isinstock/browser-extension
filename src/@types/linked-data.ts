@@ -1,7 +1,7 @@
 // http://developers.google.com/search/docs/appearance/structured-data/product#json-ld
 
 export interface LinkedDataType {
-  '@context': 'http://schema.org/' | 'http://schema.org'
+  '@context': 'http://schema.org/' | 'https://schema.org/' | 'http://schema.org' | 'https://schema.org'
   '@type': string
 }
 

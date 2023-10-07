@@ -11,8 +11,6 @@ build({
   entryPoints: [
     './src/background.ts',
     './src/content_scripts/content_script.tsx',
-    './src/content_scripts/retailers/best-buy.tsx',
-    './src/content_scripts/retailers/target.tsx',
     './src/elements/isinstock-button/style.css',
     './src/pages/action-popup.tsx',
     './src/pages/action-popup/style.css',

@@ -7,28 +7,32 @@ export const observeSelector = (
     attributes: true,
     childList: true,
     subtree: true,
+    attributeFilter: ['type'],
   },
 ): {observe: () => void; disconnect: () => void} => {
-  const observer = new MutationObserver(mutations => {
-    console.log('Searching for', selector)
+  const search = () => {
     const elements: NodeListOf<ObservableElement> = document.querySelectorAll(selector)
-    elements.forEach(element => {
+    for (const element of elements) {
       if (!element.fired) {
         element.fired = true
         callback(element)
       } else {
         console.debug('Already fired on', element)
       }
-    })
+    }
+  }
+
+  const observer = new MutationObserver(mutations => {
+    search()
   })
 
   const observe = () => {
-    console.log('Starting MutationObserver')
+    console.debug('Starting MutationObserver for selector', selector)
     observer.observe(document, options)
   }
 
   const disconnect = () => {
-    console.log('Disconnecting MutationObserver')
+    console.debug('Disconnecting MutationObserver for selector', selector)
     observer.disconnect()
   }
 

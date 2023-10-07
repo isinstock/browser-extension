@@ -20,9 +20,9 @@ export const isOffer = (obj?: Offer | Offer[] | AggregateOffer): obj is Offer =>
   return obj['@type'] === 'Offer'
 }
 
-export const findOffer = (obj: Product | AggregateOffer): Offer | undefined => {
+export const findOffer = (obj: Product | AggregateOffer): Offer | null => {
   if (!obj.offers) {
-    return
+    return null
   }
 
   if (isOffer(obj.offers)) {
@@ -35,17 +35,18 @@ export const findOffer = (obj: Product | AggregateOffer): Offer | undefined => {
 
   if (isMultipleOffers(obj.offers)) {
     if (obj.offers.length > 1) {
-      return obj.offers.find(offer => isNewCondition(offer))
+      const newOffers = obj.offers.filter(offer => isNewCondition(offer))
+      return newOffers.length === 1 ? newOffers[0] : null
     } else if (obj.offers.length === 1) {
       return obj.offers[0]
     }
   }
 
-  return
+  return null
 }
 
 export const isNewCondition = (offer: Offer): boolean => {
-  if (!offer.itemCondition) {
+  if (offer.itemCondition === null) {
     return false
   }
 
@@ -57,7 +58,7 @@ export const isNewCondition = (offer: Offer): boolean => {
 }
 
 export const isInStock = (offer: Offer): boolean => {
-  if (!offer.availability) {
+  if (offer.availability === null) {
     return false
   }
 
@@ -84,7 +85,7 @@ export const isInStock = (offer: Offer): boolean => {
 }
 
 export const isProduct = (obj?: any): obj is Product => {
-  if (!obj) {
+  if (obj === undefined || obj === null || obj instanceof Array) {
     return false
   }
 
