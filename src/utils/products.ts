@@ -1,5 +1,4 @@
-import {ProductValidationResponse} from '../@types/api'
-import {InventoryStateNormalized} from '../@types/inventory-states'
+import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
 import fetchApi from './fetch-api'
@@ -13,7 +12,13 @@ const loadJSON = (script: HTMLElement): any | null => {
 
   try {
     return JSON.parse(script.textContent)
-  } catch (e) {
+  } catch (error) {
+    // TODO: Add regression tests for this, should we catch _again_?
+    if (error instanceof SyntaxError && error.message.includes('control character')) {
+      return JSON.parse(script.textContent.replace(/(\r\n|\n|\r)/gm, ''))
+    }
+
+    console.error(error)
     return
   }
 }
@@ -26,36 +31,33 @@ const findProduct = (obj?: any): Product | null => {
   return obj
 }
 
+type ProductCallbackProps = {
+  url: string
+  product?: Product
+}
+
 // Default callback when a product is found
-export const productCallback = async (product: Product) => {
+export const productCallback = async ({url, product}: ProductCallbackProps): Promise<ProductValidationResponse> => {
   const body = JSON.stringify({
-    url: window.location.href,
+    url,
     product,
   })
   const response = await fetchApi('/api/products/validate', 'POST', body)
-  if (response.ok) {
-    const json = (await response.json()) as ProductValidationResponse
-    switch (json.result) {
-      case 'supported':
-        broadcastInventoryState(InventoryStateNormalized.Available)
-        break
-
-      case 'unsupported':
-        broadcastInventoryState(InventoryStateNormalized.Unavailable)
-        break
-
-      default:
-        broadcastInventoryState(InventoryStateNormalized.Unknown)
-        break
-    }
-  } else {
-    broadcastInventoryState(InventoryStateNormalized.Unknown)
+  let productValidationResponse: ProductValidationResponse = {
+    result: ProductValidationResult.Unsupported,
   }
+  if (response.ok) {
+    productValidationResponse = (await response.json()) as ProductValidationResponse
+  }
+
+  broadcastInventoryState(productValidationResponse.result)
+
+  return productValidationResponse
 }
 
 // Default callback when a product is not found
 export const notFoundCallback = () => {
-  broadcastInventoryState(InventoryStateNormalized.Unknown)
+  broadcastInventoryState(ProductValidationResult.Unsupported)
 }
 
 export const findProducts = (): Product[] => {

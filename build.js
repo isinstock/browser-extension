@@ -12,8 +12,6 @@ build({
     './src/background.ts',
     './src/content_scripts/content_script.tsx',
     './src/elements/isinstock-button/style.css',
-    './src/pages/action-popup.tsx',
-    './src/pages/action-popup/style.css',
   ],
   outdir: 'dist',
   bundle: true,

@@ -30,17 +30,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "popup.html",
-        "popup.js"
-      ],
-      "matches": [
-        "http://localhost:3000/*",
-        "https://*.isinstock.com/*"
-      ]
-    },
-    {
-      "resources": [
-        "pages/action-popup/style.css",
         "images/product-icons.svg",
         "images/product-icons.png",
         "images/logos/isinstock.svg",
@@ -58,8 +47,6 @@
     {
       "resources": [
         "elements/isinstock-button/style.css",
-        "images/product-icons.svg",
-        "images/product-icons.png",
         "images/logos/isinstock.svg",
         "images/logos/isinstock/16.png",
         "images/logos/isinstock/24.png",

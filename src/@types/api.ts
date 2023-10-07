@@ -73,6 +73,8 @@ export enum ProductValidationResult {
 
 export interface ProductValidationResponse {
   result: ProductValidationResult
+  track_url?: string
+  availability?: string
 }
 
 export interface InventorySubscriptionsResponse {

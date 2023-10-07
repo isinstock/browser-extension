@@ -1,3 +1,4 @@
+import {ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
 import {MessageAction} from '../@types/messages'
@@ -15,7 +16,23 @@ export const calculateInventoryState = (product: Product): InventoryStateNormali
   return InventoryStateNormalized.Unknown
 }
 
-export const broadcastInventoryState = (inventoryState: InventoryStateNormalized) => {
+export const broadcastInventoryState = (result: ProductValidationResult) => {
+  let inventoryState: InventoryStateNormalized = InventoryStateNormalized.Unknown
+  switch (result) {
+    case ProductValidationResult.Supported:
+      inventoryState = InventoryStateNormalized.Available
+      break
+    case ProductValidationResult.Unsupported:
+      inventoryState = InventoryStateNormalized.Unavailable
+      break
+    case ProductValidationResult.Error:
+      inventoryState = InventoryStateNormalized.Unknown
+      break
+    default:
+      inventoryState = InventoryStateNormalized.Unknown
+      break
+  }
+
   chrome.runtime.sendMessage({
     action: MessageAction.InventoryState,
     value: inventoryState,

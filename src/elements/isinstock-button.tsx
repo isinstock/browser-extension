@@ -1,82 +1,69 @@
 import {render} from 'preact'
-import {useEffect, useState} from 'preact/hooks'
 
-import {
-  isFoundNearbyInventoryResponse,
-  isImportableNearbyInventoryResponse,
-  NearbyInventoryProductRequest,
-  NearbyInventoryResponse,
-} from '../@types/api'
-import {InventoryStateNormalized} from '../@types/inventory-states'
-import {ExtensionSearchTokenContext} from '../contexts/extension-search-token-context'
+import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {UserProvider} from '../contexts/user-context'
-import fetchApi from '../utils/fetch-api'
-import FoundSku from './isinstock-button/buttons/found-sku'
-import ImportableSku from './isinstock-button/buttons/importable-sku'
-import UnsupportedSku from './isinstock-button/buttons/unsupported-sku'
+
+const inStockAvailability = ['InStock', 'InStoreOnly', 'LimitedAvailability', 'OnlineOnly', 'PreSale', 'PreOrder']
+
+const isInStock = (itemAvailability: string): boolean => {
+  return inStockAvailability.some(
+    candidate => candidate.localeCompare(itemAvailability, undefined, {sensitivity: 'accent'}) === 0,
+  )
+}
 
 type IsInStockButtonProps = {
-  request: NearbyInventoryProductRequest
+  productValidation: ProductValidationResponse
 }
-const IsInStockButton = ({request}: IsInStockButtonProps) => {
-  const [data, setData] = useState<NearbyInventoryResponse | null>(null)
-  const [extensionSearchToken, setExtensionSearchToken] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const response = await fetchApi('/api/inventory/nearby', 'POST', JSON.stringify(request))
-
-      if (response.ok) {
-        const json = (await response.json()) as NearbyInventoryResponse
-        setExtensionSearchToken(response.headers.get('X-Extension-Search-Token'))
-        setData(json)
-      } else {
-        setData(null)
-      }
-    }
-
-    fetchData()
-  }, [request])
-
-  if (!data) {
+const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
+  if (productValidation.result !== ProductValidationResult.Supported) {
     return <></>
   }
 
-  if (isFoundNearbyInventoryResponse(data)) {
-    // Can we always just rely on sending original request?
+  if (productValidation.availability !== undefined && isInStock(productValidation.availability)) {
     return (
-      <ExtensionSearchTokenContext.Provider value={extensionSearchToken}>
-        <FoundSku data={data} request={request} />
-      </ExtensionSearchTokenContext.Provider>
+      <a href={productValidation.track_url} target="_blank" class="btn" rel="noreferrer">
+        <img
+          class="isinstock-logo"
+          width="16"
+          height="16"
+          src={chrome.runtime.getURL('images/inventory-states/available.svg')}
+        />
+        <span>In Stock</span>
+      </a>
     )
-  } else if (isImportableNearbyInventoryResponse(data)) {
-    return <ImportableSku request={request} onImported={setData} />
   }
-  return <UnsupportedSku />
+
+  return (
+    <a href={productValidation.track_url} target="_blank" class="btn" rel="noreferrer">
+      <img
+        class="isinstock-logo"
+        width="16"
+        height="16"
+        src={chrome.runtime.getURL('images/inventory-states/unavailable.svg')}
+      />
+      <span>Notify Me</span>
+    </a>
+  )
 }
 
 interface InsertIsInStockButtonOptions {
-  insertPosition?: InsertPosition
-  inventoryState?: InventoryStateNormalized
-  request: NearbyInventoryProductRequest
+  productValidation: ProductValidationResponse
 }
 
-// Can we cache buttons that are created based on URL or some other unique key?
-const buttons = new WeakMap()
+export const removeIsInStockButton = () => {
+  const wrapper = document.querySelector<HTMLElement>('#isinstock-button')
+  if (wrapper) {
+    wrapper.remove()
+  }
+}
 
-export const insertIsInStockButton = (
-  element: HTMLElement,
-  {
-    insertPosition = 'afterend',
-    inventoryState = InventoryStateNormalized.Unknown,
-    request,
-  }: InsertIsInStockButtonOptions,
-): HTMLElement => {
+export const insertIsInStockButton = ({productValidation}: InsertIsInStockButtonOptions): HTMLElement => {
   let wrapper = document.querySelector<HTMLElement>('#isinstock-button')
   let shadowRoot = wrapper?.shadowRoot
   const app = (
     <UserProvider>
-      <IsInStockButton request={request} />
+      <IsInStockButton productValidation={productValidation} />
     </UserProvider>
   )
   if (wrapper) {
@@ -85,6 +72,10 @@ export const insertIsInStockButton = (
   } else {
     wrapper = document.createElement('div')
     wrapper.id = 'isinstock-button'
+    wrapper.style.position = 'fixed'
+    wrapper.style.bottom = '10px'
+    wrapper.style.right = '10px'
+    wrapper.style.zIndex = '999999'
     shadowRoot = wrapper.attachShadow({mode: 'open'})
 
     // Can we prevent any flashing?
@@ -93,7 +84,7 @@ export const insertIsInStockButton = (
     stylesheet.href = chrome.runtime.getURL('elements/isinstock-button/style.css')
     shadowRoot.appendChild(stylesheet)
 
-    element.insertAdjacentElement(insertPosition, wrapper)
+    document.body.appendChild(wrapper)
 
     render(app, shadowRoot)
   }
