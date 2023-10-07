@@ -43,7 +43,7 @@ export const productCallback = async ({url, product}: ProductCallbackProps): Pro
     url,
     product,
   })
-  const response = await fetchApi('/api/products/validate', 'POST', body)
+  const response = await fetchApi('/api/products/validations', 'POST', body)
   let productValidationResponse: ProductValidationResponse = {
     result: ProductValidationResult.Unsupported,
   }

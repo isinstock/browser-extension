@@ -153,7 +153,10 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
     wrapper.style.position = 'fixed'
     wrapper.style.bottom = '10px'
     wrapper.style.right = '10px'
-    wrapper.style.zIndex = '999999'
+    // The maximum value of a 32 bits integer
+    wrapper.style.zIndex = '2147483647'
+    // If a parent stylesheet contains div:empty due to the shadow root the container will not appear.
+    wrapper.style.display = 'block'
     shadowRoot = wrapper.attachShadow({mode: 'open'})
 
     // Can we prevent any flashing?
