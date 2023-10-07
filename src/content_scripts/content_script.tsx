@@ -1,10 +1,8 @@
-import {InventoryStateNormalized} from '../@types/inventory-states'
 import {MessageAction} from '../@types/messages'
 import {ObservableElement} from '../@types/observables'
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
-import {broadcastInventoryState} from '../utils/inventory-state'
 import {observeSelector} from '../utils/observers'
-import {findProducts, loadProduct, productCallback, productsNotFound} from '../utils/products'
+import {findProducts, loadProduct, notFoundCallback, productCallback, productsNotFound} from '../utils/products'
 
 const queryProducts = async () => {
   const products = findProducts()
@@ -15,7 +13,7 @@ const queryProducts = async () => {
     insertIsInStockButton({productValidation})
   } else {
     removeIsInStockButton()
-    broadcastInventoryState(InventoryStateNormalized.Unknown)
+    notFoundCallback()
   }
 }
 
@@ -41,6 +39,8 @@ const {observe, disconnect} = observeSelector(
       })
       insertIsInStockButton({productValidation})
     } else {
+      // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
+      // page and we should not have any side effects that clear state in this callback.
       console.debug('No products found in structured data.')
     }
   },
@@ -54,6 +54,8 @@ const {observe, disconnect} = observeSelector(
 // run()
 observe()
 
+productsNotFound().then(notFoundCallback)
+
 // Once user leaves the page, disconnect the MutationObserver until user returns focus.
 window.addEventListener('blur', () => {
   disconnect()
@@ -63,9 +65,7 @@ window.addEventListener('blur', () => {
 window.addEventListener('focus', () => {
   observe()
 
-  productsNotFound().then(() => {
-    broadcastInventoryState(InventoryStateNormalized.Unknown)
-  })
+  productsNotFound().then(notFoundCallback)
 })
 
 window.addEventListener('pageshow', async event => {
