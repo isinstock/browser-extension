@@ -16,12 +16,12 @@
     }
   },
   "icons": {
-    "16": "images/inventory-states/unknown/16.png",
-    "24": "images/inventory-states/unknown/24.png",
-    "32": "images/inventory-states/unknown/32.png",
-    "48": "images/inventory-states/unknown/48.png",
-    "64": "images/inventory-states/unknown/64.png",
-    "128": "images/inventory-states/unknown/128.png"
+    "16": "images/logos/isinstock/16.png",
+    "24": "images/logos/isinstock/24.png",
+    "32": "images/logos/isinstock/32.png",
+    "48": "images/logos/isinstock/48.png",
+    "64": "images/logos/isinstock/64.png",
+    "128": "images/logos/isinstock/128.png"
   },
   "background": {
     "service_worker": "background.js"
