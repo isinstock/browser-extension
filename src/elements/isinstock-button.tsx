@@ -1,41 +1,68 @@
 import {render} from 'preact'
+import {useEffect} from 'preact/hooks'
 
 import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
+import {InventoryStateNormalized} from '../@types/inventory-states'
 import {UserProvider} from '../contexts/user-context'
-
-const inStockAvailability = ['InStock', 'InStoreOnly', 'LimitedAvailability', 'OnlineOnly', 'PreSale', 'PreOrder']
-
-const isInStock = (itemAvailability: string): boolean => {
-  return inStockAvailability.some(
-    candidate => candidate.localeCompare(itemAvailability, undefined, {sensitivity: 'accent'}) === 0,
-  )
-}
+import {broadcastInventoryState, isInStock} from '../utils/inventory-state'
 
 type IsInStockButtonProps = {
   productValidation: ProductValidationResponse
 }
 
 const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
-  if (productValidation.result !== ProductValidationResult.Supported) {
-    return <></>
-  }
+  useEffect(() => {
+    const handleFocus = () => {
+      broadcastInventoryState(InventoryStateNormalized.Available)
+    }
 
-  if (productValidation.availability !== undefined && isInStock(productValidation.availability)) {
-    return (
-      <a href={productValidation.track_url} target="_blank" class="btn" rel="noreferrer">
-        <img
-          class="isinstock-logo"
-          width="16"
-          height="16"
-          src={chrome.runtime.getURL('images/inventory-states/available.svg')}
-        />
-        <span>In Stock</span>
-      </a>
-    )
-  }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
 
   return (
-    <a href={productValidation.track_url} target="_blank" class="btn" rel="noreferrer">
+    <a
+      href={productValidation.track_url}
+      target="_blank"
+      class="btn"
+      rel="noreferrer"
+      data-inventory-state-normalized={InventoryStateNormalized.Available}
+    >
+      <img
+        class="isinstock-logo"
+        width="16"
+        height="16"
+        src={chrome.runtime.getURL('images/inventory-states/available.svg')}
+      />
+      <span>In Stock</span>
+    </a>
+  )
+}
+
+const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
+  useEffect(() => {
+    const handleFocus = () => {
+      broadcastInventoryState(InventoryStateNormalized.Unavailable)
+    }
+
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
+
+  return (
+    <a
+      href={productValidation.track_url}
+      target="_blank"
+      class="btn"
+      rel="noreferrer"
+      data-inventory-state-normalized={InventoryStateNormalized.Unavailable}
+    >
       <img
         class="isinstock-logo"
         width="16"
@@ -45,6 +72,54 @@ const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
       <span>Notify Me</span>
     </a>
   )
+}
+
+const UnsupportedButton = ({productValidation}: IsInStockButtonProps) => {
+  useEffect(() => {
+    const handleFocus = () => {
+      broadcastInventoryState(InventoryStateNormalized.Unknown)
+    }
+
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
+
+  return (
+    <a
+      href={productValidation.track_url}
+      target="_blank"
+      className="btn"
+      rel="noreferrer"
+      data-inventory-state-normalized={InventoryStateNormalized.Unknown}
+    >
+      <img
+        className="isinstock-logo"
+        width="16"
+        height="16"
+        src={chrome.runtime.getURL('images/inventory-states/unknown.svg')}
+      />
+      <span>Not Trackable</span>
+    </a>
+  )
+}
+
+const ProductValidationButton = ({productValidation}: IsInStockButtonProps) => {
+  if (productValidation.result === ProductValidationResult.Error) {
+    return <></>
+  }
+
+  if (productValidation.result === ProductValidationResult.Unsupported) {
+    return <UnsupportedButton productValidation={productValidation} />
+  }
+
+  if (productValidation.availability !== undefined && isInStock(productValidation.availability)) {
+    return <IsInStockButton productValidation={productValidation} />
+  }
+
+  return <OutOfStockButton productValidation={productValidation} />
 }
 
 interface InsertIsInStockButtonOptions {
@@ -63,7 +138,7 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   let shadowRoot = wrapper?.shadowRoot
   const app = (
     <UserProvider>
-      <IsInStockButton productValidation={productValidation} />
+      <ProductValidationButton productValidation={productValidation} />
     </UserProvider>
   )
   if (wrapper) {

@@ -11,13 +11,19 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 })
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
+const loadedTabs = new Map<number, boolean>()
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  console.log(tabId, changeInfo, tab)
+  // Only when the tab is fully loaded
   if (changeInfo.status === 'complete') {
-    chrome.tabs.sendMessage(tabId, {
-      action: MessageAction.URLChanged,
-      url: tab.url,
-    })
+    // Only send message if the tab has been loaded before
+    if (loadedTabs.has(tabId)) {
+      chrome.tabs.sendMessage(tabId, {
+        action: MessageAction.URLChanged,
+        url: tab.url,
+      })
+    } else {
+      loadedTabs.set(tabId, true)
+    }
   }
 })
 
@@ -54,12 +60,12 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
       default:
         chrome.action.setIcon({
           path: {
-            '16': '/images/default/16.png',
-            '24': '/images/default/24.png',
-            '32': '/images/default/32.png',
-            '48': '/images/default/48.png',
-            '64': '/images/default/64.png',
-            '128': '/images/default/128.png',
+            '16': '/images/inventory-states/unknown/16.png',
+            '24': '/images/inventory-states/unknown/24.png',
+            '32': '/images/inventory-states/unknown/32.png',
+            '48': '/images/inventory-states/unknown/48.png',
+            '64': '/images/inventory-states/unknown/64.png',
+            '128': '/images/inventory-states/unknown/128.png',
           },
         })
         break

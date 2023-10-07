@@ -2,7 +2,7 @@ import {ObservableElement} from '../@types/observables'
 
 export const observeSelector = (
   selector: string,
-  callback: (element: ObservableElement) => void,
+  callback: (products: ObservableElement[]) => void,
   options: MutationObserverInit = {
     attributes: true,
     childList: true,
@@ -11,18 +11,26 @@ export const observeSelector = (
   },
 ): {observe: () => void; disconnect: () => void} => {
   const search = () => {
-    const elements: NodeListOf<ObservableElement> = document.querySelectorAll(selector)
-    for (const element of elements) {
-      if (!element.fired) {
+    const elements: ObservableElement[] = Array.from(document.querySelectorAll(selector))
+    if (elements.length === 0) {
+      return
+    }
+
+    const unfiredElements = elements
+      .filter(element => !element.fired)
+      .map(element => {
         element.fired = true
-        callback(element)
-      } else {
-        console.debug('Already fired on', element)
-      }
+        return element
+      })
+
+    if (unfiredElements.length > 0) {
+      callback(unfiredElements)
+    } else {
+      console.debug('Already fired on elements.')
     }
   }
 
-  const observer = new MutationObserver(mutations => {
+  const observer = new MutationObserver(_mutations => {
     search()
   })
 
@@ -41,14 +49,14 @@ export const observeSelector = (
 
 type SelectorAddedOptions = {
   selector: string
-  timeout?: number
+  timeout: number
 }
 
 // TODO: Add a timeout to reject promise after N seconds
-export const selectorAdded = (options: SelectorAddedOptions): Promise<HTMLElement | null> => {
-  const promise = new Promise<HTMLElement | null>((resolve, reject) => {
-    const observer = new MutationObserver(mutations => {
-      const element = document.querySelector<HTMLElement>(options.selector)
+export const selectorAdded = ({selector, timeout = 5000}: SelectorAddedOptions): Promise<HTMLElement | null> => {
+  const promise = new Promise<HTMLElement | null>((resolve, _reject) => {
+    const observer = new MutationObserver(_mutations => {
+      const element = document.querySelector<HTMLElement>(selector)
       if (element) {
         observer.disconnect()
 
@@ -56,7 +64,7 @@ export const selectorAdded = (options: SelectorAddedOptions): Promise<HTMLElemen
       }
     })
 
-    console.log('Starting MutationObserver for selectorAdded', options.selector)
+    console.log('Starting MutationObserver for selectorAdded', selector)
     const observerOptions: MutationObserverInit = {
       attributes: true,
       childList: true,
@@ -65,12 +73,9 @@ export const selectorAdded = (options: SelectorAddedOptions): Promise<HTMLElemen
     observer.observe(document, observerOptions)
   })
 
-  if (options.timeout) {
-    const timeout = new Promise<null>((resolve, reject) => {
-      setTimeout(() => resolve(null), options.timeout)
-    })
+  const raceTimeout = new Promise<null>((resolve, _reject) => {
+    setTimeout(() => resolve(null), timeout)
+  })
 
-    return Promise.race<HTMLElement | null>([promise, timeout])
-  }
-  return promise
+  return Promise.race<HTMLElement | null>([promise, raceTimeout])
 }

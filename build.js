@@ -24,6 +24,7 @@ build({
     ISINSTOCK_URL: isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"',
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
   },
+  drop: isProduction ? ['console'] : [],
   loader: {
     '.png': 'dataurl',
     '.svg': 'dataurl',
