@@ -4,7 +4,7 @@ import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
 import fetchApi from './fetch-api'
 import {isProduct} from './helpers'
-import {broadcastInventoryState, isInStock} from './inventory-state'
+import {broadcastInventoryState} from './inventory-state'
 
 const loadJSON = (script: HTMLElement): any | null => {
   if (script.textContent === null || script.textContent === '') {
@@ -50,20 +50,6 @@ export const productCallback = async ({url, product}: ProductCallbackProps): Pro
   if (response.ok) {
     productValidationResponse = (await response.json()) as ProductValidationResponse
   }
-
-  let inventoryState: InventoryStateNormalized = InventoryStateNormalized.Unknown
-  if (
-    productValidationResponse.result === ProductValidationResult.Supported &&
-    productValidationResponse.availability !== undefined
-  ) {
-    if (isInStock(productValidationResponse.availability)) {
-      inventoryState = InventoryStateNormalized.Available
-    } else {
-      inventoryState = InventoryStateNormalized.Unavailable
-    }
-  }
-
-  broadcastInventoryState(inventoryState)
 
   return productValidationResponse
 }

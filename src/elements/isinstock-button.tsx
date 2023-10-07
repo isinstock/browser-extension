@@ -12,14 +12,15 @@ type IsInStockButtonProps = {
 
 const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
   useEffect(() => {
-    const handleFocus = () => {
+    const handleBroadcastInventoryState = () => {
       broadcastInventoryState(InventoryStateNormalized.Available)
     }
 
-    window.addEventListener('focus', handleFocus)
+    handleBroadcastInventoryState()
+    window.addEventListener('focus', handleBroadcastInventoryState)
 
     return () => {
-      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('focus', handleBroadcastInventoryState)
     }
   }, [])
 
@@ -44,14 +45,15 @@ const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
 
 const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
   useEffect(() => {
-    const handleFocus = () => {
+    const handleBroadcastInventoryState = () => {
       broadcastInventoryState(InventoryStateNormalized.Unavailable)
     }
 
-    window.addEventListener('focus', handleFocus)
+    handleBroadcastInventoryState()
+    window.addEventListener('focus', handleBroadcastInventoryState)
 
     return () => {
-      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('focus', handleBroadcastInventoryState)
     }
   }, [])
 
@@ -76,14 +78,15 @@ const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
 
 const UnsupportedButton = ({productValidation}: IsInStockButtonProps) => {
   useEffect(() => {
-    const handleFocus = () => {
+    const handleBroadcastInventoryState = () => {
       broadcastInventoryState(InventoryStateNormalized.Unknown)
     }
 
-    window.addEventListener('focus', handleFocus)
+    handleBroadcastInventoryState()
+    window.addEventListener('focus', handleBroadcastInventoryState)
 
     return () => {
-      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('focus', handleBroadcastInventoryState)
     }
   }, [])
 
