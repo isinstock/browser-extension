@@ -10,7 +10,7 @@
 
 ### Using production
 
-To hit `https://www.isinstock.com` while in development, run:
+To hit `https://isinstock.com` while in development, run:
 
 ```sh
 npm run watch -- --production
