@@ -6,7 +6,6 @@
   "permissions": ["storage", "activeTab", "tabs"],
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiCyV7JcHQ9oCyrPPS2OFXhPL4Rruh7ldfqAW6ETcLcWBmlqCaZLtAJ/PlZjQjb5mJt4MrMDT/ahLv4kUtDJsFyoO4ERP2P4Bc0L7kyLxx0ulP2rnc++4X152HgA33CPu8jvUNIhVhC/hm1PtJAb+yt72SI0WfmTudQaRPQgdZ9MHOe95A511gnlSVYSeLphfwTCkSKh1ePrYkLCXANqJRSxUWAC9Hi6NYFm8EKNP7HCNp9c5ctg0hl+P+U9LE8LmH0+Qqb/jR/FHrcqI+141+FqjJyKhrJ25JIWvECVIm4SdWJw2x78lBP2g18NRUXfcJWa9gObCL5S3AIN3ZyUhhQIDAQAB",
   "action": {
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "images/inventory-states/unknown/16.png",
       "24": "images/inventory-states/unknown/24.png",
@@ -17,12 +16,12 @@
     }
   },
   "icons": {
-    "16": "images/inventory-states/unknown/16.png",
-    "24": "images/inventory-states/unknown/24.png",
-    "32": "images/inventory-states/unknown/32.png",
-    "48": "images/inventory-states/unknown/48.png",
-    "64": "images/inventory-states/unknown/64.png",
-    "128": "images/inventory-states/unknown/128.png"
+    "16": "images/logos/isinstock/16.png",
+    "24": "images/logos/isinstock/24.png",
+    "32": "images/logos/isinstock/32.png",
+    "48": "images/logos/isinstock/48.png",
+    "64": "images/logos/isinstock/64.png",
+    "128": "images/logos/isinstock/128.png"
   },
   "background": {
     "service_worker": "background.js"
@@ -30,17 +29,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "popup.html",
-        "popup.js"
-      ],
-      "matches": [
-        "http://localhost:3000/*",
-        "https://*.isinstock.com/*"
-      ]
-    },
-    {
-      "resources": [
-        "pages/action-popup/style.css",
         "images/product-icons.svg",
         "images/product-icons.png",
         "images/logos/isinstock.svg",
@@ -58,8 +46,6 @@
     {
       "resources": [
         "elements/isinstock-button/style.css",
-        "images/product-icons.svg",
-        "images/product-icons.png",
         "images/logos/isinstock.svg",
         "images/logos/isinstock/16.png",
         "images/logos/isinstock/24.png",

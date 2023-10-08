@@ -12,8 +12,6 @@ build({
     './src/background.ts',
     './src/content_scripts/content_script.tsx',
     './src/elements/isinstock-button/style.css',
-    './src/pages/action-popup.tsx',
-    './src/pages/action-popup/style.css',
   ],
   outdir: 'dist',
   bundle: true,
@@ -26,6 +24,7 @@ build({
     ISINSTOCK_URL: isProduction ? '"https://www.isinstock.com"' : '"http://localhost:3000"',
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
   },
+  drop: isProduction ? ['console'] : [],
   loader: {
     '.png': 'dataurl',
     '.svg': 'dataurl',
