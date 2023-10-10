@@ -84,7 +84,7 @@ export const isInStock = (offer: Offer): boolean => {
   )
 }
 
-export const isProduct = (obj?: any): obj is Product => {
+export const isProductSchema = (obj?: any): obj is Product => {
   if (obj === undefined || obj === null || obj instanceof Array) {
     return false
   }

@@ -3,8 +3,10 @@ import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
 import {ObservableElement} from '../@types/observables'
 import fetchApi from './fetch-api'
-import {isProduct} from './helpers'
+import {isProductSchema} from './helpers'
 import {broadcastInventoryState} from './inventory-state'
+
+export const SELECTOR = `script[type="application/ld+json"], [itemscope][itemtype*="Product" i]`
 
 const loadJSON = (script: HTMLElement): any | null => {
   if (script.textContent === null || script.textContent === '') {
@@ -25,7 +27,7 @@ const loadJSON = (script: HTMLElement): any | null => {
 }
 
 const findProduct = (obj?: any): Product | null => {
-  if (obj === null || !isProduct(obj)) {
+  if (obj === null || !isProductSchema(obj)) {
     return null
   }
 
@@ -72,6 +74,24 @@ export const findProducts = (): Product[] => {
   return products
 }
 
+export const hasProducts = (): boolean => {
+  const elements: HTMLElement[] = Array.from(document.querySelectorAll(SELECTOR))
+  return elements.some(element => isProduct(element))
+}
+
+export const isProduct = (element: HTMLElement): boolean => {
+  if (element.tagName === 'SCRIPT') {
+    return loadProduct(element) !== null
+  }
+
+  const itemtype = element.getAttribute('itemtype')
+  if (itemtype === null) {
+    return false
+  }
+
+  return itemtype.toLowerCase().includes('product')
+}
+
 export const loadProduct = (script: HTMLElement): Product | null => {
   const json = loadJSON(script)
   return findProduct(json)
@@ -83,11 +103,13 @@ type LocateProductsOptions = {
   notFoundCallback?: () => void
 }
 
-export const productsNotFound = async (): Promise => {
+export const productsNotFound = async (): Promise<boolean> => {
   const button = document.querySelector('#isinstock-button')
   if (!button) {
-    return Promise.resolve()
+    return Promise.resolve(true)
   }
+
+  return Promise.reject(new Error('products not found'))
 }
 
 // Allows callbacks for each product found and if none were found

@@ -2,11 +2,10 @@ import {MessageAction} from '../@types/messages'
 import {ObservableElement} from '../@types/observables'
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
 import {observeSelector} from '../utils/observers'
-import {findProducts, loadProduct, notFoundCallback, productCallback, productsNotFound} from '../utils/products'
+import {hasProducts, isProduct, notFoundCallback, productCallback, productsNotFound, SELECTOR} from '../utils/products'
 
 const queryProducts = async () => {
-  const products = findProducts()
-  if (products.length > 0) {
+  if (hasProducts()) {
     const productValidation = await productCallback({
       url: window.location.href,
     })
@@ -29,22 +28,19 @@ chrome.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => 
 // Detect page transitions or DOM changes for single page based applications.
 
 // We're observing changes to the DOM to know when to validate products.
-const {observe, disconnect} = observeSelector(
-  `script[type="application/ld+json"]`,
-  async (elements: ObservableElement[]) => {
-    const products = elements.map(element => loadProduct(element)).filter(element => element)
-    if (products.length > 0) {
-      const productValidation = await productCallback({
-        url: window.location.href,
-      })
-      insertIsInStockButton({productValidation})
-    } else {
-      // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
-      // page and we should not have any side effects that clear state in this callback.
-      console.debug('No products found in structured data.')
-    }
-  },
-)
+const {observe, disconnect} = observeSelector(SELECTOR, async (elements: ObservableElement[]) => {
+  const products = elements.filter(element => isProduct(element))
+  if (products.length > 0) {
+    const productValidation = await productCallback({
+      url: window.location.href,
+    })
+    insertIsInStockButton({productValidation})
+  } else {
+    // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
+    // page and we should not have any side effects that clear state in this callback.
+    console.debug('No products found in structured data.')
+  }
+})
 
 // const run = (runFired?: boolean) => {
 //   searchProducts({runFired, productCallback, notFoundCallback})
