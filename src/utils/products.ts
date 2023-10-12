@@ -105,11 +105,7 @@ type LocateProductsOptions = {
 
 export const productsNotFound = async (): Promise<boolean> => {
   const button = document.querySelector('#isinstock-button')
-  if (!button) {
-    return Promise.resolve(true)
-  }
-
-  return Promise.reject(new Error('products not found'))
+  return Promise.resolve(button !== null)
 }
 
 // Allows callbacks for each product found and if none were found

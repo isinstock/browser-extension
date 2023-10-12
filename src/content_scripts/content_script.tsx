@@ -42,15 +42,13 @@ const {observe, disconnect} = observeSelector(SELECTOR, async (elements: Observa
   }
 })
 
-// const run = (runFired?: boolean) => {
-//   searchProducts({runFired, productCallback, notFoundCallback})
-//   observe()
-// }
-
-// run()
 observe()
 
-productsNotFound().then(notFoundCallback)
+productsNotFound().then(notFound => {
+  if (notFound) {
+    notFoundCallback()
+  }
+})
 
 // Once user leaves the page, disconnect the MutationObserver until user returns focus.
 window.addEventListener('blur', () => {
@@ -61,16 +59,18 @@ window.addEventListener('blur', () => {
 window.addEventListener('focus', () => {
   observe()
 
-  productsNotFound().then(notFoundCallback)
+  productsNotFound().then(notFound => {
+    if (notFound) {
+      notFoundCallback()
+    }
+  })
 })
 
 window.addEventListener('pageshow', async event => {
   if (event.persisted) {
     queryProducts()
-
-    // broadcastInventoryState(InventoryStateNormalized.Available)
     console.debug('This page was restored from the bfcache.')
   } else {
-    console.log('This page was loaded normally.')
+    console.debug('This page was loaded normally.')
   }
 })
