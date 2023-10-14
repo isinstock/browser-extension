@@ -6,6 +6,7 @@ import fetchApi from './fetch-api'
 import {isProductSchema} from './helpers'
 import {broadcastInventoryState} from './inventory-state'
 
+// JSON+LD, Microdata, RDFa
 export const SELECTOR = `script[type="application/ld+json"], [itemscope][itemtype*="Product" i], [typeof="schema:Product" i]`
 
 const loadJSON = (script: HTMLElement): any | null => {
