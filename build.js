@@ -15,7 +15,7 @@ build({
   ],
   outdir: 'dist',
   bundle: true,
-  sourcemap: 'inline',
+  sourcemap: !isProduction,
   watch,
   minify: isProduction,
   target: ['chrome58'],
