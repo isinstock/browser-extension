@@ -1,7 +1,6 @@
 import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
-import {ObservableElement} from '../@types/observables'
 import fetchApi from './fetch-api'
 import {isProductSchema} from './helpers'
 import {broadcastInventoryState} from './inventory-state'
@@ -62,19 +61,6 @@ export const notFoundCallback = () => {
   broadcastInventoryState(InventoryStateNormalized.Unknown)
 }
 
-export const findProducts = (): Product[] => {
-  const scripts: NodeListOf<HTMLElement> = document.querySelectorAll(`script[type="application/ld+json"]`)
-  const products: Product[] = []
-  for (const script of scripts) {
-    const product = loadProduct(script)
-    if (product) {
-      products.push(product)
-    }
-  }
-
-  return products
-}
-
 export const hasProducts = (): boolean => {
   const elements: HTMLElement[] = Array.from(document.querySelectorAll(SELECTOR))
   return elements.some(element => isProduct(element))
@@ -85,12 +71,17 @@ export const isProduct = (element: HTMLElement): boolean => {
     return loadProduct(element) !== null
   }
 
-  const itemtype = element.getAttribute('itemtype')
-  if (itemtype === null) {
-    return false
+  const typeofAttribute = element.getAttribute('typeof')
+  if (typeofAttribute !== null && typeofAttribute.trim().toLowerCase() === 'schema:product') {
+    return true
   }
 
-  return itemtype.toLowerCase().includes('product')
+  const itemtype = element.getAttribute('itemtype')
+  if (itemtype !== null && itemtype.trim().toLowerCase().includes('product')) {
+    return true
+  }
+
+  return false
 }
 
 export const loadProduct = (script: HTMLElement): Product | null => {
@@ -98,39 +89,7 @@ export const loadProduct = (script: HTMLElement): Product | null => {
   return findProduct(json)
 }
 
-type LocateProductsOptions = {
-  runFired?: boolean
-  productCallback: (props: ProductCallbackProps) => void
-  notFoundCallback?: () => void
-}
-
 export const productsNotFound = async (): Promise<boolean> => {
   const button = document.querySelector('#isinstock-button')
   return Promise.resolve(button !== null)
-}
-
-// Allows callbacks for each product found and if none were found
-export const searchProducts = ({
-  runFired = false,
-  productCallback: searchProductCallback,
-  notFoundCallback: searchNotFoundCallback,
-}: LocateProductsOptions) => {
-  const scripts: ObservableElement[] = Array.from(document.querySelectorAll(`script[type="application/ld+json"]`))
-  const products = scripts
-    .filter(script => !script.fired || runFired)
-    .map(script => loadProduct(script))
-    .filter(product => product !== null)
-
-  // Valid pages will contain one Product structured data schema
-  if (products.length === 1) {
-    const product = products[0]
-    if (product !== null) {
-      searchProductCallback({
-        url: window.location.href,
-        product,
-      })
-    }
-  } else if (searchNotFoundCallback) {
-    searchNotFoundCallback()
-  }
 }
