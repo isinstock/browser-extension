@@ -1,0 +1,23 @@
+name: Compressed Size
+
+on:
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - '**/src/**.js'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - uses: preactjs/compressed-size-action@v1
+        with:
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          build-script: "build -- --production"
