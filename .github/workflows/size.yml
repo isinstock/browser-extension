@@ -5,7 +5,7 @@ on:
     branches:
       - '**'
     paths:
-      - '**/src/**.js'
+      - '**/src/**/*'
 
 jobs:
   build:
