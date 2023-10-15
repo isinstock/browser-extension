@@ -72,7 +72,7 @@ const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
         height="16"
         src={extensionApi.runtime.getURL('images/inventory-states/unavailable.svg')}
       />
-      <span>Notify Me!</span>
+      <span>Notify Me!!</span>
     </a>
   )
 }
