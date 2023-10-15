@@ -6,9 +6,19 @@ chrome.tabs.onActivated.addListener(activeInfo => {
   console.log(activeInfo)
 })
 
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  console.log('chrome.storage.onChanged', changes, namespace)
-})
+// chrome.action.onClicked.addListener(tab => {
+//   chrome.tabs.query({windowType: 'normal', url: 'https://isinstock.com'}, tabs => {
+//     if (tabs.length > 0 && tabs[0].id !== undefined) {
+//       chrome.tabs.update(tabs[0].id, {active: true})
+//     } else {
+//       chrome.tabs.create({url: 'https://isinstock.com'})
+//     }
+//   })
+// })
+
+// chrome.storage.onChanged.addListener((changes, namespace) => {
+//   console.log('chrome.storage.onChanged', changes, namespace)
+// })
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 const loadedTabs = new Map<number, boolean>()
