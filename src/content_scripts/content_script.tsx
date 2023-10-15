@@ -1,6 +1,7 @@
 import {MessageAction} from '../@types/messages'
 import {ObservableElement} from '../@types/observables'
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
+import {extensionApi} from '../utils/extension-api'
 import {observeSelector} from '../utils/observers'
 import {hasProducts, isProduct, notFoundCallback, productCallback, productsNotFound, SELECTOR} from '../utils/products'
 
@@ -16,7 +17,7 @@ const queryProducts = async () => {
   }
 }
 
-chrome.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => {
+extensionApi.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => {
   if (request.action === MessageAction.URLChanged) {
     console.debug('URL changed to', request.url)
     queryProducts()

@@ -1,33 +1,34 @@
 import {InventoryStateNormalized} from './@types/inventory-states'
 import {MessageAction} from './@types/messages'
+import {extensionApi} from './utils/extension-api'
 
 // To fire a message to detect for product on page
-chrome.tabs.onActivated.addListener(activeInfo => {
+extensionApi.tabs.onActivated.addListener(activeInfo => {
   console.log(activeInfo)
 })
 
-// chrome.action.onClicked.addListener(tab => {
-//   chrome.tabs.query({windowType: 'normal', url: 'https://isinstock.com'}, tabs => {
+// extensionApi.action.onClicked.addListener(tab => {
+//   extensionApi.tabs.query({windowType: 'normal', url: 'https://isinstock.com'}, tabs => {
 //     if (tabs.length > 0 && tabs[0].id !== undefined) {
-//       chrome.tabs.update(tabs[0].id, {active: true})
+//       extensionApi.tabs.update(tabs[0].id, {active: true})
 //     } else {
-//       chrome.tabs.create({url: 'https://isinstock.com'})
+//       extensionApi.tabs.create({url: 'https://isinstock.com'})
 //     }
 //   })
 // })
 
-// chrome.storage.onChanged.addListener((changes, namespace) => {
-//   console.log('chrome.storage.onChanged', changes, namespace)
+// extensionApi.storage.onChanged.addListener((changes, namespace) => {
+//   console.log('extensionApi.storage.onChanged', changes, namespace)
 // })
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 const loadedTabs = new Map<number, boolean>()
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+extensionApi.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Only when the tab is fully loaded
   if (changeInfo.status === 'complete') {
     // Only send message if the tab has been loaded before
     if (loadedTabs.has(tabId)) {
-      chrome.tabs.sendMessage(tabId, {
+      extensionApi.tabs.sendMessage(tabId, {
         action: MessageAction.URLChanged,
         url: tab.url,
       })
@@ -38,11 +39,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 })
 
 // Receives messages from content scripts
-chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
+extensionApi.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
   if (action === MessageAction.InventoryState) {
     switch (value as InventoryStateNormalized) {
       case InventoryStateNormalized.Available:
-        chrome.action.setIcon({
+        extensionApi.action.setIcon({
           path: {
             '16': '/images/inventory-states/available/16.png',
             '24': '/images/inventory-states/available/24.png',
@@ -55,7 +56,7 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
         break
 
       case InventoryStateNormalized.Unavailable:
-        chrome.action.setIcon({
+        extensionApi.action.setIcon({
           path: {
             '16': '/images/inventory-states/unavailable/16.png',
             '24': '/images/inventory-states/unavailable/24.png',
@@ -68,7 +69,7 @@ chrome.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => 
         break
 
       default:
-        chrome.action.setIcon({
+        extensionApi.action.setIcon({
           path: {
             '16': '/images/inventory-states/unknown/16.png',
             '24': '/images/inventory-states/unknown/24.png',

@@ -1,11 +1,13 @@
 import {useEffect, useState} from 'preact/hooks'
 
+import {extensionApi} from '../utils/extension-api'
+
 export default function useAuth(): {isLoggedIn: boolean; accessToken: string | null} {
   const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchAccessToken = async () => {
-      const {accessToken: localAccessToken} = await chrome.storage.local.get('accessToken')
+      const {accessToken: localAccessToken} = await extensionApi.storage.local.get('accessToken')
       setAccessToken(localAccessToken)
     }
 
@@ -13,16 +15,16 @@ export default function useAuth(): {isLoggedIn: boolean; accessToken: string | n
   }, [])
 
   useEffect(() => {
-    const handleStorageOnChanged = (changes: Record<string, chrome.storage.StorageChange>, _areaName: string) => {
+    const handleStorageOnChanged = (changes: Record<string, extensionApi.storage.StorageChange>, _areaName: string) => {
       if ('accessToken' in changes) {
         setAccessToken(changes.accessToken.newValue)
       }
     }
 
-    chrome.storage.onChanged.addListener(handleStorageOnChanged)
+    extensionApi.storage.onChanged.addListener(handleStorageOnChanged)
 
     return () => {
-      chrome.storage.onChanged.removeListener(handleStorageOnChanged)
+      extensionApi.storage.onChanged.removeListener(handleStorageOnChanged)
     }
   }, [])
 

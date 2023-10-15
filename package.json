@@ -1,7 +1,7 @@
 {
   "name": "isinstock-chrome-extension",
   "private": true,
-  "version": "0.0.1-alpha+9565626",
+  "version": "0.1.0",
   "prettier": "@github/prettier-config",
   "eslintConfig": {
     "extends": "preact"
@@ -15,7 +15,6 @@
     "style": "prettier --write \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
-    "esbuild": "0.16.16",
     "preact": "^10.11.3"
   },
   "devDependencies": {
@@ -27,6 +26,7 @@
     "@webcomponents/custom-elements": "^1.5.1",
     "autoprefixer": "^10.4.13",
     "css-loader": "^6.7.3",
+    "esbuild": "0.16.16",
     "esbuild-plugin-copy": "^2.0.1",
     "esbuild-style-plugin": "^1.6.1",
     "eslint": "^8.31.0",

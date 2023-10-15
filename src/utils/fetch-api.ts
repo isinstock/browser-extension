@@ -1,5 +1,7 @@
+import {extensionApi} from './extension-api'
+
 const fetchApi = async (path: string, method: 'POST' | 'GET', body?: BodyInit | null | undefined) => {
-  const {accessToken} = await chrome.storage.local.get({
+  const {accessToken} = await extensionApi.storage.local.get({
     accessToken: '',
   })
 
@@ -24,7 +26,7 @@ const fetchApi = async (path: string, method: 'POST' | 'GET', body?: BodyInit | 
 
   // Access token is not valid
   if (response.status === 401) {
-    await chrome.storage.local.remove('accessToken')
+    await extensionApi.storage.local.remove('accessToken')
   }
 
   return response

@@ -4,6 +4,7 @@ import {useEffect} from 'preact/hooks'
 import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {UserProvider} from '../contexts/user-context'
+import {extensionApi} from '../utils/extension-api'
 import {broadcastInventoryState, isInStock} from '../utils/inventory-state'
 
 type IsInStockButtonProps = {
@@ -36,7 +37,7 @@ const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
         class="isinstock-logo"
         width="16"
         height="16"
-        src={chrome.runtime.getURL('images/inventory-states/available.svg')}
+        src={extensionApi.runtime.getURL('images/inventory-states/available.svg')}
       />
       <span>In Stock</span>
     </a>
@@ -69,7 +70,7 @@ const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
         class="isinstock-logo"
         width="16"
         height="16"
-        src={chrome.runtime.getURL('images/inventory-states/unavailable.svg')}
+        src={extensionApi.runtime.getURL('images/inventory-states/unavailable.svg')}
       />
       <span>Notify Me</span>
     </a>
@@ -102,7 +103,7 @@ const UnsupportedButton = ({productValidation}: IsInStockButtonProps) => {
         className="isinstock-logo"
         width="16"
         height="16"
-        src={chrome.runtime.getURL('images/inventory-states/unknown.svg')}
+        src={extensionApi.runtime.getURL('images/inventory-states/unknown.svg')}
       />
       <span>Not Trackable</span>
     </a>
@@ -162,7 +163,7 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
     // Can we prevent any flashing?
     const stylesheet = document.createElement('link')
     stylesheet.rel = 'stylesheet'
-    stylesheet.href = chrome.runtime.getURL('elements/isinstock-button/style.css')
+    stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
     shadowRoot.appendChild(stylesheet)
 
     document.body.appendChild(wrapper)
