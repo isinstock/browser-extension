@@ -134,3 +134,4 @@ dist
 /build
 
 dist.zip
+web-ext-artifacts/
