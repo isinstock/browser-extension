@@ -27,4 +27,4 @@ jobs:
           cache-dependency-path: '**/package-lock.json'
       - run: npm ci
       - run: npm run build -- --production
-      - run: web-ext lint -s ./dist/firefox
+      - run: npx web-ext lint -s ./dist/firefox
