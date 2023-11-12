@@ -5,6 +5,7 @@ import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {UserProvider} from '../contexts/user-context'
 import {extensionApi} from '../utils/extension-api'
+import fetchApi from '../utils/fetch-api'
 import {broadcastInventoryState, isInStock} from '../utils/inventory-state'
 
 type IsInStockButtonProps = {
@@ -151,9 +152,6 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   } else {
     wrapper = document.createElement('div')
     wrapper.id = 'isinstock-button'
-    wrapper.style.position = 'fixed'
-    wrapper.style.bottom = '10px'
-    wrapper.style.right = '10px'
     // The maximum value of a 32 bits integer
     wrapper.style.zIndex = '2147483647'
     // If a parent stylesheet contains div:empty due to the shadow root the container will not appear.
@@ -166,7 +164,50 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
     stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
     shadowRoot.appendChild(stylesheet)
 
-    document.body.appendChild(wrapper)
+    if (productValidation.selectors !== undefined) {
+      const innerWrapper = wrapper
+      const matchedSelector = productValidation.selectors.find(({selector, insert}) => {
+        const element = document.querySelector(selector)
+        if (!element) {
+          return false
+        }
+
+        let child: HTMLElement
+        if (insert === 'after') {
+          innerWrapper.style.marginTop = '10px'
+          child = element.nextElementSibling as HTMLElement
+        } else {
+          innerWrapper.style.marginBottom = '10px'
+          child = element.previousElementSibling as HTMLElement
+        }
+        element.parentNode?.insertBefore(innerWrapper, child)
+
+        return innerWrapper.isConnected
+      })
+
+      if (matchedSelector) {
+        console.debug('Matched with', matchedSelector)
+        const body = JSON.stringify({
+          selector: matchedSelector.selector,
+        })
+
+        // Async call to the API to increment the selector's counter
+        fetchApi('/api/retailers/selectors/validate', 'POST', body)
+      } else {
+        console.debug('No selectors matched')
+      }
+    }
+
+    if (wrapper.isConnected) {
+      console.debug('Inserted at a matching selector')
+    } else {
+      console.debug("Couldn't find a matching selector, inserting at the bottom right of the page")
+
+      wrapper.style.position = 'fixed'
+      wrapper.style.bottom = '10px'
+      wrapper.style.right = '10px'
+      document.body.appendChild(wrapper)
+    }
 
     render(app, shadowRoot)
   }
