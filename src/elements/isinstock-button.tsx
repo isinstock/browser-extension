@@ -151,11 +151,6 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   } else {
     wrapper = document.createElement('div')
     wrapper.id = 'isinstock-button'
-    wrapper.style.position = 'fixed'
-    wrapper.style.bottom = '10px'
-    wrapper.style.right = '10px'
-    // The maximum value of a 32 bits integer
-    wrapper.style.zIndex = '2147483647'
     // If a parent stylesheet contains div:empty due to the shadow root the container will not appear.
     wrapper.style.display = 'block'
     shadowRoot = wrapper.attachShadow({mode: 'open'})
@@ -166,10 +161,53 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
     stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
     shadowRoot.appendChild(stylesheet)
 
-    document.body.appendChild(wrapper)
+    // Find all buttons on the page
+    const buttons = Array.from<HTMLElement>(document.querySelectorAll('form button, button'))
+    const keywords = ['Add To Cart', 'Buy Now', 'Sold Out', 'Out of Stock', 'Pre Order']
+
+    // Filter the buttons to get only those that contain keywords
+    const matchingButtons = buttons.filter(button => {
+      console.debug('Considering', button)
+      return containsKeyword(button, keywords)
+    })
+
+    console.debug(matchingButtons)
+    // Check if there are multiple matching buttons before inserting the "Notify Me When Available" button
+    if (matchingButtons.length === 1) {
+      // Add event listeners and functionality to the notifyButton
+      // Insert notifyButton after the matching button in the DOM
+      wrapper.style.marginTop = '10px'
+
+      matchingButtons[0].parentNode.insertBefore(wrapper, matchingButtons[0].nextSibling)
+    } else {
+      if (matchingButtons.length > 1) {
+        console.debug('Matched many buttons', matchingButtons, 'containing', keywords)
+      } else {
+        console.debug('Did not find a place to insert button')
+      }
+
+      wrapper.style.position = 'fixed'
+      wrapper.style.bottom = '10px'
+      wrapper.style.right = '10px'
+      // The maximum value of a 32 bits integer
+      wrapper.style.zIndex = '2147483647'
+
+      document.body.appendChild(wrapper)
+    }
 
     render(app, shadowRoot)
   }
 
   return wrapper
+}
+
+// Function to check if an element's text content contains any of the keywords (case-insensitive)
+function containsKeyword(element: HTMLElement, keywords: string[]): boolean {
+  if (element.textContent === null) {
+    return false
+  }
+
+  const text = element.textContent.toLowerCase()
+
+  return keywords.some(keyword => text.includes(keyword.toLowerCase()))
 }
