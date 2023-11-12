@@ -1,5 +1,5 @@
 {
-  "name": "isinstock-chrome-extension",
+  "name": "isinstock-extension",
   "private": true,
   "version": "0.1.0",
   "prettier": "@github/prettier-config",
