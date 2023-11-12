@@ -151,9 +151,6 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   } else {
     wrapper = document.createElement('div')
     wrapper.id = 'isinstock-button'
-    wrapper.style.position = 'fixed'
-    wrapper.style.bottom = '10px'
-    wrapper.style.right = '10px'
     // The maximum value of a 32 bits integer
     wrapper.style.zIndex = '2147483647'
     // If a parent stylesheet contains div:empty due to the shadow root the container will not appear.
@@ -166,7 +163,38 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
     stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
     shadowRoot.appendChild(stylesheet)
 
-    document.body.appendChild(wrapper)
+    if (productValidation.selectors !== undefined) {
+      // Search productValidation selectors for a matching element without needing to query the DOM
+      const matchingSelector = productValidation.selectors.find(({selector}) => {
+        const element = document.querySelector(selector)
+        return element !== null
+      })
+
+      if (matchingSelector !== undefined) {
+        const element = document.querySelector(matchingSelector.selector)
+
+        let child: HTMLElement
+        if (matchingSelector.insert === 'after') {
+          wrapper.style.marginTop = '10px'
+          child = element?.nextElementSibling as HTMLElement
+        } else {
+          wrapper.style.marginBottom = '10px'
+          child = element?.previousElementSibling as HTMLElement
+        }
+        element?.parentNode?.insertBefore(wrapper, child)
+      }
+    }
+
+    if (wrapper.isConnected) {
+      console.debug('Inserted at a matching selector')
+    } else {
+      console.debug("Couldn't find a matching selector, inserting at the bottom right of the page")
+
+      wrapper.style.position = 'fixed'
+      wrapper.style.bottom = '10px'
+      wrapper.style.right = '10px'
+      document.body.appendChild(wrapper)
+    }
 
     render(app, shadowRoot)
   }
