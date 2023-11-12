@@ -75,6 +75,14 @@ export interface ProductValidationResponse {
   result: ProductValidationResult
   track_url?: string
   availability?: string
+  selectors?: ProductValidationSelector[]
+}
+
+export interface ProductValidationSelector {
+  selector: string
+  insert: 'after' | 'before'
+  exclusive: boolean
+  priority: number
 }
 
 export interface InventorySubscriptionsResponse {
