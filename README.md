@@ -10,6 +10,8 @@ To hit `https://isinstock.com` while in development, run:
 npm run watch -- --production
 ```
 
+## Development
+
 ### Google Chrome
 
 - Within the Codespace, run `cmd+shift+b` to build the project in development mode.
@@ -23,6 +25,19 @@ npm run watch -- --production
 
 - Outside of the Codespace, run `web-ext run -s ./dist/firefox` to automatically load the extension in a development instance of Firefox.
 - All future builds will update the extension automatically.
+
+## Releasing
+
+### Google Chrome
+
+- Run `node ./build.js --production` to generate a production build.
+- Generate a ZIP file of the `dist/chrome` directory.
+- Upload a new package in Is In Stock's [Package tab](https://chrome.google.com/u/1/webstore/devconsole/355361c6-bf2d-48aa-a191-99790c9dc228/bnglflgcpflggbpbcbpgeaknekceeojd/edit/package).
+
+### Firefox
+
+- Outside of the Codespace, run `web-ext build -s ./dist/firefox` to automatically build the extension.
+- [Submit a new version](https://addons.mozilla.org/en-US/developers/addon/is-in-stock/versions/submit/) on the [Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/is-in-stock).
 
 ## Structured Data Support
 
