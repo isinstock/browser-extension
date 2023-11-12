@@ -13,9 +13,13 @@ const copyChromeManifestPlugin = {
     const options = build.initialOptions
 
     build.onEnd(async () => {
-      const dest = `${options.outdir}/manifest.json`
-      fs.copyFileSync('chrome/manifest.json', dest)
-      console.log(`Copied chrome/manifest.json to ${dest}.`)
+      const manifestPath = 'chrome/manifest.json'
+      const destinationPath = `${options.outdir}/manifest.json`
+      const package = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+      manifest.version = package.version
+      fs.writeFileSync(destinationPath, JSON.stringify(manifest, null, 2))
+      console.log(`Copied ${manifestPath} to ${destinationPath}.`)
     })
   },
 }
@@ -26,9 +30,13 @@ const copyFirefoxManifestPlugin = {
     const options = build.initialOptions
 
     build.onEnd(async () => {
-      const dest = `${options.outdir}/manifest.json`
-      fs.copyFileSync('firefox/manifest.json', dest)
-      console.log(`Copied firefox/manifest.json to ${dest}.`)
+      const manifestPath = 'firefox/manifest.json'
+      const destinationPath = `${options.outdir}/manifest.json`
+      const package = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+      manifest.version = package.version
+      fs.writeFileSync(destinationPath, JSON.stringify(manifest, null, 2))
+      console.log(`Copied ${manifestPath} to ${destinationPath}.`)
     })
   },
 }
