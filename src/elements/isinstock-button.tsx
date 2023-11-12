@@ -5,6 +5,7 @@ import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {UserProvider} from '../contexts/user-context'
 import {extensionApi} from '../utils/extension-api'
+import fetchApi from '../utils/fetch-api'
 import {broadcastInventoryState, isInStock} from '../utils/inventory-state'
 
 type IsInStockButtonProps = {
@@ -164,24 +165,36 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
     shadowRoot.appendChild(stylesheet)
 
     if (productValidation.selectors !== undefined) {
-      // Search productValidation selectors for a matching element without needing to query the DOM
-      const matchingSelector = productValidation.selectors.find(({selector}) => {
+      const innerWrapper = wrapper
+      const matchedSelector = productValidation.selectors.find(({selector, insert}) => {
         const element = document.querySelector(selector)
-        return element !== null
-      })
-
-      if (matchingSelector !== undefined) {
-        const element = document.querySelector(matchingSelector.selector)
+        if (!element) {
+          return false
+        }
 
         let child: HTMLElement
-        if (matchingSelector.insert === 'after') {
-          wrapper.style.marginTop = '10px'
-          child = element?.nextElementSibling as HTMLElement
+        if (insert === 'after') {
+          innerWrapper.style.marginTop = '10px'
+          child = element.nextElementSibling as HTMLElement
         } else {
-          wrapper.style.marginBottom = '10px'
-          child = element?.previousElementSibling as HTMLElement
+          innerWrapper.style.marginBottom = '10px'
+          child = element.previousElementSibling as HTMLElement
         }
-        element?.parentNode?.insertBefore(wrapper, child)
+        element.parentNode?.insertBefore(innerWrapper, child)
+
+        return innerWrapper.isConnected
+      })
+
+      if (matchedSelector) {
+        console.debug('Matched with', matchedSelector)
+        const body = JSON.stringify({
+          selector: matchedSelector.selector,
+        })
+
+        // Async call to the API to increment the selector's counter
+        fetchApi('/api/retailers/selectors/validate', 'POST', body)
+      } else {
+        console.debug('No selectors matched')
       }
     }
 
