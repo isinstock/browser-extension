@@ -3,6 +3,7 @@ FROM mcr.microsoft.com/devcontainers/typescript-node
 
 # Install Puppeteer dependencies
 RUN apt-get update && apt-get install -y \
+  chromium \
   ca-certificates \
   fonts-liberation \
   libasound2 \
@@ -42,4 +43,4 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_DOWNLOAD true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium

@@ -13,6 +13,24 @@ describe('Browser Extension Test', () => {
     expect(await page.waitForSelector('#isinstock-button')).not.toBe(null)
   })
 
+  test('extension sends correct headers for validation request', async () => {
+    await page.setRequestInterception(true)
+    let interceptedValidationsRequest: HTTPRequest | undefined
+    page.on('request', interceptedRequest => {
+      if (interceptedRequest.url() === 'https://isinstock.com/api/products/validations') {
+        interceptedValidationsRequest = interceptedRequest
+      }
+      interceptedRequest.continue()
+    })
+
+    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+
+    const headers = interceptedValidationsRequest?.headers() ?? {}
+    expect(headers['accept']).toBe('application/json')
+    expect(headers['content-type']).toBe('application/json')
+    expect(headers['x-extension-version']).not.toBe(null)
+  })
+
   test('available product renders available button', async () => {
     await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
     const result = await page.evaluate(() => {
@@ -94,21 +112,35 @@ describe('Browser Extension Test', () => {
     expect(interceptedValidationsRequest?.postData()).toBe(`{"url":"https://isinstock.com/store/products/available"}`)
   })
 
-  test('extension sends correct headers for validation request', async () => {
-    await page.setRequestInterception(true)
-    let interceptedValidationsRequest: HTTPRequest | undefined
-    page.on('request', interceptedRequest => {
-      if (interceptedRequest.url() === 'https://isinstock.com/api/products/validations') {
-        interceptedValidationsRequest = interceptedRequest
+  // TODO: Mock the HTTP request for this test
+  test('retailer with specific CSS selector inserts button after CSS selector', async () => {
+    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    const result = await page.evaluate(() => {
+      const button = document.querySelector('#isinstock-button')
+      if (!button) return null
+
+      const insertedAfter = button.previousElementSibling
+      if (!insertedAfter) return null
+
+      return {
+        id: insertedAfter?.id,
       }
-      interceptedRequest.continue()
     })
 
-    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    expect(result?.id).toBe('add-to-cart')
+  })
 
-    const headers = interceptedValidationsRequest?.headers() ?? {}
-    expect(headers['accept']).toBe('application/json')
-    expect(headers['content-type']).toBe('application/json')
-    expect(headers['x-extension-version']).not.toBe(null)
+  // TODO: Mock the HTTP request for this test
+  test('retailer without specific CSS selector inserts button in fixed position', async () => {
+    jest.setTimeout(30000)
+
+    await page.goto('https://shop.porsche.com/us/en-US/p/porsche-911-gt3-992-ltd-P-WAP0231510M002/WAP0231510M002')
+    await page.waitForSelector('#isinstock-button')
+    const position = await page.evaluate(() => {
+      const button = document.querySelector('#isinstock-button') as HTMLElement
+      return button.style.position
+    })
+
+    expect(position).toBe('fixed')
   })
 })
