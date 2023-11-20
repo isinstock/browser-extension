@@ -14,4 +14,5 @@ jobs:
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - run: npm ci
+      - run: npm run build -- --production
       - run: npm run test
