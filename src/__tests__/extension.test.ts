@@ -13,6 +13,70 @@ describe('Browser Extension Test', () => {
     expect(await page.waitForSelector('#isinstock-button')).not.toBe(null)
   })
 
+  test('available product renders available button', async () => {
+    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    const result = await page.evaluate(() => {
+      const hostElement = document.querySelector('#isinstock-button')
+      if (!hostElement) return null
+
+      const shadowRoot = hostElement.shadowRoot
+      if (!shadowRoot) return null
+
+      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
+      return {
+        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
+        textContent: element?.textContent,
+        target: element?.target,
+        rel: element?.rel,
+        href: element?.href,
+      }
+    })
+
+    const href = new URL(result?.href ?? '')
+
+    expect(result?.inventoryStateNormalized).toBe('available')
+    expect(result?.textContent).toBe('In Stock')
+    expect(result?.target).toBe('_blank')
+    expect(result?.rel).toBe('noreferrer')
+    expect(href.protocol).toBe('https:')
+    expect(href.hostname).toBe('isinstock.com')
+    expect(href.pathname).toBe('/track')
+    expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/available')
+    expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
+  })
+
+  test('unavailable product renders unavailable button', async () => {
+    await page.goto('https://isinstock.com/store/products/unavailable', {waitUntil: 'networkidle0'})
+    const result = await page.evaluate(() => {
+      const hostElement = document.querySelector('#isinstock-button')
+      if (!hostElement) return null
+
+      const shadowRoot = hostElement.shadowRoot
+      if (!shadowRoot) return null
+
+      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
+      return {
+        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
+        textContent: element?.textContent,
+        target: element?.target,
+        rel: element?.rel,
+        href: element?.href,
+      }
+    })
+
+    const href = new URL(result?.href ?? '')
+
+    expect(result?.inventoryStateNormalized).toBe('unavailable')
+    expect(result?.textContent).toBe('Notify Me When Available')
+    expect(result?.target).toBe('_blank')
+    expect(result?.rel).toBe('noreferrer')
+    expect(href.protocol).toBe('https:')
+    expect(href.hostname).toBe('isinstock.com')
+    expect(href.pathname).toBe('/track')
+    expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/unavailable')
+    expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
+  })
+
   test('extension makes validation request to isinstock', async () => {
     await page.setRequestInterception(true)
     let interceptedValidationsRequest: HTTPRequest | undefined
