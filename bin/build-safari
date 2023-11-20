@@ -1,0 +1,1 @@
+xcrun safari-web-extension-converter ~/repos/browser-extension/dist/chrome --project-location ~/repos/browser-extension/dist --app-name "safari" --bundle-identifier com.isinstock.BrowserExtension --swift
