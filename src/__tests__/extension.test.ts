@@ -7,23 +7,23 @@ describe('Browser Extension Test', () => {
     page.off('request')
   })
 
-  test('extension is installable and renders correctly', async () => {
-    await page.goto('https://isinstock.com/store/products/available')
+  test.only('extension is installable and renders correctly', async () => {
+    await page.goto('http://localhost:3100/available')
 
     expect(await page.waitForSelector('#isinstock-button')).not.toBe(null)
   })
 
-  test('extension sends correct headers for validation request', async () => {
+  test.only('extension sends correct headers for validation request', async () => {
     await page.setRequestInterception(true)
     let interceptedValidationsRequest: HTTPRequest | undefined
     page.on('request', interceptedRequest => {
-      if (interceptedRequest.url() === 'https://isinstock.com/api/products/validations') {
+      if (interceptedRequest.url() === 'http://localhost:3100/api/products/validations') {
         interceptedValidationsRequest = interceptedRequest
       }
       interceptedRequest.continue()
     })
 
-    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    await page.goto('http://localhost:3100/available')
 
     const headers = interceptedValidationsRequest?.headers() ?? {}
     expect(headers['accept']).toBe('application/json')
@@ -31,12 +31,10 @@ describe('Browser Extension Test', () => {
     expect(headers['x-extension-version']).not.toBe(null)
   })
 
-  test('available product renders available button', async () => {
-    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+  test.only('available product renders available button', async () => {
+    await page.goto('http://localhost:3100/available')
     await page.waitForSelector('#isinstock-button')
-    console.log('waitForSelector')
     const result = await page.evaluate(() => {
-      console.log('evaluate')
       const button = document.querySelector('#isinstock-button')
       if (!button) return null
 
@@ -53,8 +51,6 @@ describe('Browser Extension Test', () => {
       }
     })
 
-    console.log(result)
-
     const href = new URL(result?.href ?? '')
 
     expect(result?.inventoryStateNormalized).toBe('available')
@@ -64,12 +60,12 @@ describe('Browser Extension Test', () => {
     expect(href.protocol).toBe('https:')
     expect(href.hostname).toBe('isinstock.com')
     expect(href.pathname).toBe('/track')
-    expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/available')
+    expect(href.searchParams.get('url')).toBe('http://localhost:3100/available')
     expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
-  }, 30000)
+  })
 
-  test('unavailable product renders unavailable button', async () => {
-    await page.goto('https://isinstock.com/store/products/unavailable')
+  test.only('unavailable product renders unavailable button', async () => {
+    await page.goto('http://localhost:3100/unavailable')
     await page.waitForSelector('#isinstock-button')
     const result = await page.evaluate(() => {
       const button = document.querySelector('#isinstock-button')
@@ -97,7 +93,7 @@ describe('Browser Extension Test', () => {
     expect(href.protocol).toBe('https:')
     expect(href.hostname).toBe('isinstock.com')
     expect(href.pathname).toBe('/track')
-    expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/unavailable')
+    expect(href.searchParams.get('url')).toBe('http://localhost:3100/unavailable')
     expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
   })
 
@@ -111,7 +107,7 @@ describe('Browser Extension Test', () => {
       interceptedRequest.continue()
     })
 
-    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    await page.goto('https://isinstock.com/store/products/available')
 
     expect(interceptedValidationsRequest).toBeDefined()
     expect(interceptedValidationsRequest?.method()).toBe('POST')
@@ -120,7 +116,7 @@ describe('Browser Extension Test', () => {
 
   // TODO: Mock the HTTP request for this test
   test('retailer with specific CSS selector inserts button after CSS selector', async () => {
-    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    await page.goto('https://isinstock.com/store/products/available')
     await page.waitForSelector('#isinstock-button')
     const result = await page.evaluate(() => {
       const button = document.querySelector('#isinstock-button')

@@ -30,7 +30,7 @@
           "type": "shell",
           "group": "build",
           "command": "npm",
-          "args": ["run", "build"]
+          "args": ["run", "build", "${input:runTestFlags}"]
       },
       {
           "label": "development - watch",
@@ -44,7 +44,7 @@
           "type": "shell",
           "group": "build",
           "command": "npm",
-          "args": ["run", "build", "--", "--production"]
+          "args": ["run", "build", "--", "--production", "${input:runTestFlags}"]
       },
       {
           "label": "production - watch",
@@ -53,5 +53,14 @@
           "command": "npm",
           "args": ["run", "watch", "--", "--production"]
       }
+  ],
+  "inputs": [
+    {
+      "id": "runTestFlags",
+      "type": "pickString",
+      "description": "Additional flags:",
+      "default": "",
+      "options": ["", "--ci"]
+    }
   ]
 }

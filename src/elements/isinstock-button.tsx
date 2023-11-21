@@ -139,6 +139,7 @@ export const removeIsInStockButton = () => {
 }
 
 export const insertIsInStockButton = ({productValidation}: InsertIsInStockButtonOptions): HTMLElement => {
+  console.log('insert!')
   let wrapper = document.querySelector<HTMLElement>('#isinstock-button')
   let shadowRoot = wrapper?.shadowRoot
   const app = (
@@ -163,6 +164,7 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
     stylesheet.rel = 'stylesheet'
     stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
     shadowRoot.appendChild(stylesheet)
+    console.log(productValidation)
 
     if (productValidation.selectors !== undefined) {
       const innerWrapper = wrapper

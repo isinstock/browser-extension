@@ -12,9 +12,9 @@
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "GitHub.copilot",
-        "Orta.vscode-jest",
+        "Orta.vscode-jest"
       ]
     }
   },
-  "forwardPorts": [8888]
+  "forwardPorts": [8888, 3100]
 }

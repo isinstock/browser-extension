@@ -1,4 +1,5 @@
 const build = require('esbuild').build
+const process = require('process')
 const copy = require('esbuild-plugin-copy').copy
 const postCssPlugin = require('esbuild-style-plugin')
 const pkg = require('./package.json')
@@ -6,6 +7,11 @@ const fs = require('fs')
 
 const isProduction = process.argv.includes('--production')
 const watch = process.argv.includes('--watch')
+const isCI = process.argv.includes('--ci')
+let ISINSTOCK_URL = isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"'
+if (isCI) {
+  ISINSTOCK_URL = `"http://localhost:3100"`
+}
 
 const copyChromeManifestPlugin = {
   name: 'copy-chrome-manifest',
@@ -57,7 +63,7 @@ build({
   target: ['ios15', 'chrome100', 'edge100', 'firefox100', 'safari15'],
   define: {
     VERSION: `"${pkg.version}"`,
-    ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
+    ISINSTOCK_URL,
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
   },
   drop: isProduction ? ['console'] : [],
@@ -98,7 +104,7 @@ build({
   target: ['ios15', 'chrome100', 'edge100', 'firefox100', 'safari15'],
   define: {
     VERSION: `"${pkg.version}"`,
-    ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
+    ISINSTOCK_URL,
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
   },
   drop: isProduction ? ['console'] : [],
