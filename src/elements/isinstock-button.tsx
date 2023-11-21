@@ -140,77 +140,72 @@ export const removeIsInStockButton = () => {
 
 export const insertIsInStockButton = ({productValidation}: InsertIsInStockButtonOptions): HTMLElement => {
   let wrapper = document.querySelector<HTMLElement>('#isinstock-button')
-  let shadowRoot = wrapper?.shadowRoot
+  // If there is an existing button, remove it
+  wrapper?.remove()
+
   const app = (
     <UserProvider>
       <ProductValidationButton productValidation={productValidation} />
     </UserProvider>
   )
-  if (wrapper) {
-    shadowRoot = wrapper.shadowRoot as ShadowRoot
-    render(app, shadowRoot)
+
+  wrapper = document.createElement('div')
+  wrapper.id = 'isinstock-button'
+  const shadowRoot = wrapper.attachShadow({mode: 'open'})
+
+  // Can we prevent any flashing?
+  const stylesheet = document.createElement('link')
+  stylesheet.rel = 'stylesheet'
+  stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
+  shadowRoot.appendChild(stylesheet)
+
+  const selectors = productValidation.selectors ?? []
+  const innerWrapper = wrapper
+  const matchedSelector = selectors.find(({selector, insert}) => {
+    const element = document.querySelector(selector)
+    if (!element) {
+      return false
+    }
+
+    let child: HTMLElement
+    if (insert === 'after') {
+      innerWrapper.style.marginTop = '10px'
+      child = element.nextElementSibling as HTMLElement
+    } else {
+      innerWrapper.style.marginBottom = '10px'
+      child = element.previousElementSibling as HTMLElement
+    }
+    element.parentNode?.insertBefore(innerWrapper, child)
+
+    return innerWrapper.isConnected
+  })
+
+  if (matchedSelector) {
+    console.debug(
+      'insertIsInStockButton: Inserting `%s` selector `%s`',
+      matchedSelector.insert,
+      matchedSelector.selector,
+    )
+    const body = JSON.stringify({
+      selector: matchedSelector.selector,
+    })
+
+    // Async call to the API to increment the selector's counter
+    fetchApi('/api/retailers/selectors/validate', 'POST', body)
   } else {
-    wrapper = document.createElement('div')
-    wrapper.id = 'isinstock-button'
+    console.debug("insertIsInStockButton: Couldn't find a matching selector, inserting at the bottom right of the page")
+
     // The maximum value of a 32 bits integer
     wrapper.style.zIndex = '2147483647'
     // If a parent stylesheet contains div:empty due to the shadow root the container will not appear.
     wrapper.style.display = 'block'
-    shadowRoot = wrapper.attachShadow({mode: 'open'})
-
-    // Can we prevent any flashing?
-    const stylesheet = document.createElement('link')
-    stylesheet.rel = 'stylesheet'
-    stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
-    shadowRoot.appendChild(stylesheet)
-
-    if (productValidation.selectors !== undefined) {
-      const innerWrapper = wrapper
-      const matchedSelector = productValidation.selectors.find(({selector, insert}) => {
-        const element = document.querySelector(selector)
-        if (!element) {
-          return false
-        }
-
-        let child: HTMLElement
-        if (insert === 'after') {
-          innerWrapper.style.marginTop = '10px'
-          child = element.nextElementSibling as HTMLElement
-        } else {
-          innerWrapper.style.marginBottom = '10px'
-          child = element.previousElementSibling as HTMLElement
-        }
-        element.parentNode?.insertBefore(innerWrapper, child)
-
-        return innerWrapper.isConnected
-      })
-
-      if (matchedSelector) {
-        console.debug('Matched with', matchedSelector)
-        const body = JSON.stringify({
-          selector: matchedSelector.selector,
-        })
-
-        // Async call to the API to increment the selector's counter
-        fetchApi('/api/retailers/selectors/validate', 'POST', body)
-      } else {
-        console.debug('No selectors matched')
-      }
-    }
-
-    if (wrapper.isConnected) {
-      console.debug('Inserted at a matching selector')
-    } else {
-      console.debug("Couldn't find a matching selector, inserting at the bottom right of the page")
-
-      wrapper.style.position = 'fixed'
-      wrapper.style.bottom = '10px'
-      wrapper.style.right = '10px'
-      document.body.appendChild(wrapper)
-    }
-
-    render(app, shadowRoot)
+    wrapper.style.position = 'fixed'
+    wrapper.style.bottom = '10px'
+    wrapper.style.right = '10px'
+    document.body.appendChild(wrapper)
   }
+
+  render(app, shadowRoot)
 
   return wrapper
 }
