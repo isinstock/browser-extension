@@ -1,5 +1,7 @@
+import {MessageAction} from '../@types/messages'
 import {ObservableElement} from '../@types/observables'
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
+import {extensionApi} from '../utils/extension-api'
 import {observeSelector} from '../utils/observers'
 import {isProduct, notFoundCallback, productCallback, SELECTOR} from '../utils/products'
 
@@ -26,7 +28,6 @@ const {search, observe, disconnect} = observeSelector(
 
 window.addEventListener('focus', observe)
 window.addEventListener('blur', disconnect)
-
 window.addEventListener('pageshow', async event => {
   // If persisted then it's in the bfcache, meaning the page was restored from the bfcache.
   if (event.persisted) {
@@ -42,4 +43,13 @@ window.addEventListener('pageshow', async event => {
 window.addEventListener('popstate', event => {
   console.debug('popstate: The popstate event is fired when the active history entry changes.')
   search({event})
+})
+
+extensionApi.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => {
+  if (request.action === MessageAction.URLChanged) {
+    const event = new CustomEvent('urlChanged', {detail: {request}})
+    search({event, filterFired: false})
+  } else {
+    console.debug('Unknown action', request.action)
+  }
 })
