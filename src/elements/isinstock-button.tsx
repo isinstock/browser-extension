@@ -133,9 +133,7 @@ interface InsertIsInStockButtonOptions {
 
 export const removeIsInStockButton = () => {
   const wrapper = document.querySelector<HTMLElement>('#isinstock-button')
-  if (wrapper) {
-    wrapper.remove()
-  }
+  wrapper?.remove()
 }
 
 export const insertIsInStockButton = ({productValidation}: InsertIsInStockButtonOptions): HTMLElement => {
