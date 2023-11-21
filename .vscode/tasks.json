@@ -7,18 +7,21 @@
       {
           "label": "install",
           "type": "shell",
+          "group": "build",
           "command": "npm",
           "args": ["install"]
       },
       {
           "label": "update",
           "type": "shell",
+          "group": "build",
           "command": "npm",
           "args": ["update"]
       },
       {
           "label": "test",
           "type": "shell",
+          "group": "build",
           "command": "npm",
           "args": ["run", "test"]
       },

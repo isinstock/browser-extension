@@ -33,11 +33,14 @@ describe('Browser Extension Test', () => {
 
   test('available product renders available button', async () => {
     await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    await page.waitForSelector('#isinstock-button')
+    console.log('waitForSelector')
     const result = await page.evaluate(() => {
-      const hostElement = document.querySelector('#isinstock-button')
-      if (!hostElement) return null
+      console.log('evaluate')
+      const button = document.querySelector('#isinstock-button')
+      if (!button) return null
 
-      const shadowRoot = hostElement.shadowRoot
+      const shadowRoot = button.shadowRoot
       if (!shadowRoot) return null
 
       const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
@@ -50,6 +53,8 @@ describe('Browser Extension Test', () => {
       }
     })
 
+    console.log(result)
+
     const href = new URL(result?.href ?? '')
 
     expect(result?.inventoryStateNormalized).toBe('available')
@@ -61,15 +66,16 @@ describe('Browser Extension Test', () => {
     expect(href.pathname).toBe('/track')
     expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/available')
     expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
-  })
+  }, 30000)
 
   test('unavailable product renders unavailable button', async () => {
-    await page.goto('https://isinstock.com/store/products/unavailable', {waitUntil: 'networkidle0'})
+    await page.goto('https://isinstock.com/store/products/unavailable')
+    await page.waitForSelector('#isinstock-button')
     const result = await page.evaluate(() => {
-      const hostElement = document.querySelector('#isinstock-button')
-      if (!hostElement) return null
+      const button = document.querySelector('#isinstock-button')
+      if (!button) return null
 
-      const shadowRoot = hostElement.shadowRoot
+      const shadowRoot = button.shadowRoot
       if (!shadowRoot) return null
 
       const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
@@ -115,6 +121,7 @@ describe('Browser Extension Test', () => {
   // TODO: Mock the HTTP request for this test
   test('retailer with specific CSS selector inserts button after CSS selector', async () => {
     await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    await page.waitForSelector('#isinstock-button')
     const result = await page.evaluate(() => {
       const button = document.querySelector('#isinstock-button')
       if (!button) return null
