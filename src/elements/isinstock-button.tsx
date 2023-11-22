@@ -1,12 +1,15 @@
 import {render} from 'preact'
 import {useEffect} from 'preact/hooks'
 
+import availableImg from '../../public/images/inventory-states/available.svg'
+import unavailableImg from '../../public/images/inventory-states/unavailable.svg'
+import unknownImg from '../../public/images/inventory-states/unknown.svg'
 import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {UserProvider} from '../contexts/user-context'
-import {extensionApi} from '../utils/extension-api'
 import fetchApi from '../utils/fetch-api'
 import {broadcastInventoryState, isInStock} from '../utils/inventory-state'
+import styles from './isinstock-button/style.css'
 
 type IsInStockButtonProps = {
   productValidation: ProductValidationResponse
@@ -34,12 +37,7 @@ const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
       rel="noreferrer"
       data-inventory-state-normalized={InventoryStateNormalized.Available}
     >
-      <img
-        class="isinstock-logo"
-        width="16"
-        height="16"
-        src={extensionApi.runtime.getURL('images/inventory-states/available.svg')}
-      />
+      <img class="isinstock-logo" width="16" height="16" src={availableImg} />
       <span>In Stock</span>
     </a>
   )
@@ -67,12 +65,7 @@ const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
       rel="noreferrer"
       data-inventory-state-normalized={InventoryStateNormalized.Unavailable}
     >
-      <img
-        class="isinstock-logo"
-        width="16"
-        height="16"
-        src={extensionApi.runtime.getURL('images/inventory-states/unavailable.svg')}
-      />
+      <img class="isinstock-logo" width="16" height="16" src={unavailableImg} />
       <span>Notify Me When Available</span>
     </a>
   )
@@ -100,12 +93,7 @@ const UnsupportedButton = ({productValidation}: IsInStockButtonProps) => {
       rel="noreferrer"
       data-inventory-state-normalized={InventoryStateNormalized.Unknown}
     >
-      <img
-        className="isinstock-logo"
-        width="16"
-        height="16"
-        src={extensionApi.runtime.getURL('images/inventory-states/unknown.svg')}
-      />
+      <img className="isinstock-logo" width="16" height="16" src={unknownImg} />
       <span>Not Trackable</span>
     </a>
   )
@@ -152,9 +140,8 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   const shadowRoot = wrapper.attachShadow({mode: 'open'})
 
   // Can we prevent any flashing?
-  const stylesheet = document.createElement('link')
-  stylesheet.rel = 'stylesheet'
-  stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
+  const stylesheet = document.createElement('style')
+  stylesheet.textContent = styles
   shadowRoot.appendChild(stylesheet)
 
   const selectors = productValidation.selectors ?? []

@@ -1,30 +1,33 @@
+import browser from 'webextension-polyfill'
+
 import {InventoryStateNormalized} from './@types/inventory-states'
-import {MessageAction} from './@types/messages'
-import {extensionApi} from './utils/extension-api'
+import {Message, MessageAction} from './@types/messages'
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 const loadedTabs = new Map<number, boolean>()
-extensionApi.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Only when the tab is fully loaded
-  if (changeInfo.status === 'complete') {
-    // Only send message if the tab has been loaded before
-    if (loadedTabs.has(tabId)) {
-      extensionApi.tabs.sendMessage(tabId, {
-        action: MessageAction.URLChanged,
-        url: tab.url,
-      })
-    } else {
-      loadedTabs.set(tabId, true)
+browser.tabs.onUpdated.addListener(
+  (tabId: number, changeInfo: browser.Tabs.OnUpdatedChangeInfoType, tab: browser.Tabs.Tab) => {
+    // Only when the tab is fully loaded
+    if (changeInfo.status === 'complete') {
+      // Only send message if the tab has been loaded before
+      if (loadedTabs.has(tabId)) {
+        browser.tabs.sendMessage(tabId, {
+          action: MessageAction.URLChanged,
+          url: tab.url,
+        })
+      } else {
+        loadedTabs.set(tabId, true)
+      }
     }
-  }
-})
+  },
+)
 
 // Receives messages from content scripts
-extensionApi.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
+browser.runtime.onMessage.addListener(({action, value}: Message, _sender) => {
   if (action === MessageAction.InventoryState) {
-    switch (value as InventoryStateNormalized) {
+    switch (value) {
       case InventoryStateNormalized.Available:
-        extensionApi.action.setIcon({
+        browser.action.setIcon({
           path: {
             '16': '/images/inventory-states/available/16.png',
             '24': '/images/inventory-states/available/24.png',
@@ -37,7 +40,7 @@ extensionApi.runtime.onMessage.addListener(({action, value}, sender, sendRespons
         break
 
       case InventoryStateNormalized.Unavailable:
-        extensionApi.action.setIcon({
+        browser.action.setIcon({
           path: {
             '16': '/images/inventory-states/unavailable/16.png',
             '24': '/images/inventory-states/unavailable/24.png',
@@ -50,7 +53,7 @@ extensionApi.runtime.onMessage.addListener(({action, value}, sender, sendRespons
         break
 
       default:
-        extensionApi.action.setIcon({
+        browser.action.setIcon({
           path: {
             '16': '/images/inventory-states/unknown/16.png',
             '24': '/images/inventory-states/unknown/24.png',
@@ -66,7 +69,7 @@ extensionApi.runtime.onMessage.addListener(({action, value}, sender, sendRespons
     console.log('Unknown action', action, 'with value', value)
   }
 
-  sendResponse({
+  return Promise.resolve({
     processed: true,
   })
 })

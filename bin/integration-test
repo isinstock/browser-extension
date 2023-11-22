@@ -1,0 +1,2 @@
+#/usr/bin sh
+CHROME_DEVTOOLS_ID="$1" npm run test

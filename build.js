@@ -1,8 +1,10 @@
 const build = require('esbuild').build
 const copy = require('esbuild-plugin-copy').copy
-const postCssPlugin = require('esbuild-style-plugin')
+const postcss = require('postcss')
 const pkg = require('./package.json')
 const fs = require('fs')
+const tailwindcss = require('tailwindcss')
+const autoprefixer = require('autoprefixer')
 
 const isProduction = process.argv.includes('--production')
 const watch = process.argv.includes('--watch')
@@ -41,15 +43,24 @@ const copyFirefoxManifestPlugin = {
   },
 }
 
-// Chrome
-build({
+const cssAsStringPlugin = {
+  name: 'css-as-string',
+  setup(build) {
+    build.onLoad({filter: /\.css$/}, async args => {
+      const from = args.path
+      const cssContent = await fs.promises.readFile(from, 'utf8')
+      const result = await postcss([tailwindcss, autoprefixer]).process(cssContent, {from})
+      return {
+        contents: `export default ${JSON.stringify(result.css)}`,
+        loader: 'js',
+      }
+    })
+  },
+}
+
+const config = {
   logLevel: 'info',
-  entryPoints: [
-    './src/background.ts',
-    './src/content_scripts/content_script.tsx',
-    './src/elements/isinstock-button/style.css',
-  ],
-  outdir: 'dist/chrome',
+  entryPoints: ['./src/background.ts', './src/content_scripts/content_script.tsx'],
   bundle: true,
   sourcemap: !isProduction,
   watch,
@@ -65,12 +76,15 @@ build({
     '.png': 'dataurl',
     '.svg': 'dataurl',
   },
+  plugins: [cssAsStringPlugin],
+}
+
+// Chrome
+build({
+  ...config,
+  outdir: 'dist/chrome',
   plugins: [
-    postCssPlugin({
-      postcss: {
-        plugins: [require('tailwindcss'), require('autoprefixer')],
-      },
-    }),
+    ...config.plugins,
     copy({
       resolveFrom: 'cwd',
       assets: {
@@ -84,34 +98,10 @@ build({
 
 // Firefox
 build({
-  logLevel: 'info',
-  entryPoints: [
-    './src/background.ts',
-    './src/content_scripts/content_script.tsx',
-    './src/elements/isinstock-button/style.css',
-  ],
+  ...config,
   outdir: 'dist/firefox',
-  bundle: true,
-  sourcemap: !isProduction,
-  watch,
-  minify: isProduction,
-  target: ['ios15', 'chrome100', 'edge100', 'firefox100', 'safari15'],
-  define: {
-    VERSION: `"${pkg.version}"`,
-    ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
-    CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
-  },
-  drop: isProduction ? ['console'] : [],
-  loader: {
-    '.png': 'dataurl',
-    '.svg': 'dataurl',
-  },
   plugins: [
-    postCssPlugin({
-      postcss: {
-        plugins: [require('tailwindcss'), require('autoprefixer')],
-      },
-    }),
+    ...config.plugins,
     copy({
       resolveFrom: 'cwd',
       assets: {

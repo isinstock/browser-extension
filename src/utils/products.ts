@@ -50,7 +50,7 @@ export const productCallback = async ({url, product}: ProductCallbackProps): Pro
     result: ProductValidationResult.Unsupported,
   }
   if (response.ok) {
-    productValidationResponse = (await response.json()) as ProductValidationResponse
+    productValidationResponse = await response.json()
   }
 
   return productValidationResponse
