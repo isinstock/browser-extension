@@ -1,4 +1,4 @@
-import {extensionApi} from './extension-api'
+import browser from 'webextension-polyfill'
 
 const fetchApi = async (
   path: string,
@@ -6,7 +6,7 @@ const fetchApi = async (
   body?: BodyInit | null | undefined,
   signal?: AbortSignal | null | undefined,
 ) => {
-  const {accessToken} = await extensionApi.storage.local.get({
+  const {accessToken} = await browser.storage.local.get({
     accessToken: '',
   })
 
@@ -32,7 +32,7 @@ const fetchApi = async (
 
   // Access token is not valid
   if (response.status === 401) {
-    await extensionApi.storage.local.remove('accessToken')
+    await browser.storage.local.remove('accessToken')
   }
 
   return response

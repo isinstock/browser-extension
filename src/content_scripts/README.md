@@ -5,7 +5,7 @@ There are a few ways to detect a product within a content script:
 1. Listening to tab URL changes
 
 ```ts
-extensionApi.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === MessageAction.URLChanged) {
     console.log('URL changed to', request.url)
   } else {

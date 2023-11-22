@@ -1,6 +1,7 @@
+import browser from 'webextension-polyfill'
+
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {MessageAction} from '../@types/messages'
-import {extensionApi} from './extension-api'
 
 const inStockAvailability = ['InStock', 'InStoreOnly', 'LimitedAvailability', 'OnlineOnly', 'PreSale', 'PreOrder']
 
@@ -11,7 +12,7 @@ export const isInStock = (itemAvailability: string): boolean => {
 }
 
 export const broadcastInventoryState = (value: InventoryStateNormalized) => {
-  extensionApi.runtime.sendMessage({
+  browser.runtime.sendMessage({
     action: MessageAction.InventoryState,
     value,
   })

@@ -1,8 +1,9 @@
+import browser from 'webextension-polyfill'
+
 import {MessageAction} from '../@types/messages'
 import {ObservableElement} from '../@types/observables'
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
 import ExclusiveValidationRequestCache from '../utils/exclusive-validation-request-cache'
-import {extensionApi} from '../utils/extension-api'
 import {observeSelector} from '../utils/observers'
 import {isProduct, notFoundCallback, SELECTOR} from '../utils/products'
 
@@ -48,7 +49,7 @@ window.addEventListener('popstate', event => {
   search({event})
 })
 
-extensionApi.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => {
+browser.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => {
   if (request.action === MessageAction.URLChanged) {
     const event = new CustomEvent('urlChanged', {detail: {request}})
     search({event, filterFired: false})

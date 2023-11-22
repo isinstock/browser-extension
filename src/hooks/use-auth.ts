@@ -1,13 +1,12 @@
 import {useEffect, useState} from 'preact/hooks'
-
-import {extensionApi} from '../utils/extension-api'
+import browser from 'webextension-polyfill'
 
 export default function useAuth(): {isLoggedIn: boolean; accessToken: string | null} {
   const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchAccessToken = async () => {
-      const {accessToken: localAccessToken} = await extensionApi.storage.local.get('accessToken')
+      const {accessToken: localAccessToken} = await browser.storage.local.get('accessToken')
       setAccessToken(localAccessToken)
     }
 
@@ -15,16 +14,16 @@ export default function useAuth(): {isLoggedIn: boolean; accessToken: string | n
   }, [])
 
   useEffect(() => {
-    const handleStorageOnChanged = (changes: Record<string, extensionApi.storage.StorageChange>, _areaName: string) => {
+    const handleStorageOnChanged = (changes: Record<string, browser.Storage.StorageChange>, _areaName: string) => {
       if ('accessToken' in changes) {
         setAccessToken(changes.accessToken.newValue)
       }
     }
 
-    extensionApi.storage.onChanged.addListener(handleStorageOnChanged)
+    browser.storage.onChanged.addListener(handleStorageOnChanged)
 
     return () => {
-      extensionApi.storage.onChanged.removeListener(handleStorageOnChanged)
+      browser.storage.onChanged.removeListener(handleStorageOnChanged)
     }
   }, [])
 

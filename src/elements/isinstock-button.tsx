@@ -1,10 +1,10 @@
 import {render} from 'preact'
 import {useEffect} from 'preact/hooks'
+import browser from 'webextension-polyfill'
 
 import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {UserProvider} from '../contexts/user-context'
-import {extensionApi} from '../utils/extension-api'
 import fetchApi from '../utils/fetch-api'
 import {broadcastInventoryState, isInStock} from '../utils/inventory-state'
 
@@ -38,7 +38,7 @@ const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
         class="isinstock-logo"
         width="16"
         height="16"
-        src={extensionApi.runtime.getURL('images/inventory-states/available.svg')}
+        src={browser.runtime.getURL('images/inventory-states/available.svg')}
       />
       <span>In Stock</span>
     </a>
@@ -71,7 +71,7 @@ const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
         class="isinstock-logo"
         width="16"
         height="16"
-        src={extensionApi.runtime.getURL('images/inventory-states/unavailable.svg')}
+        src={browser.runtime.getURL('images/inventory-states/unavailable.svg')}
       />
       <span>Notify Me When Available</span>
     </a>
@@ -104,7 +104,7 @@ const UnsupportedButton = ({productValidation}: IsInStockButtonProps) => {
         className="isinstock-logo"
         width="16"
         height="16"
-        src={extensionApi.runtime.getURL('images/inventory-states/unknown.svg')}
+        src={browser.runtime.getURL('images/inventory-states/unknown.svg')}
       />
       <span>Not Trackable</span>
     </a>
@@ -154,7 +154,7 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   // Can we prevent any flashing?
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'
-  stylesheet.href = extensionApi.runtime.getURL('elements/isinstock-button/style.css')
+  stylesheet.href = browser.runtime.getURL('elements/isinstock-button/style.css')
   shadowRoot.appendChild(stylesheet)
 
   const selectors = productValidation.selectors ?? []
