@@ -1,6 +1,11 @@
 import {extensionApi} from './extension-api'
 
-const fetchApi = async (path: string, method: 'POST' | 'GET', body?: BodyInit | null | undefined) => {
+const fetchApi = async (
+  path: string,
+  method: 'POST' | 'GET',
+  body?: BodyInit | null | undefined,
+  signal?: AbortSignal | null | undefined,
+) => {
   const {accessToken} = await extensionApi.storage.local.get({
     accessToken: '',
   })
@@ -22,6 +27,7 @@ const fetchApi = async (path: string, method: 'POST' | 'GET', body?: BodyInit | 
     cache: 'no-cache',
     headers,
     body,
+    signal,
   })
 
   // Access token is not valid
