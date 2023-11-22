@@ -1,31 +1,9 @@
-import puppeteer, {Browser, HTTPRequest, Page, PuppeteerLaunchOptions} from 'puppeteer'
+import {Browser, HTTPRequest, Page} from 'puppeteer'
 
-const PUPPETEER_OPTIONS: PuppeteerLaunchOptions = {
-  headless: 'new',
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-  product: 'chrome',
-  dumpio: true,
-  args: ['--no-sandbox', '--disable-gpu', `--disable-extensions-except=dist/chrome`, `--load-extension=dist/chrome`],
-  defaultViewport: {
-    width: 1024,
-    height: 1080,
-    deviceScaleFactor: 2,
-  },
-}
+import {createBrowser} from '../utils/browser'
 
-async function createBrowser() {
-  if (process.env.CHROME_DEVTOOLS_ID !== undefined && process.env.CHROME_DEVTOOLS_ID !== '') {
-    const browserWSEndpoint = `ws://host.docker.internal:21222/devtools/browser/${process.env.CHROME_DEVTOOLS_ID}`
-    console.debug('Connecting with Chrome DevTools Protocol at %s', browserWSEndpoint)
-    return puppeteer.connect({
-      // Don't set any viewport and use the existing browser dimensions.
-      defaultViewport: null,
-      browserWSEndpoint,
-    })
-  }
-
-  console.debug('Launching new %s browser at %s', PUPPETEER_OPTIONS.product, PUPPETEER_OPTIONS.executablePath)
-  return puppeteer.launch(PUPPETEER_OPTIONS)
+const isValidationRequest = (request: HTTPRequest) => {
+  return request.url() === 'https://isinstock.com/api/products/validations' && request.method() === 'POST'
 }
 
 describe('Browser Extension Test', () => {
@@ -60,7 +38,7 @@ describe('Browser Extension Test', () => {
     await page.setRequestInterception(true)
     let interceptedValidationsRequest: HTTPRequest | undefined
     page.on('request', (interceptedRequest: HTTPRequest) => {
-      if (interceptedRequest.url() === 'https://isinstock.com/api/products/validations') {
+      if (isValidationRequest(interceptedRequest)) {
         interceptedValidationsRequest = interceptedRequest
       }
       interceptedRequest.continue()
@@ -144,7 +122,7 @@ describe('Browser Extension Test', () => {
     await page.setRequestInterception(true)
     let interceptedValidationsRequest: HTTPRequest | undefined
     page.on('request', (interceptedRequest: HTTPRequest) => {
-      if (interceptedRequest.url() === 'https://isinstock.com/api/products/validations') {
+      if (isValidationRequest(interceptedRequest)) {
         interceptedValidationsRequest = interceptedRequest
       }
       interceptedRequest.continue()
@@ -188,9 +166,17 @@ describe('Browser Extension Test', () => {
     expect(position).toBe('fixed')
   })
 
-  test('unavailable product renders unavailable button', async () => {
+  test('popstate to restore page searches for products', async () => {
     await page.goto('https://isinstock.com/store/products/unavailable')
     await page.waitForSelector('#isinstock-button')
+
+    await page.goto('https://isinstock.com/store/products')
+    page.on('pageshow', () => {
+      console.log('pageshow')
+    })
+    await page.goBack()
+    const element = await page.waitForSelector('#isinstock-button')
+
     const result = await page.evaluate(() => {
       const button = document.querySelector('#isinstock-button')
       if (!button) return null
@@ -208,6 +194,8 @@ describe('Browser Extension Test', () => {
       }
     })
 
+    console.log(result)
+
     const href = new URL(result?.href ?? '')
 
     expect(result?.inventoryStateNormalized).toBe('unavailable')
@@ -219,5 +207,38 @@ describe('Browser Extension Test', () => {
     expect(href.pathname).toBe('/track')
     expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/unavailable')
     expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
+  })
+
+  test('monitors URL changes when no other events are fired', async () => {
+    await page.setRequestInterception(true)
+    const interceptedValidationsRequests: HTTPRequest[] = []
+    page.on('request', (interceptedRequest: HTTPRequest) => {
+      if (interceptedRequest.isInterceptResolutionHandled()) {
+        return
+      }
+
+      if (isValidationRequest(interceptedRequest)) {
+        const postData = JSON.parse(interceptedRequest.postData() ?? '{}')
+        interceptedValidationsRequests.push(postData.url)
+      }
+
+      interceptedRequest.continue()
+    })
+
+    await page.goto('https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater', {
+      waitUntil: 'networkidle0',
+    })
+    await page.click('.ProductForm__Variants button')
+    await page.click('.OptionSelector button[data-value=S]')
+
+    await page.click('.ProductForm__Variants button')
+    await page.click('.OptionSelector button[data-value=M]')
+    await page.waitForRequest(request => isValidationRequest(request))
+
+    expect(interceptedValidationsRequests).toStrictEqual([
+      'https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater',
+      'https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater?variant=40885795684431',
+      'https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater?variant=40885795717199',
+    ])
   })
 })
