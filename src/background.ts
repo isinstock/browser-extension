@@ -2,25 +2,6 @@ import {InventoryStateNormalized} from './@types/inventory-states'
 import {MessageAction} from './@types/messages'
 import {extensionApi} from './utils/extension-api'
 
-// To fire a message to detect for product on page
-extensionApi.tabs.onActivated.addListener(activeInfo => {
-  console.log(activeInfo)
-})
-
-// extensionApi.action.onClicked.addListener(tab => {
-//   extensionApi.tabs.query({windowType: 'normal', url: 'https://isinstock.com'}, tabs => {
-//     if (tabs.length > 0 && tabs[0].id !== undefined) {
-//       extensionApi.tabs.update(tabs[0].id, {active: true})
-//     } else {
-//       extensionApi.tabs.create({url: 'https://isinstock.com'})
-//     }
-//   })
-// })
-
-// extensionApi.storage.onChanged.addListener((changes, namespace) => {
-//   console.log('extensionApi.storage.onChanged', changes, namespace)
-// })
-
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 const loadedTabs = new Map<number, boolean>()
 extensionApi.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
