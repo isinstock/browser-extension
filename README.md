@@ -55,4 +55,4 @@ npm run watch -- --production
     - run `npm run build -- --production` to build the extension
     - Load it into Google Chrome by visiting `chrome://extensions`
 - You should see output similar to `DevTools listening on ws://127.0.0.1:21222/devtools/browser/e3c7f5e3-c1e5-4b81-bda1-4633c5c5f7f7`, copy the UUID portion of the URL which would be `e3c7f5e3-c1e5-4b81-bda1-4633c5c5f7f7` in this example.
-- Run `CHROME_DEVTOOLS_ID="e3c7f5e3-c1e5-4b81-bda1-4633c5c5f7f7" npm run test`
+- Run `bin/integration-test "e3c7f5e3-c1e5-4b81-bda1-4633c5c5f7f7"`

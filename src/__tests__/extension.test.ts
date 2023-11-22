@@ -1,46 +1,11 @@
 import puppeteer, {Browser, HTTPRequest, Page, PuppeteerLaunchOptions} from 'puppeteer'
 
 const PUPPETEER_OPTIONS: PuppeteerLaunchOptions = {
-  headless: false,
+  headless: 'new',
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
   product: 'chrome',
-  args: [
-    '--no-sandbox',
-    // These all disable features of Chromium that we don't need
-    '--autoplay-policy=user-gesture-required',
-    '--disable-background-networking',
-    '--disable-background-timer-throttling',
-    '--disable-backgrounding-occluded-windows',
-    '--disable-breakpad',
-    '--disable-client-side-phishing-detection',
-    '--disable-component-update',
-    '--disable-default-apps',
-    '--disable-dev-shm-usage',
-    '--disable-domain-reliability',
-    '--disable-features=AudioServiceOutOfProcess',
-    '--disable-hang-monitor',
-    '--disable-ipc-flooding-protection',
-    '--disable-notifications',
-    '--disable-offer-store-unmasked-wallet-cards',
-    '--disable-popup-blocking',
-    '--disable-print-preview',
-    '--disable-prompt-on-repost',
-    '--disable-renderer-backgrounding',
-    '--disable-speech-api',
-    '--disable-sync',
-    '--ignore-gpu-blacklist',
-    '--metrics-recording-only',
-    '--mute-audio',
-    '--no-default-browser-check',
-    '--no-first-run',
-    '--no-pings',
-    '--no-zygote',
-    '--password-store=basic',
-    '--use-gl=swiftshader',
-    '--use-mock-keychain',
-    `--disable-extensions-except=dist/chrome`,
-    `--load-extension=dist/chrome`,
-  ],
+  dumpio: true,
+  args: ['--no-sandbox', '--disable-gpu', `--disable-extensions-except=dist/chrome`, `--load-extension=dist/chrome`],
   defaultViewport: {
     width: 1024,
     height: 1080,
@@ -80,12 +45,12 @@ describe('Browser Extension Test', () => {
   })
 
   afterAll(async () => {
-    if (process.env.CHROME_DEVTOOLS_ID === undefined) {
+    if (process.env.CHROME_DEVTOOLS_ID === undefined || process.env.CHROME_DEVTOOLS_ID === '') {
       await browser.close()
     }
   })
 
-  test.only('extension is installable and renders correctly', async () => {
+  test('extension is installable and renders correctly', async () => {
     await page.goto('https://isinstock.com/store/products/available')
 
     expect(await page.waitForSelector('#isinstock-button')).not.toBe(null)
@@ -221,5 +186,38 @@ describe('Browser Extension Test', () => {
     })
 
     expect(position).toBe('fixed')
+  })
+
+  test('unavailable product renders unavailable button', async () => {
+    await page.goto('https://isinstock.com/store/products/unavailable')
+    await page.waitForSelector('#isinstock-button')
+    const result = await page.evaluate(() => {
+      const button = document.querySelector('#isinstock-button')
+      if (!button) return null
+
+      const shadowRoot = button.shadowRoot
+      if (!shadowRoot) return null
+
+      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
+      return {
+        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
+        textContent: element?.textContent,
+        target: element?.target,
+        rel: element?.rel,
+        href: element?.href,
+      }
+    })
+
+    const href = new URL(result?.href ?? '')
+
+    expect(result?.inventoryStateNormalized).toBe('unavailable')
+    expect(result?.textContent).toBe('Notify Me When Available')
+    expect(result?.target).toBe('_blank')
+    expect(result?.rel).toBe('noreferrer')
+    expect(href.protocol).toBe('https:')
+    expect(href.hostname).toBe('isinstock.com')
+    expect(href.pathname).toBe('/track')
+    expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/unavailable')
+    expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
   })
 })
