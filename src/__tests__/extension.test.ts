@@ -1,13 +1,91 @@
-import 'expect-puppeteer'
+import puppeteer, {Browser, HTTPRequest, Page, PuppeteerLaunchOptions} from 'puppeteer'
 
-import {HTTPRequest} from 'puppeteer'
+const PUPPETEER_OPTIONS: PuppeteerLaunchOptions = {
+  headless: false,
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+  product: 'chrome',
+  args: [
+    '--no-sandbox',
+    // These all disable features of Chromium that we don't need
+    '--autoplay-policy=user-gesture-required',
+    '--disable-background-networking',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-breakpad',
+    '--disable-client-side-phishing-detection',
+    '--disable-component-update',
+    '--disable-default-apps',
+    '--disable-dev-shm-usage',
+    '--disable-domain-reliability',
+    '--disable-features=AudioServiceOutOfProcess',
+    '--disable-hang-monitor',
+    '--disable-ipc-flooding-protection',
+    '--disable-notifications',
+    '--disable-offer-store-unmasked-wallet-cards',
+    '--disable-popup-blocking',
+    '--disable-print-preview',
+    '--disable-prompt-on-repost',
+    '--disable-renderer-backgrounding',
+    '--disable-speech-api',
+    '--disable-sync',
+    '--ignore-gpu-blacklist',
+    '--metrics-recording-only',
+    '--mute-audio',
+    '--no-default-browser-check',
+    '--no-first-run',
+    '--no-pings',
+    '--no-zygote',
+    '--password-store=basic',
+    '--use-gl=swiftshader',
+    '--use-mock-keychain',
+    `--disable-extensions-except=dist/chrome`,
+    `--load-extension=dist/chrome`,
+  ],
+  defaultViewport: {
+    width: 1024,
+    height: 1080,
+    deviceScaleFactor: 2,
+  },
+}
+
+async function createBrowser() {
+  if (process.env.CHROME_DEVTOOLS_ID !== undefined && process.env.CHROME_DEVTOOLS_ID !== '') {
+    const browserWSEndpoint = `ws://host.docker.internal:21222/devtools/browser/${process.env.CHROME_DEVTOOLS_ID}`
+    console.debug('Connecting with Chrome DevTools Protocol at %s', browserWSEndpoint)
+    return puppeteer.connect({
+      // Don't set any viewport and use the existing browser dimensions.
+      defaultViewport: null,
+      browserWSEndpoint,
+    })
+  }
+
+  console.debug('Launching new %s browser at %s', PUPPETEER_OPTIONS.product, PUPPETEER_OPTIONS.executablePath)
+  return puppeteer.launch(PUPPETEER_OPTIONS)
+}
 
 describe('Browser Extension Test', () => {
-  afterEach(async () => {
-    page.off('request')
+  let browser: Browser
+  let page: Page
+
+  beforeAll(async () => {
+    browser = await createBrowser()
   })
 
-  test('extension is installable and renders correctly', async () => {
+  beforeEach(async () => {
+    page = await browser.newPage()
+  })
+
+  afterEach(async () => {
+    await page.close()
+  })
+
+  afterAll(async () => {
+    if (process.env.CHROME_DEVTOOLS_ID === undefined) {
+      await browser.close()
+    }
+  })
+
+  test.only('extension is installable and renders correctly', async () => {
     await page.goto('https://isinstock.com/store/products/available')
 
     expect(await page.waitForSelector('#isinstock-button')).not.toBe(null)
@@ -16,7 +94,7 @@ describe('Browser Extension Test', () => {
   test('extension sends correct headers for validation request', async () => {
     await page.setRequestInterception(true)
     let interceptedValidationsRequest: HTTPRequest | undefined
-    page.on('request', interceptedRequest => {
+    page.on('request', (interceptedRequest: HTTPRequest) => {
       if (interceptedRequest.url() === 'https://isinstock.com/api/products/validations') {
         interceptedValidationsRequest = interceptedRequest
       }
@@ -34,9 +112,7 @@ describe('Browser Extension Test', () => {
   test('available product renders available button', async () => {
     await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
     await page.waitForSelector('#isinstock-button')
-    console.log('waitForSelector')
     const result = await page.evaluate(() => {
-      console.log('evaluate')
       const button = document.querySelector('#isinstock-button')
       if (!button) return null
 
@@ -53,8 +129,6 @@ describe('Browser Extension Test', () => {
       }
     })
 
-    console.log(result)
-
     const href = new URL(result?.href ?? '')
 
     expect(result?.inventoryStateNormalized).toBe('available')
@@ -66,7 +140,7 @@ describe('Browser Extension Test', () => {
     expect(href.pathname).toBe('/track')
     expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/available')
     expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
-  }, 30000)
+  })
 
   test('unavailable product renders unavailable button', async () => {
     await page.goto('https://isinstock.com/store/products/unavailable')
@@ -104,7 +178,7 @@ describe('Browser Extension Test', () => {
   test('extension makes validation request to isinstock', async () => {
     await page.setRequestInterception(true)
     let interceptedValidationsRequest: HTTPRequest | undefined
-    page.on('request', interceptedRequest => {
+    page.on('request', (interceptedRequest: HTTPRequest) => {
       if (interceptedRequest.url() === 'https://isinstock.com/api/products/validations') {
         interceptedValidationsRequest = interceptedRequest
       }
@@ -139,8 +213,6 @@ describe('Browser Extension Test', () => {
 
   // TODO: Mock the HTTP request for this test
   test('retailer without specific CSS selector inserts button in fixed position', async () => {
-    jest.setTimeout(30000)
-
     await page.goto('https://shop.porsche.com/us/en-US/p/porsche-911-gt3-992-ltd-P-WAP0231510M002/WAP0231510M002')
     await page.waitForSelector('#isinstock-button')
     const position = await page.evaluate(() => {

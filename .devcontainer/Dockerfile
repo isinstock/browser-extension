@@ -3,8 +3,8 @@ FROM mcr.microsoft.com/devcontainers/typescript-node
 
 # Install Puppeteer dependencies
 RUN apt-get update && apt-get install -y \
-  chromium \
   ca-certificates \
+  chromium \
   fonts-liberation \
   libasound2 \
   libatk-bridge2.0-0 \

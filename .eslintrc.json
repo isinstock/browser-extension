@@ -9,13 +9,6 @@
     "es6": true,
     "jest": true
   },
-  "globals": {
-    "page": "readonly",
-    "browser": "readonly",
-    "context": "readonly",
-    "puppeteerConfig": "readonly",
-    "jestPuppeteer": "readonly"
-  },
   "plugins": [
     "@typescript-eslint",
     "github",
