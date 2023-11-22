@@ -1,7 +1,7 @@
 import browser from 'webextension-polyfill'
 
 import {InventoryStateNormalized} from './@types/inventory-states'
-import {MessageAction} from './@types/messages'
+import {Message, MessageAction} from './@types/messages'
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 const loadedTabs = new Map<number, boolean>()
@@ -23,9 +23,9 @@ browser.tabs.onUpdated.addListener(
 )
 
 // Receives messages from content scripts
-browser.runtime.onMessage.addListener(({action, value}, sender, sendResponse) => {
+browser.runtime.onMessage.addListener(({action, value}: Message, _sender) => {
   if (action === MessageAction.InventoryState) {
-    switch (value as InventoryStateNormalized) {
+    switch (value) {
       case InventoryStateNormalized.Available:
         browser.action.setIcon({
           path: {
@@ -69,7 +69,7 @@ browser.runtime.onMessage.addListener(({action, value}, sender, sendResponse) =>
     console.log('Unknown action', action, 'with value', value)
   }
 
-  sendResponse({
+  return Promise.resolve({
     processed: true,
   })
 })
