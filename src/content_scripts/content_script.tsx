@@ -1,9 +1,12 @@
 import {MessageAction} from '../@types/messages'
 import {ObservableElement} from '../@types/observables'
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
+import ExclusiveValidationRequestCache from '../utils/exclusive-validation-request-cache'
 import {extensionApi} from '../utils/extension-api'
 import {observeSelector} from '../utils/observers'
-import {isProduct, notFoundCallback, productCallback, SELECTOR} from '../utils/products'
+import {isProduct, notFoundCallback, SELECTOR} from '../utils/products'
+
+const validationRequests = new ExclusiveValidationRequestCache()
 
 // We're observing changes to the DOM to know when to validate products.
 const {search, observe, disconnect} = observeSelector(
@@ -12,10 +15,9 @@ const {search, observe, disconnect} = observeSelector(
     const products = productCandidates.filter(productCandidate => isProduct(productCandidate))
     if (products.length > 0) {
       console.debug('observeSelector.callback: Products found in structured data', products)
-      const productValidation = await productCallback({
-        url: window.location.href,
+      validationRequests.fetchWithLock(window.location.href, productValidation => {
+        insertIsInStockButton({productValidation})
       })
-      insertIsInStockButton({productValidation})
     } else if (!containsProductCandidates) {
       // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
       // page and we should not have any side effects that clear state in this callback.
@@ -26,6 +28,7 @@ const {search, observe, disconnect} = observeSelector(
   },
 )
 
+window.addEventListener('beforeunload', () => validationRequests.cancelAllRequests())
 window.addEventListener('focus', observe)
 window.addEventListener('blur', disconnect)
 window.addEventListener('pageshow', async event => {
