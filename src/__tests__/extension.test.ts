@@ -64,6 +64,7 @@ describe('Browser Extension Test', () => {
 
       const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
       return {
+        inventoryState: element?.dataset.inventoryState,
         inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
         textContent: element?.textContent,
         target: element?.target,
@@ -74,6 +75,7 @@ describe('Browser Extension Test', () => {
 
     const href = new URL(result?.href ?? '')
 
+    expect(result?.inventoryState).toBe('InStock')
     expect(result?.inventoryStateNormalized).toBe('available')
     expect(result?.textContent).toBe('In Stock')
     expect(result?.target).toBe('_blank')
@@ -97,6 +99,7 @@ describe('Browser Extension Test', () => {
 
       const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
       return {
+        inventoryState: element?.dataset.inventoryState,
         inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
         textContent: element?.textContent,
         target: element?.target,
@@ -107,6 +110,7 @@ describe('Browser Extension Test', () => {
 
     const href = new URL(result?.href ?? '')
 
+    expect(result?.inventoryState).toBe('OutOfStock')
     expect(result?.inventoryStateNormalized).toBe('unavailable')
     expect(result?.textContent).toBe('Notify Me When Available')
     expect(result?.target).toBe('_blank')
@@ -115,6 +119,41 @@ describe('Browser Extension Test', () => {
     expect(href.hostname).toBe('isinstock.com')
     expect(href.pathname).toBe('/track')
     expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/unavailable')
+    expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
+  })
+
+  test('pre-order product renders pre-order button', async () => {
+    await page.goto('https://isinstock.com/store/products/pre-order', {waitUntil: 'networkidle0'})
+    await page.waitForSelector('#isinstock-button')
+    const result = await page.evaluate(() => {
+      const button = document.querySelector('#isinstock-button')
+      if (!button) return null
+
+      const shadowRoot = button.shadowRoot
+      if (!shadowRoot) return null
+
+      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
+      return {
+        inventoryState: element?.dataset.inventoryState,
+        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
+        textContent: element?.textContent,
+        target: element?.target,
+        rel: element?.rel,
+        href: element?.href,
+      }
+    })
+
+    const href = new URL(result?.href ?? '')
+
+    expect(result?.inventoryState).toBe('PreOrder')
+    expect(result?.inventoryStateNormalized).toBe('available')
+    expect(result?.textContent).toBe('Pre-Order')
+    expect(result?.target).toBe('_blank')
+    expect(result?.rel).toBe('noreferrer')
+    expect(href.protocol).toBe('https:')
+    expect(href.hostname).toBe('isinstock.com')
+    expect(href.pathname).toBe('/track')
+    expect(href.searchParams.get('url')).toBe('https://isinstock.com/store/products/pre-order')
     expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
   })
 

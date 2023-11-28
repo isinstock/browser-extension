@@ -35,10 +35,11 @@ const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
       target="_blank"
       class="btn"
       rel="noreferrer"
+      data-inventory-state={productValidation.availability}
       data-inventory-state-normalized={InventoryStateNormalized.Available}
     >
       <img class="isinstock-logo" width="16" height="16" src={availableImg} />
-      <span>In Stock</span>
+      <span>{productValidation.availability === 'PreOrder' ? 'Pre-Order' : 'In Stock'}</span>
     </a>
   )
 }
@@ -63,6 +64,7 @@ const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
       target="_blank"
       class="btn"
       rel="noreferrer"
+      data-inventory-state={productValidation.availability}
       data-inventory-state-normalized={InventoryStateNormalized.Unavailable}
     >
       <img class="isinstock-logo" width="16" height="16" src={unavailableImg} />
