@@ -25,9 +25,21 @@
       "run_at": "document_start",
       "match_about_blank": false,
       "all_frames": false,
+      "exclude_matches": ["*://*.amazon.com/*"],
       "matches": [
         "http://*/*",
         "https://*/*"
+      ]
+    },
+    {
+      "js": [
+        "content_scripts/amazon.js"
+      ],
+      "run_at": "document_start",
+      "match_about_blank": false,
+      "all_frames": false,
+      "matches": [
+        "*://*.amazon.com/*"
       ]
     }
   ],
