@@ -28,6 +28,9 @@ npm run watch -- --production
 
 ## Releasing
 
+- Bump the package version in `package.json` on the `master` branch.
+- Run `npm install` to update the `package-lock.json` file.
+
 ### Google Chrome
 
 - Run `node ./build.js --production` to generate a production build.
