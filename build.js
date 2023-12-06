@@ -60,7 +60,7 @@ const cssAsStringPlugin = {
 
 const config = {
   logLevel: 'info',
-  entryPoints: ['./src/background.ts', './src/content_scripts/content_script.tsx'],
+  entryPoints: ['./src/background.ts', './src/content_scripts/content_script.tsx', './src/content_scripts/amazon.tsx'],
   bundle: true,
   sourcemap: !isProduction,
   watch,
