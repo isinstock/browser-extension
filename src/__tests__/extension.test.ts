@@ -174,6 +174,21 @@ describe('Browser Extension Test', () => {
     expect(interceptedValidationsRequest?.postData()).toBe(`{"url":"https://isinstock.com/store/products/available"}`)
   })
 
+  test('retailer with CSS that would hide the Is In Stock button does not hide Is In Stock button', async () => {
+    await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
+    await page.addStyleTag({content: 'div:empty { display: none; }'})
+
+    await page.waitForSelector('#isinstock-button')
+    const isVisible = await page.evaluate(() => {
+      const button = document.querySelector('#isinstock-button')
+      if (!button) return null
+
+      return window.getComputedStyle(button).display !== 'none'
+    })
+
+    expect(isVisible).toBe(true)
+  })
+
   // TODO: Mock the HTTP request for this test
   test('retailer with specific CSS selector inserts button after CSS selector', async () => {
     await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
