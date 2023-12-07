@@ -28,12 +28,12 @@ npm run watch -- --production
 
 ## Releasing
 
+- Create a production build by running `npm run build -- --production`
 - Bump the package version in `package.json` on the `master` branch.
 - Run `npm install` to update the `package-lock.json` file.
 
 ### Google Chrome
 
-- Run `node ./build.js --production` to generate a production build.
 - Generate a ZIP file of the `dist/chrome` directory.
 - Upload a new package in Is In Stock's [Package tab](https://chrome.google.com/u/1/webstore/devconsole/355361c6-bf2d-48aa-a191-99790c9dc228/bnglflgcpflggbpbcbpgeaknekceeojd/edit/package).
 
@@ -41,6 +41,15 @@ npm run watch -- --production
 
 - Outside of the Codespace, run `web-ext build -s ./dist/firefox` to automatically build the extension.
 - [Submit a new version](https://addons.mozilla.org/en-US/developers/addon/is-in-stock/versions/submit/) on the [Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/is-in-stock).
+- For "Notes to Reviewer:" provide the following:
+
+```
+- Run `npm install`
+- Run `npm run build -- --production`
+- Run `web-ext build -s ./dist/firefox`
+- Visit https://isinstock.com/store/products/available
+- You should see the Is In Stock button below Add to Cart button
+```
 
 ## Structured Data Support
 
