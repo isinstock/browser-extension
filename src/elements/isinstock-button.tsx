@@ -138,7 +138,10 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   )
 
   wrapper = document.createElement('div')
+  wrapper.innerHTML = '&nbsp;'
   wrapper.id = 'isinstock-button'
+  wrapper.style.display = 'block'
+  wrapper.style.opacity = '1'
   const shadowRoot = wrapper.attachShadow({mode: 'open'})
 
   // Can we prevent any flashing?
@@ -182,11 +185,9 @@ export const insertIsInStockButton = ({productValidation}: InsertIsInStockButton
   } else {
     console.debug("insertIsInStockButton: Couldn't find a matching selector, inserting at the bottom right of the page")
 
+    wrapper.style.position = 'fixed'
     // The maximum value of a 32 bits integer
     wrapper.style.zIndex = '2147483647'
-    // If a parent stylesheet contains div:empty due to the shadow root the container will not appear.
-    wrapper.style.display = 'block'
-    wrapper.style.position = 'fixed'
     wrapper.style.bottom = '10px'
     wrapper.style.right = '10px'
     document.body.appendChild(wrapper)

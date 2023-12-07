@@ -65,7 +65,9 @@ describe('Browser Extension Test', () => {
     expect(href.protocol).toBe('https:')
     expect(href.hostname).toBe('isinstock.com')
     expect(href.pathname).toBe('/track')
-    expect(href.searchParams.get('url')).toBe('https://www.amazon.com/dp/B08G58D42M/')
+    expect(href.searchParams.get('url')).toBe(
+      'https://www.amazon.com/dp/B08G58D42M?tag=isinstock02-20&linkCode=ogi&th=1&psc=1',
+    )
     expect(href.searchParams.get('utm_campaign')).toBe('web_extension')
   })
 
