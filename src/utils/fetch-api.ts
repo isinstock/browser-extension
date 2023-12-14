@@ -3,6 +3,10 @@ import browser from 'webextension-polyfill'
 import {getBrowserExtensionInstallToken} from './browser-extension-install-token'
 
 const browserExtensionInstallTokenHeader = 'X-Browser-Extension-Install-Token'
+const browserExtensionVersionHeader = 'X-Browser-Extension-Version'
+const manifest = browser.runtime.getManifest()
+const version = manifest.version
+
 const fetchApi = async (
   path: string,
   method: 'POST' | 'GET' | 'PUT' | 'PATCH' | 'DELETE',
@@ -17,7 +21,7 @@ const fetchApi = async (
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'X-Extension-Version': VERSION,
+    [browserExtensionVersionHeader]: version,
     [browserExtensionInstallTokenHeader]: browserExtensionInstallToken,
   }
   if (accessToken !== '' && accessToken !== null) {
