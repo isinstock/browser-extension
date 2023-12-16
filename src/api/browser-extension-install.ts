@@ -26,13 +26,24 @@ export async function createBrowserExtensionInstall(version: string): Promise<Br
 export async function updateBrowserExtensionInstall(
   token: string,
   version: string,
-): Promise<BrowserExtensionInstallResponseToken | Response> {
+  reason: string,
+): Promise<BrowserExtensionInstallResponseToken> {
   const path = `/api/browser-extension-installs/${token}`
-  const body = JSON.stringify({version})
+  const body = JSON.stringify({version, reason})
   const response = await fetchApi(path, 'PATCH', body)
   if (!response.ok) {
     throw new FetchError(response)
   }
 
   return (await response.json()) as BrowserExtensionInstallResponseToken
+}
+
+export async function browserExtensionStartup(token: string): Promise<boolean> {
+  const path = `/api/browser-extension-installs/${token}/startup`
+  const response = await fetchApi(path, 'POST')
+  if (!response.ok) {
+    throw new FetchError(response)
+  }
+
+  return true
 }

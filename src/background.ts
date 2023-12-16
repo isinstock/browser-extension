@@ -2,7 +2,11 @@ import browser from 'webextension-polyfill'
 
 import {InventoryStateNormalized} from './@types/inventory-states'
 import {Message, MessageAction} from './@types/messages'
-import {createBrowserExtensionInstall, updateBrowserExtensionInstall} from './api/browser-extension-install'
+import {
+  browserExtensionStartup,
+  createBrowserExtensionInstall,
+  updateBrowserExtensionInstall,
+} from './api/browser-extension-install'
 import {getBrowserExtensionInstallToken, setBrowserExtensionInstallToken} from './utils/browser-extension-install-token'
 import {FetchError} from './utils/fetch-error'
 
@@ -25,12 +29,27 @@ browser.tabs.onUpdated.addListener(
   },
 )
 
+browser.runtime.onStartup.addListener(async () => {
+  try {
+    const token = await getBrowserExtensionInstallToken()
+    if (token !== '') {
+      await browserExtensionStartup(token)
+    }
+  } catch (error) {
+    if (error instanceof FetchError && error.status === 404) {
+      console.debug('Browser extension install not found')
+    } else {
+      throw error
+    }
+  }
+})
+
 // Register the install
-browser.runtime.onInstalled.addListener(async () => {
+browser.runtime.onInstalled.addListener(async ({reason}) => {
   try {
     const existingToken = await getBrowserExtensionInstallToken()
     if (existingToken !== '') {
-      await updateBrowserExtensionInstall(existingToken, browser.runtime.getManifest().version)
+      await updateBrowserExtensionInstall(existingToken, browser.runtime.getManifest().version, reason)
       return
     }
   } catch (error) {
