@@ -41,6 +41,6 @@
   "javascript.preferences.quoteStyle": "single",
   "javascript.preferences.importModuleSpecifier": "relative",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": "explicit"
   }
 }
