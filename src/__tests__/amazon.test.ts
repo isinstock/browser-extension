@@ -141,11 +141,10 @@ describe('Browser Extension Test', () => {
   test('popstate to restore page searches for products', async () => {
     await page.goto('https://www.amazon.com/dp/B08G58D42M/')
     await page.waitForSelector('#isinstock-button')
-
     await page.goto('https://www.amazon.com/')
     await page.goBack()
-    const element = await page.waitForSelector('#isinstock-button')
 
+    const element = await page.waitForSelector('#isinstock-button')
     expect(element).not.toBe(null)
   })
 
@@ -166,8 +165,7 @@ describe('Browser Extension Test', () => {
     })
 
     await page.goto('https://www.amazon.com/dp/B088HH6LW5/')
-    await page.click('[data-dp-url] button')
-
+    await page.click(`[data-dp-url] button, [data-asin='B0BLF2RWNV'] input.a-button-input`)
     await page.waitForRequest(request => isValidationRequest(request))
 
     expect(interceptedValidationsRequests).toStrictEqual([

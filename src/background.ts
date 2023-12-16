@@ -2,6 +2,13 @@ import browser from 'webextension-polyfill'
 
 import {InventoryStateNormalized} from './@types/inventory-states'
 import {Message, MessageAction} from './@types/messages'
+import {
+  browserExtensionStartup,
+  createBrowserExtensionInstall,
+  updateBrowserExtensionInstall,
+} from './api/browser-extension-install'
+import {getBrowserExtensionInstallToken, setBrowserExtensionInstallToken} from './utils/browser-extension-install-token'
+import {FetchError} from './utils/fetch-error'
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 const loadedTabs = new Map<number, boolean>()
@@ -21,6 +28,47 @@ browser.tabs.onUpdated.addListener(
     }
   },
 )
+
+browser.runtime.onStartup.addListener(async () => {
+  try {
+    const token = await getBrowserExtensionInstallToken()
+    if (token !== '') {
+      await browserExtensionStartup(token)
+    }
+  } catch (error) {
+    if (error instanceof FetchError && error.status === 404) {
+      console.debug('Browser extension install not found')
+    } else {
+      throw error
+    }
+  }
+})
+
+// Register the install
+browser.runtime.onInstalled.addListener(async ({reason}) => {
+  try {
+    const existingToken = await getBrowserExtensionInstallToken()
+    if (existingToken !== '') {
+      await updateBrowserExtensionInstall(existingToken, browser.runtime.getManifest().version, reason)
+      return
+    }
+  } catch (error) {
+    if (error instanceof FetchError && error.status === 404) {
+      console.debug('Browser extension install not found, creating new one')
+    } else {
+      throw error
+    }
+  }
+
+  try {
+    const manifest = browser.runtime.getManifest()
+    const version = manifest.version
+    const {token} = await createBrowserExtensionInstall(version)
+    await setBrowserExtensionInstallToken(token)
+  } catch (e) {
+    console.debug('Error creating browser extension install', e)
+  }
+})
 
 // Receives messages from content scripts
 browser.runtime.onMessage.addListener(({action, value}: Message, _sender) => {

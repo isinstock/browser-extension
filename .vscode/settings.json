@@ -16,6 +16,7 @@
     "**/node_modules": true,
     "**/dist": true
   },
+  "jest.autoRun": "off",
   "eslint.validate": ["javascript", "javascriptreact", "html", "typescript", "typescriptreact"],
   "eslint.alwaysShowStatus": true,
   "eslint.lintTask.enable": true,
@@ -40,6 +41,6 @@
   "javascript.preferences.quoteStyle": "single",
   "javascript.preferences.importModuleSpecifier": "relative",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": "explicit"
   }
 }

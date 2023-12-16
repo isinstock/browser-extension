@@ -67,7 +67,6 @@ const config = {
   minify: isProduction,
   target: ['ios15', 'chrome100', 'edge100', 'firefox100', 'safari15'],
   define: {
-    VERSION: `"${pkg.version}"`,
     ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
   },
