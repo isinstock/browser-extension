@@ -30,6 +30,11 @@ browser.tabs.onUpdated.addListener(
 )
 
 browser.runtime.onStartup.addListener(async () => {
+  // onStartup cannot be tested with puppeteer so we skip it
+  if (CI) {
+    return
+  }
+
   try {
     const token = await getBrowserExtensionInstallToken()
     if (token !== '') {
@@ -46,6 +51,11 @@ browser.runtime.onStartup.addListener(async () => {
 
 // Register the install
 browser.runtime.onInstalled.addListener(async ({reason}) => {
+  // onInstalled cannot be tested with puppeteer so we skip it
+  if (CI) {
+    return
+  }
+
   try {
     const existingToken = await getBrowserExtensionInstallToken()
     if (existingToken !== '') {

@@ -7,6 +7,7 @@ const tailwindcss = require('tailwindcss')
 const autoprefixer = require('autoprefixer')
 
 const isProduction = process.argv.includes('--production')
+const isCI = process.env.CI === 'true'
 const watch = process.argv.includes('--watch')
 
 const copyChromeManifestPlugin = {
@@ -69,6 +70,7 @@ const config = {
   define: {
     ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
+    CI: isCI ? 'true' : 'false',
   },
   drop: isProduction ? ['console'] : [],
   loader: {
