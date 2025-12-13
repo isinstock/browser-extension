@@ -71,21 +71,28 @@ const options: MutationObserverInit = {
 }
 const {search, observe, disconnect} = observeSelector(
   `script[type="application/ld+json"]`,
-  async (observedElements: ObservableElement[], containsProductCandidates: boolean) => {
+  async (observedElements: ObservableElement[], containsProductCandidates: boolean): Promise<boolean> => {
     const skuData = extractSkuFromProductSchema()
     console.warn('skuData', skuData)
     if (skuData) {
       console.debug('observeSelector.callback: Product SKU found in #product-schema', skuData)
+      // Send the transformed URL to the background script for use in onClicked
+      browser.runtime.sendMessage({action: MessageAction.TrackUrl, url: skuData.transformedUrl})
       validationRequests.fetchWithLock(skuData.transformedUrl, productValidation => {
         insertIsInStockButton({productValidation})
       })
+      return true // Product found, mark as fired
     } else if (!containsProductCandidates) {
       // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
       // page and we should not have any side effects that clear state in this callback.
       console.debug('observeSelector.callback: No product candidates found in DOM.')
       removeIsInStockButton()
       notFoundCallback()
+      return false // No candidates, mark as fired
     }
+    // Element exists but SKU data not ready yet, don't mark as fired so it can be re-processed
+    console.debug('observeSelector.callback: Element found but SKU data not ready, will re-process.')
+    return false
   },
   options,
 )

@@ -4,6 +4,7 @@ export enum MessageAction {
   InventoryState = 'inventory-state',
   Product = 'product',
   URLChanged = 'url-changed',
+  TrackUrl = 'track-url',
 }
 
 export interface ActionMessage {
@@ -14,4 +15,9 @@ export interface InventoryStateMessage extends ActionMessage {
   value: InventoryStateNormalized
 }
 
-export type Message = InventoryStateMessage
+export interface TrackUrlMessage extends ActionMessage {
+  action: MessageAction.TrackUrl
+  url: string
+}
+
+export type Message = InventoryStateMessage | TrackUrlMessage
