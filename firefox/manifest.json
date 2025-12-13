@@ -25,7 +25,7 @@
       "run_at": "document_start",
       "match_about_blank": false,
       "all_frames": false,
-      "exclude_matches": ["*://*.amazon.com/*"],
+      "exclude_matches": ["*://*.amazon.com/*", "*://*.bestbuy.com/*"],
       "matches": [
         "http://*/*",
         "https://*/*"
@@ -40,6 +40,17 @@
       "all_frames": false,
       "matches": [
         "*://*.amazon.com/*"
+      ]
+    },
+    {
+      "js": [
+        "content_scripts/bestbuy.js"
+      ],
+      "run_at": "document_start",
+      "match_about_blank": false,
+      "all_frames": false,
+      "matches": [
+        "*://*.bestbuy.com/*"
       ]
     }
   ],
