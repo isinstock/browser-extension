@@ -15,19 +15,22 @@ const validationRequests = new ExclusiveValidationRequestCache()
 // #ppd - The product details div. This is the div that contains the product title and price.
 const {search, observe, disconnect} = observeSelector(
   `link[rel="canonical"], #ppd`,
-  async (observedElements: ObservableElement[], containsProductCandidates: boolean) => {
+  async (observedElements: ObservableElement[], containsProductCandidates: boolean): Promise<boolean> => {
     if (/\/dp\//.test(window.location.href)) {
       console.debug('observeSelector.callback: Product found in link', window.location.href)
       validationRequests.fetchWithLock(window.location.href, productValidation => {
         insertIsInStockButton({productValidation})
       })
+      return true // Product found, mark as fired
     } else if (!containsProductCandidates) {
       // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
       // page and we should not have any side effects that clear state in this callback.
       console.debug('observeSelector.callback: No product candidates found in DOM.')
       removeIsInStockButton()
       notFoundCallback()
+      return true // No candidates, mark as fired
     }
+    return true // Mark as fired by default
   },
 )
 

@@ -4,8 +4,10 @@ import {ObservableElement} from '../@types/observables'
  * Callback function for the product observer.
  * @param productCandidates - An array of ObservableElement objects representing elements which are candidates for containing a product.
  * @param containsProductCandidates - A boolean indicating whether there are any potential eligible products on the page.
+ * @returns A boolean indicating whether the elements should be marked as "fired". If true, elements won't be re-processed.
+ *          If false, elements can be re-processed on subsequent mutations.
  */
-type ProductObserverCallback = (productCandidates: ObservableElement[], elgible: boolean) => void
+type ProductObserverCallback = (productCandidates: ObservableElement[], elgible: boolean) => boolean | Promise<boolean>
 
 interface SearchOptions {
   // Control if elements are filtered that have had their callback fired.
@@ -14,7 +16,7 @@ interface SearchOptions {
 }
 
 type ObserveSelectorResult = {
-  search: (options?: SearchOptions) => void
+  search: (options?: SearchOptions) => Promise<void>
   observe: () => void
   disconnect: () => void
 }
@@ -30,7 +32,7 @@ export const observeSelector = (
     attributeFilter: ['type', 'itemtype', 'typeof'],
   },
 ): ObserveSelectorResult => {
-  const search = ({event, filterFired = true}: SearchOptions = {}) => {
+  const search = async ({event, filterFired = true}: SearchOptions = {}) => {
     console.group('observeSelector: search')
 
     const elements: ObservableElement[] = Array.from(document.querySelectorAll(selector))
@@ -38,20 +40,23 @@ export const observeSelector = (
     if (elements.length === 0) {
       console.debug(`Selector matched ${elements.length} element(s)`)
       console.groupEnd()
-      callback([], elements.length > 0)
+      await callback([], elements.length > 0)
       return
     }
 
-    const unfiredElements = elements
-      .filter(element => !filterFired || !element.fired)
-      .map(element => {
-        element.fired = true
-        return element
-      })
+    const unfiredElements = elements.filter(element => !filterFired || !element.fired)
 
     if (unfiredElements.length > 0) {
       console.debug(`Selector matched ${elements.length} element(s) that have not had their callback fired.`)
-      callback(unfiredElements, elements.length > 0)
+      const shouldMarkAsFired = await callback(unfiredElements, elements.length > 0)
+      if (shouldMarkAsFired) {
+        unfiredElements.forEach(element => {
+          element.fired = true
+        })
+        console.debug(`Marked ${unfiredElements.length} element(s) as fired.`)
+      } else {
+        console.debug(`Callback returned false, elements not marked as fired.`)
+      }
     } else {
       console.debug(`Selector matched ${elements.length} element(s), but they have already had their callback fired.`)
     }

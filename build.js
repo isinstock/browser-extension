@@ -61,7 +61,12 @@ const cssAsStringPlugin = {
 
 const config = {
   logLevel: 'info',
-  entryPoints: ['./src/background.ts', './src/content_scripts/content_script.tsx', './src/content_scripts/amazon.tsx'],
+  entryPoints: [
+    './src/background.ts',
+    './src/content_scripts/content_script.tsx',
+    './src/content_scripts/amazon.tsx',
+    './src/content_scripts/bestbuy.tsx',
+  ],
   bundle: true,
   sourcemap: !isProduction,
   watch,

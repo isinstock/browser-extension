@@ -10,14 +10,25 @@ import {
 import {getBrowserExtensionInstallToken, setBrowserExtensionInstallToken} from './utils/browser-extension-install-token'
 import {FetchError} from './utils/fetch-error'
 
+// Store modified URLs per tab (e.g., transformed Best Buy URLs)
+const tabTrackUrls = new Map<number, string>()
+
 // Open isinstock.com when the extension icon is clicked
 browser.action.onClicked.addListener(tab => {
   console.log(tab)
+  // Use the modified URL if available, otherwise fall back to tab.url
+  const trackUrl = tab.id !== undefined ? tabTrackUrls.get(tab.id) : undefined
+  const urlToTrack = trackUrl ?? tab.url
   const url =
-    tab.url !== undefined && tab.url !== ''
-      ? `https://isinstock.com/track?url=${encodeURIComponent(tab.url)}`
+    urlToTrack !== undefined && urlToTrack !== ''
+      ? `https://isinstock.com/track?url=${encodeURIComponent(urlToTrack)}`
       : 'https://isinstock.com'
   browser.tabs.create({url})
+})
+
+// Clean up stored URLs when tabs are closed
+browser.tabs.onRemoved.addListener(tabId => {
+  tabTrackUrls.delete(tabId)
 })
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
@@ -91,9 +102,18 @@ browser.runtime.onInstalled.addListener(async ({reason}) => {
 })
 
 // Receives messages from content scripts
-browser.runtime.onMessage.addListener(({action, value}: Message, _sender) => {
-  if (action === MessageAction.InventoryState) {
-    switch (value) {
+browser.runtime.onMessage.addListener((message: Message, sender) => {
+  const {action} = message
+
+  if (action === MessageAction.TrackUrl && 'url' in message) {
+    // Store the modified URL for this tab
+    const tabId = sender.tab?.id
+    if (tabId !== undefined) {
+      tabTrackUrls.set(tabId, message.url)
+      console.debug('Stored track URL for tab', tabId, message.url)
+    }
+  } else if (action === MessageAction.InventoryState && 'value' in message) {
+    switch (message.value) {
       case InventoryStateNormalized.Available:
         browser.action.setIcon({
           path: {
@@ -134,7 +154,7 @@ browser.runtime.onMessage.addListener(({action, value}: Message, _sender) => {
         break
     }
   } else {
-    console.log('Unknown action', action, 'with value', value)
+    console.log('Unknown action', action)
   }
 
   return Promise.resolve({

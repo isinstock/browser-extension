@@ -81,12 +81,17 @@
     {
       "js": ["content_scripts/content_script.js"],
       "matches": ["*://*/*"],
-      "exclude_matches": ["*://*.amazon.com/*"],
+      "exclude_matches": ["*://*.amazon.com/*", "*://*.bestbuy.com/*"],
       "run_at": "document_start"
     },
     {
       "js": ["content_scripts/amazon.js"],
       "matches": ["*://*.amazon.com/*"],
+      "run_at": "document_start"
+    },
+    {
+      "js": ["content_scripts/bestbuy.js"],
+      "matches": ["*://*.bestbuy.com/*"],
       "run_at": "document_start"
     }
   ]

@@ -12,20 +12,23 @@ const validationRequests = new ExclusiveValidationRequestCache()
 // We're observing changes to the DOM to know when to validate products.
 const {search, observe, disconnect} = observeSelector(
   SELECTOR,
-  async (productCandidates: ObservableElement[], containsProductCandidates: boolean) => {
+  async (productCandidates: ObservableElement[], containsProductCandidates: boolean): Promise<boolean> => {
     const products = productCandidates.filter(productCandidate => isProduct(productCandidate))
     if (products.length > 0) {
       console.debug('observeSelector.callback: Products found in structured data', products)
       validationRequests.fetchWithLock(window.location.href, productValidation => {
         insertIsInStockButton({productValidation})
       })
+      return true // Products found, mark as fired
     } else if (!containsProductCandidates) {
       // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
       // page and we should not have any side effects that clear state in this callback.
       console.debug('observeSelector.callback: No product candidates found in DOM.')
       removeIsInStockButton()
       notFoundCallback()
+      return true // No candidates, mark as fired
     }
+    return true // Mark as fired by default
   },
 )
 
