@@ -10,6 +10,16 @@ import {
 import {getBrowserExtensionInstallToken, setBrowserExtensionInstallToken} from './utils/browser-extension-install-token'
 import {FetchError} from './utils/fetch-error'
 
+// Open isinstock.com when the extension icon is clicked
+browser.action.onClicked.addListener(tab => {
+  console.log(tab)
+  const url =
+    tab.url !== undefined && tab.url !== ''
+      ? `https://isinstock.com/track?url=${encodeURIComponent(tab.url)}`
+      : 'https://isinstock.com'
+  browser.tabs.create({url})
+})
+
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
 const loadedTabs = new Map<number, boolean>()
 browser.tabs.onUpdated.addListener(
