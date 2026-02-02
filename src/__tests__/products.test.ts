@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import {describe, expect, test, vi} from 'vitest'
 
-import {isProductSchema} from '../utils/helpers'
 import {isProduct, loadProduct} from '../utils/products'
 
 describe('isProduct', () => {
@@ -51,6 +50,30 @@ describe('isProduct', () => {
     expect(isProduct(div)).toBe(true)
   })
 
+  test('returns true for bare RDFa typeof="Product"', () => {
+    const div = document.createElement('div')
+    div.setAttribute('typeof', 'Product')
+    expect(isProduct(div)).toBe(true)
+  })
+
+  test('returns true for RDFa typeof with full https URL', () => {
+    const div = document.createElement('div')
+    div.setAttribute('typeof', 'https://schema.org/Product')
+    expect(isProduct(div)).toBe(true)
+  })
+
+  test('returns true for RDFa typeof with full http URL', () => {
+    const div = document.createElement('div')
+    div.setAttribute('typeof', 'http://schema.org/Product')
+    expect(isProduct(div)).toBe(true)
+  })
+
+  test('returns true for RDFa typeof="schema:Vehicle"', () => {
+    const div = document.createElement('div')
+    div.setAttribute('typeof', 'schema:Vehicle')
+    expect(isProduct(div)).toBe(true)
+  })
+
   test('returns true for element with Microdata itemtype containing Product', () => {
     const div = document.createElement('div')
     div.setAttribute('itemscope', '')
@@ -63,6 +86,20 @@ describe('isProduct', () => {
     div.setAttribute('itemscope', '')
     div.setAttribute('itemtype', 'http://schema.org/Product')
     expect(isProduct(div)).toBe(true)
+  })
+
+  test('returns true for Microdata itemtype IndividualProduct', () => {
+    const div = document.createElement('div')
+    div.setAttribute('itemscope', '')
+    div.setAttribute('itemtype', 'https://schema.org/IndividualProduct')
+    expect(isProduct(div)).toBe(true)
+  })
+
+  test('returns false for Microdata itemtype ProductionCompany', () => {
+    const div = document.createElement('div')
+    div.setAttribute('itemscope', '')
+    div.setAttribute('itemtype', 'https://schema.org/ProductionCompany')
+    expect(isProduct(div)).toBe(false)
   })
 
   test('returns false for element without product attributes', () => {
@@ -93,14 +130,12 @@ describe('loadProduct', () => {
 
   test('returns null for null textContent', () => {
     const script = document.createElement('script')
-    // textContent defaults to '' in jsdom, so we need to set it explicitly
     Object.defineProperty(script, 'textContent', {value: null})
     expect(loadProduct(script)).toBeNull()
   })
 
   test('handles JSON with control characters by stripping newlines', () => {
     const script = document.createElement('script')
-    // Valid JSON that happens to have newlines (normal behavior)
     script.textContent = '{"@type": "Product",\n"@context": "https://schema.org"}'
     const result = loadProduct(script)
     expect(result).toEqual({'@type': 'Product', '@context': 'https://schema.org'})
@@ -112,27 +147,63 @@ describe('loadProduct', () => {
     expect(loadProduct(script)).toBeNull()
   })
 
-  test('returns null for array of products', () => {
+  test('returns first Product from top-level array', () => {
     const script = document.createElement('script')
-    script.textContent = JSON.stringify([{'@type': 'Product', '@context': 'https://schema.org'}])
+    script.textContent = JSON.stringify([
+      {'@type': 'Product', '@context': 'https://schema.org', name: 'Test'},
+      {'@type': 'BreadcrumbList'},
+    ])
+    expect(loadProduct(script)).toEqual({'@type': 'Product', '@context': 'https://schema.org', name: 'Test'})
+  })
+
+  test('returns null for top-level array without Product', () => {
+    const script = document.createElement('script')
+    script.textContent = JSON.stringify([{'@type': 'BreadcrumbList'}, {'@type': 'WebSite'}])
     expect(loadProduct(script)).toBeNull()
   })
-})
 
-describe('isProductSchema', () => {
-  test('returns true for Product', () => {
-    expect(isProductSchema({'@type': 'Product'})).toBe(true)
+  test('returns Product from @graph wrapper', () => {
+    const script = document.createElement('script')
+    script.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [
+        {'@type': 'WebSite'},
+        {'@type': 'Product', name: 'Widget'},
+      ],
+    })
+    expect(loadProduct(script)).toEqual({'@type': 'Product', name: 'Widget'})
   })
 
-  test('returns false for array', () => {
-    expect(isProductSchema([{'@type': 'Product'}])).toBe(false)
+  test('returns null for @graph wrapper without Product', () => {
+    const script = document.createElement('script')
+    script.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [{'@type': 'WebSite'}, {'@type': 'BreadcrumbList'}],
+    })
+    expect(loadProduct(script)).toBeNull()
   })
 
-  test('returns false for null', () => {
-    expect(isProductSchema(null)).toBe(false)
+  test('returns Product when @type is an array containing Product', () => {
+    const script = document.createElement('script')
+    script.textContent = JSON.stringify({'@type': ['Product', 'IndividualProduct'], '@context': 'https://schema.org'})
+    expect(loadProduct(script)).toEqual({'@type': ['Product', 'IndividualProduct'], '@context': 'https://schema.org'})
   })
 
-  test('returns false for other @type', () => {
-    expect(isProductSchema({'@type': 'WebSite'})).toBe(false)
+  test('returns Product for IndividualProduct subtype', () => {
+    const script = document.createElement('script')
+    script.textContent = JSON.stringify({'@type': 'IndividualProduct', '@context': 'https://schema.org'})
+    expect(loadProduct(script)).toEqual({'@type': 'IndividualProduct', '@context': 'https://schema.org'})
+  })
+
+  test('returns Product for ProductModel subtype', () => {
+    const script = document.createElement('script')
+    script.textContent = JSON.stringify({'@type': 'ProductModel', '@context': 'https://schema.org'})
+    expect(loadProduct(script)).toEqual({'@type': 'ProductModel', '@context': 'https://schema.org'})
+  })
+
+  test('returns Product for Vehicle subtype', () => {
+    const script = document.createElement('script')
+    script.textContent = JSON.stringify({'@type': 'Vehicle', '@context': 'https://schema.org'})
+    expect(loadProduct(script)).toEqual({'@type': 'Vehicle', '@context': 'https://schema.org'})
   })
 })

@@ -2,7 +2,7 @@
 
 export interface LinkedDataType {
   '@context': 'http://schema.org/' | 'https://schema.org/' | 'http://schema.org' | 'https://schema.org'
-  '@type': string
+  '@type': string | string[]
 }
 
 export interface Brand {
@@ -18,7 +18,7 @@ export interface AggregateRating {
 }
 
 export interface Product extends LinkedDataType {
-  '@type': 'Product'
+  '@type': string | string[]
   brand?: Brand
 
   // An Amazon Standard Identification Number (ASIN) is a 10-character alphanumeric unique identifier assigned by

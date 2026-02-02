@@ -2,36 +2,60 @@ import {ProductValidationResponse, ProductValidationResult} from '../@types/api'
 import {InventoryStateNormalized} from '../@types/inventory-states'
 import {Product} from '../@types/linked-data'
 import fetchApi from './fetch-api'
-import {isProductSchema} from './helpers'
+import {hasProductType, PRODUCT_TYPES} from './helpers'
 import {broadcastInventoryState} from './inventory-state'
 
+const MICRODATA_SELECTORS = PRODUCT_TYPES.map(t => `[itemscope][itemtype$="/${t}" i]`).join(', ')
+
+const RDFA_SELECTORS = PRODUCT_TYPES.flatMap(t => [
+  `[typeof="${t}" i]`,
+  `[typeof="schema:${t}" i]`,
+]).join(', ')
+
 // JSON+LD, Microdata, RDFa
-export const SELECTOR = `script[type="application/ld+json"], [itemscope][itemtype*="Product" i], [typeof="schema:Product" i]`
+export const SELECTOR = [
+  'script[type="application/ld+json"]',
+  MICRODATA_SELECTORS,
+  RDFA_SELECTORS,
+].join(', ')
 
 const loadJSON = (script: HTMLElement): any | null => {
   if (script.textContent === null || script.textContent === '') {
-    return
+    return null
   }
 
   try {
     return JSON.parse(script.textContent)
   } catch (error) {
-    // TODO: Add regression tests for this, should we catch _again_?
     if (error instanceof SyntaxError && error.message.includes('control character')) {
-      return JSON.parse(script.textContent.replace(/(\r\n|\n|\r)/gm, ''))
+      try {
+        return JSON.parse(script.textContent.replace(/[\r\n]+/g, ''))
+      } catch {
+        // Retry also failed
+      }
     }
-
     console.error(error)
-    return
+    return null
   }
 }
 
-const findProduct = (obj?: any): Product | null => {
-  if (obj === null || !isProductSchema(obj)) {
-    return null
+const findProductsInJSON = (json: any): Product[] => {
+  // Top-level array: [{@type: Product}, {@type: BreadcrumbList}]
+  if (Array.isArray(json)) {
+    return json.filter(hasProductType)
   }
 
-  return obj
+  // @graph wrapper: {@graph: [{@type: Product}, ...]}
+  if (json?.['@graph'] && Array.isArray(json['@graph'])) {
+    return json['@graph'].filter(hasProductType)
+  }
+
+  // Direct object: {@type: Product}
+  if (hasProductType(json)) {
+    return [json]
+  }
+
+  return []
 }
 
 type ProductCallbackProps = {
@@ -72,13 +96,23 @@ export const isProduct = (element: HTMLElement): boolean => {
   }
 
   const typeofAttribute = element.getAttribute('typeof')
-  if (typeofAttribute !== null && typeofAttribute.trim().toLowerCase() === 'schema:product') {
-    return true
+  if (typeofAttribute !== null) {
+    const value = typeofAttribute.trim()
+    // Handle schema:Product, bare Product, and full URL forms
+    const typeName = value
+      .replace(/^schema:/i, '')
+      .replace(/^https?:\/\/schema\.org\//i, '')
+    if (PRODUCT_TYPES.some(t => t.toLowerCase() === typeName.toLowerCase())) {
+      return true
+    }
   }
 
   const itemtype = element.getAttribute('itemtype')
-  if (itemtype !== null && itemtype.trim().toLowerCase().includes('product')) {
-    return true
+  if (itemtype !== null) {
+    const typeName = itemtype.trim().replace(/^https?:\/\/schema\.org\//i, '')
+    if (PRODUCT_TYPES.some(t => t.toLowerCase() === typeName.toLowerCase())) {
+      return true
+    }
   }
 
   return false
@@ -86,7 +120,8 @@ export const isProduct = (element: HTMLElement): boolean => {
 
 export const loadProduct = (script: HTMLElement): Product | null => {
   const json = loadJSON(script)
-  return findProduct(json)
+  const products = findProductsInJSON(json)
+  return products.length > 0 ? (products[0] ?? null) : null
 }
 
 export const productsNotFound = async (): Promise<boolean> => {

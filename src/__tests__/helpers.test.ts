@@ -223,4 +223,28 @@ describe('isProductSchema', () => {
   test('returns false for other @type', () => {
     expect(isProductSchema({'@type': 'Organization'})).toBe(false)
   })
+
+  test('returns true for @type as array containing Product', () => {
+    expect(isProductSchema({'@type': ['Product', 'IndividualProduct']})).toBe(true)
+  })
+
+  test('returns true for IndividualProduct subtype', () => {
+    expect(isProductSchema({'@type': 'IndividualProduct'})).toBe(true)
+  })
+
+  test('returns true for ProductModel subtype', () => {
+    expect(isProductSchema({'@type': 'ProductModel'})).toBe(true)
+  })
+
+  test('returns true for Vehicle subtype', () => {
+    expect(isProductSchema({'@type': 'Vehicle'})).toBe(true)
+  })
+
+  test('returns true for ProductGroup subtype', () => {
+    expect(isProductSchema({'@type': 'ProductGroup'})).toBe(true)
+  })
+
+  test('returns false for @type array without product types', () => {
+    expect(isProductSchema({'@type': ['WebSite', 'Organization']})).toBe(false)
+  })
 })

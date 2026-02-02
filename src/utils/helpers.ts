@@ -1,5 +1,22 @@
 import {AggregateOffer, Offer, Product} from '../@types/linked-data'
 
+export const PRODUCT_TYPES = [
+  'Product',
+  'IndividualProduct',
+  'ProductModel',
+  'ProductGroup',
+  'ProductCollection',
+  'SomeProducts',
+  'Vehicle',
+]
+
+export const hasProductType = (obj: any): boolean => {
+  const type = obj?.['@type']
+  if (typeof type === 'string') return PRODUCT_TYPES.includes(type)
+  if (Array.isArray(type)) return type.some(t => PRODUCT_TYPES.includes(t))
+  return false
+}
+
 export const isAggregateOffer = (obj?: Offer | Offer[] | AggregateOffer): obj is AggregateOffer => {
   if (!obj || obj instanceof Array) {
     return false
@@ -62,5 +79,5 @@ export const isProductSchema = (obj?: any): obj is Product => {
     return false
   }
 
-  return obj['@type'] === 'Product'
+  return hasProductType(obj)
 }
