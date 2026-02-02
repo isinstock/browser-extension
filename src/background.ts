@@ -13,6 +13,9 @@ import {FetchError} from './utils/fetch-error'
 // Store modified URLs per tab (e.g., transformed Best Buy URLs)
 const tabTrackUrls = new Map<number, string>()
 
+// Store inventory state per tab so we can restore the correct icon on tab switch
+const tabInventoryStates = new Map<number, InventoryStateNormalized>()
+
 // Open the side panel on action click in browsers that support it,
 // otherwise fall back to opening a new tab.
 if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
@@ -29,9 +32,38 @@ if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
   })
 }
 
-// Clean up stored URLs when tabs are closed
+const iconPaths = (state: string) =>
+  Object.fromEntries([16, 24, 32, 48, 64, 128].map(s => [`${s}`, `/images/inventory-states/${state}/${s}.png`]))
+
+const setIconForState = (state: InventoryStateNormalized, tabId?: number) => {
+  const opts: browser.Action.SetIconDetailsType = (() => {
+    switch (state) {
+      case InventoryStateNormalized.Available:
+        return {path: iconPaths('available')}
+      case InventoryStateNormalized.Unavailable:
+        return {path: iconPaths('unavailable')}
+      default:
+        return {path: iconPaths('unknown')}
+    }
+  })()
+
+  if (tabId !== undefined) {
+    opts.tabId = tabId
+  }
+
+  browser.action.setIcon(opts)
+}
+
+// Clean up stored URLs and inventory states when tabs are closed
 browser.tabs.onRemoved.addListener(tabId => {
   tabTrackUrls.delete(tabId)
+  tabInventoryStates.delete(tabId)
+})
+
+// Restore the correct icon when switching tabs
+browser.tabs.onActivated.addListener(({tabId}) => {
+  const state = tabInventoryStates.get(tabId)
+  setIconForState(state ?? InventoryStateNormalized.Unknown, tabId)
 })
 
 // As browser navigation changes, inform the content script as a hook for certain retailers to perform custom querying.
@@ -117,20 +149,11 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
       console.debug('Stored track URL for tab', tabId, message.url)
     }
   } else if (action === MessageAction.InventoryState && 'value' in message) {
-    const iconPaths = (state: string) =>
-      Object.fromEntries([16, 24, 32, 48, 64, 128].map(s => [`${s}`, `/images/inventory-states/${state}/${s}.png`]))
-
-    switch (message.value) {
-      case InventoryStateNormalized.Available:
-        browser.action.setIcon({path: iconPaths('available')})
-        break
-      case InventoryStateNormalized.Unavailable:
-        browser.action.setIcon({path: iconPaths('unavailable')})
-        break
-      default:
-        browser.action.setIcon({path: iconPaths('unknown')})
-        break
+    const tabId = sender.tab?.id
+    if (tabId !== undefined) {
+      tabInventoryStates.set(tabId, message.value as InventoryStateNormalized)
     }
+    setIconForState(message.value as InventoryStateNormalized, tabId)
   } else {
     console.log('Unknown action', action)
   }

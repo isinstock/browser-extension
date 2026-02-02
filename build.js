@@ -70,7 +70,7 @@ const config = {
   entryPoints,
   bundle: true,
   sourcemap: !isProduction,
-  minify: isProduction,
+  minify: false,
   target: ['chrome120', 'edge120', 'firefox120', 'safari17'],
   define: {
     ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
