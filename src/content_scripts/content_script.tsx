@@ -1,62 +1,20 @@
-import browser from 'webextension-polyfill'
-
-import {MessageAction} from '../@types/messages'
-import {ObservableElement} from '../@types/observables'
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
-import ExclusiveValidationRequestCache from '../utils/exclusive-validation-request-cache'
-import {observeSelector} from '../utils/observers'
+import {registerContentScript} from '../utils/content-script'
 import {isProduct, notFoundCallback, SELECTOR} from '../utils/products'
 
-const validationRequests = new ExclusiveValidationRequestCache()
-
-// We're observing changes to the DOM to know when to validate products.
-const {search, observe, disconnect} = observeSelector(
-  SELECTOR,
-  async (productCandidates: ObservableElement[], containsProductCandidates: boolean): Promise<boolean> => {
-    const products = productCandidates.filter(productCandidate => isProduct(productCandidate))
-    if (products.length > 0) {
-      console.debug('observeSelector.callback: Products found in structured data', products)
-      validationRequests.fetchWithLock(window.location.href, productValidation => {
-        insertIsInStockButton({productValidation})
-      })
-      return true // Products found, mark as fired
-    } else if (!containsProductCandidates) {
-      // Because we don't fire the MutationObserver twice on the same <script>, it's possible there are products on the
-      // page and we should not have any side effects that clear state in this callback.
-      console.debug('observeSelector.callback: No product candidates found in DOM.')
-      removeIsInStockButton()
-      notFoundCallback()
-      return true // No candidates, mark as fired
-    }
-    return true // Mark as fired by default
-  },
-)
-
-window.addEventListener('beforeunload', () => validationRequests.cancelAllRequests())
-window.addEventListener('focus', observe)
-window.addEventListener('blur', disconnect)
-window.addEventListener('pageshow', async event => {
-  // If persisted then it's in the bfcache, meaning the page was restored from the bfcache.
-  if (event.persisted) {
-    console.debug('pageshow: Page was restored from cache.')
-    search({event})
-  } else {
-    console.debug('pageshow: Page was loaded without cache.')
-    observe()
-    search({event})
+registerContentScript(SELECTOR, async (validationRequests, productCandidates, containsProductCandidates) => {
+  const products = productCandidates.filter(productCandidate => isProduct(productCandidate))
+  if (products.length > 0) {
+    console.debug('observeSelector.callback: Products found in structured data', products)
+    validationRequests.fetchWithLock(window.location.href, productValidation => {
+      insertIsInStockButton({productValidation})
+    })
+    return true
+  } else if (!containsProductCandidates) {
+    console.debug('observeSelector.callback: No product candidates found in DOM.')
+    removeIsInStockButton()
+    notFoundCallback()
+    return true
   }
+  return true
 })
-
-window.addEventListener('popstate', event => {
-  console.debug('popstate: The popstate event is fired when the active history entry changes.')
-  search({event})
-})
-
-browser.runtime.onMessage.addListener(((request: {action?: string}) => {
-  if (request.action === MessageAction.URLChanged) {
-    const event = new CustomEvent('urlChanged', {detail: {request}})
-    search({event, filterFired: false})
-  } else {
-    console.debug('Unknown action', request.action)
-  }
-}) as Parameters<typeof browser.runtime.onMessage.addListener>[0])

@@ -57,33 +57,6 @@ export const isNewCondition = (offer: Offer): boolean => {
   )
 }
 
-export const isInStock = (offer: Offer): boolean => {
-  if (offer.availability === null) {
-    return false
-  }
-
-  return (
-    offer.availability === 'http://schema.org/InStock' ||
-    offer.availability === 'https://schema.org/InStock' ||
-    offer.availability === 'InStock' ||
-    offer.availability === 'http://schema.org/InStoreOnly' ||
-    offer.availability === 'https://schema.org/InStoreOnly' ||
-    offer.availability === 'InStoreOnly' ||
-    offer.availability === 'http://schema.org/LimitedAvailability' ||
-    offer.availability === 'https://schema.org/LimitedAvailability' ||
-    offer.availability === 'LimitedAvailability' ||
-    offer.availability === 'http://schema.org/OnlineOnly' ||
-    offer.availability === 'https://schema.org/OnlineOnly' ||
-    offer.availability === 'OnlineOnly' ||
-    offer.availability === 'http://schema.org/PreSale' ||
-    offer.availability === 'https://schema.org/PreSale' ||
-    offer.availability === 'PreSale' ||
-    offer.availability === 'http://schema.org/PreOrder' ||
-    offer.availability === 'https://schema.org/PreOrder' ||
-    offer.availability === 'PreOrder'
-  )
-}
-
 export const isProductSchema = (obj?: any): obj is Product => {
   if (obj === undefined || obj === null || obj instanceof Array) {
     return false

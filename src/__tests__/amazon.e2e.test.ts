@@ -1,10 +1,8 @@
 import {Browser, HTTPRequest, Page} from 'puppeteer'
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test} from 'vitest'
 
 import {createBrowser} from '../utils/browser'
-
-const isValidationRequest = (request: HTTPRequest) => {
-  return request.url() === 'https://isinstock.com/api/products/validations' && request.method() === 'POST'
-}
+import {getButtonState, isValidationRequest} from './e2e-helpers'
 
 describe('Browser Extension Test', () => {
   let browser: Browser
@@ -37,23 +35,7 @@ describe('Browser Extension Test', () => {
   test('available product renders available button', async () => {
     await page.goto('https://www.amazon.com/dp/B08G58D42M/')
     await page.waitForSelector('#isinstock-button')
-    const result = await page.evaluate(() => {
-      const button = document.querySelector('#isinstock-button')
-      if (!button) return null
-
-      const shadowRoot = button.shadowRoot
-      if (!shadowRoot) return null
-
-      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
-      return {
-        inventoryState: element?.dataset.inventoryState,
-        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
-        textContent: element?.textContent,
-        target: element?.target,
-        rel: element?.rel,
-        href: element?.href,
-      }
-    })
+    const result = await getButtonState(page)
 
     const href = new URL(result?.href ?? '')
 
@@ -89,23 +71,7 @@ describe('Browser Extension Test', () => {
   test.skip('unavailable product renders unavailable button', async () => {
     await page.goto('https://isinstock.com/store/products/unavailable')
     await page.waitForSelector('#isinstock-button')
-    const result = await page.evaluate(() => {
-      const button = document.querySelector('#isinstock-button')
-      if (!button) return null
-
-      const shadowRoot = button.shadowRoot
-      if (!shadowRoot) return null
-
-      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
-      return {
-        inventoryState: element?.dataset.inventoryState,
-        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
-        textContent: element?.textContent,
-        target: element?.target,
-        rel: element?.rel,
-        href: element?.href,
-      }
-    })
+    const result = await getButtonState(page)
 
     const href = new URL(result?.href ?? '')
 
@@ -150,7 +116,7 @@ describe('Browser Extension Test', () => {
 
   test('monitors URL changes when no other events are fired', async () => {
     await page.setRequestInterception(true)
-    const interceptedValidationsRequests: HTTPRequest[] = []
+    const interceptedValidationsRequests: string[] = []
     page.on('request', (interceptedRequest: HTTPRequest) => {
       if (interceptedRequest.isInterceptResolutionHandled()) {
         return

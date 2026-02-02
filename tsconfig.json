@@ -17,7 +17,7 @@
       "react": ["./node_modules/preact/compat/"],
       "react-dom": ["./node_modules/preact/compat/"]
     },
-    "types": ["chrome", "jest"],
+    "types": ["chrome"],
     "typeRoots": [
       "./node_modules/@types",
       "./src/@types"
@@ -29,5 +29,6 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
-  }
+  },
+  "exclude": ["vitest.config.ts", "vitest.e2e.config.ts"]
 }

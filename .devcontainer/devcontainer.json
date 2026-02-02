@@ -19,8 +19,7 @@
         "bradlc.vscode-tailwindcss",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "GitHub.copilot",
-        "Orta.vscode-jest"
+        "GitHub.copilot"
       ]
     }
   },

@@ -1,10 +1,8 @@
 import {Browser, HTTPRequest, Page} from 'puppeteer'
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test} from 'vitest'
 
 import {createBrowser} from '../utils/browser'
-
-const isValidationRequest = (request: HTTPRequest) => {
-  return request.url() === 'https://isinstock.com/api/products/validations' && request.method() === 'POST'
-}
+import {getButtonState, interceptValidationRequests, isValidationRequest} from './e2e-helpers'
 
 describe('Browser Extension Test', () => {
   let browser: Browser
@@ -55,23 +53,7 @@ describe('Browser Extension Test', () => {
   test('available product renders available button', async () => {
     await page.goto('https://isinstock.com/store/products/available', {waitUntil: 'networkidle0'})
     await page.waitForSelector('#isinstock-button')
-    const result = await page.evaluate(() => {
-      const button = document.querySelector('#isinstock-button')
-      if (!button) return null
-
-      const shadowRoot = button.shadowRoot
-      if (!shadowRoot) return null
-
-      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
-      return {
-        inventoryState: element?.dataset.inventoryState,
-        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
-        textContent: element?.textContent,
-        target: element?.target,
-        rel: element?.rel,
-        href: element?.href,
-      }
-    })
+    const result = await getButtonState(page)
 
     const href = new URL(result?.href ?? '')
 
@@ -90,23 +72,7 @@ describe('Browser Extension Test', () => {
   test('unavailable product renders unavailable button', async () => {
     await page.goto('https://isinstock.com/store/products/unavailable')
     await page.waitForSelector('#isinstock-button')
-    const result = await page.evaluate(() => {
-      const button = document.querySelector('#isinstock-button')
-      if (!button) return null
-
-      const shadowRoot = button.shadowRoot
-      if (!shadowRoot) return null
-
-      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
-      return {
-        inventoryState: element?.dataset.inventoryState,
-        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
-        textContent: element?.textContent,
-        target: element?.target,
-        rel: element?.rel,
-        href: element?.href,
-      }
-    })
+    const result = await getButtonState(page)
 
     const href = new URL(result?.href ?? '')
 
@@ -125,23 +91,7 @@ describe('Browser Extension Test', () => {
   test('pre-order product renders pre-order button', async () => {
     await page.goto('https://isinstock.com/store/products/pre-order', {waitUntil: 'networkidle0'})
     await page.waitForSelector('#isinstock-button')
-    const result = await page.evaluate(() => {
-      const button = document.querySelector('#isinstock-button')
-      if (!button) return null
-
-      const shadowRoot = button.shadowRoot
-      if (!shadowRoot) return null
-
-      const element = shadowRoot.querySelector('a[data-inventory-state-normalized]') as HTMLLinkElement
-      return {
-        inventoryState: element?.dataset.inventoryState,
-        inventoryStateNormalized: element?.dataset.inventoryStateNormalized,
-        textContent: element?.textContent,
-        target: element?.target,
-        rel: element?.rel,
-        href: element?.href,
-      }
-    })
+    const result = await getButtonState(page)
 
     const href = new URL(result?.href ?? '')
 
@@ -233,19 +183,7 @@ describe('Browser Extension Test', () => {
 
   test('monitors URL changes when no other events are fired', async () => {
     await page.setRequestInterception(true)
-    const interceptedValidationsRequests: HTTPRequest[] = []
-    page.on('request', (interceptedRequest: HTTPRequest) => {
-      if (interceptedRequest.isInterceptResolutionHandled()) {
-        return
-      }
-
-      if (isValidationRequest(interceptedRequest)) {
-        const postData = JSON.parse(interceptedRequest.postData() ?? '{}')
-        interceptedValidationsRequests.push(postData.url)
-      }
-
-      interceptedRequest.continue()
-    })
+    const interceptedRequests = interceptValidationRequests(page)
 
     await page.goto('https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater', {
       waitUntil: 'networkidle0',
@@ -257,7 +195,8 @@ describe('Browser Extension Test', () => {
     await page.click('.OptionSelector button[data-value=M]')
     await page.waitForRequest(request => isValidationRequest(request))
 
-    expect(interceptedValidationsRequests).toStrictEqual([
+    const urls = interceptedRequests.map(r => JSON.parse(r.postData() ?? '{}').url)
+    expect(urls).toStrictEqual([
       'https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater',
       'https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater?variant=40885795684431',
       'https://shop.spacex.com/collections/outerwear/products/spacex-vehicle-holiday-sweater?variant=40885795717199',

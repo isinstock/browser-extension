@@ -15,19 +15,28 @@ type IsInStockButtonProps = {
   productValidation: ProductValidationResponse
 }
 
-const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
+const useBroadcastInventoryState = (state: InventoryStateNormalized) => {
   useEffect(() => {
-    const handleBroadcastInventoryState = () => {
-      broadcastInventoryState(InventoryStateNormalized.Available)
-    }
+    const handle = () => broadcastInventoryState(state)
+    handle()
+    window.addEventListener('focus', handle)
+    return () => window.removeEventListener('focus', handle)
+  }, [state])
+}
 
-    handleBroadcastInventoryState()
-    window.addEventListener('focus', handleBroadcastInventoryState)
+const inventoryButtonConfig: Record<InventoryStateNormalized, {image: string; label: string}> = {
+  [InventoryStateNormalized.Available]: {image: availableImg, label: 'In Stock'},
+  [InventoryStateNormalized.Unavailable]: {image: unavailableImg, label: 'Notify Me When Available'},
+  [InventoryStateNormalized.Unknown]: {image: unknownImg, label: 'Not Trackable'},
+}
 
-    return () => {
-      window.removeEventListener('focus', handleBroadcastInventoryState)
-    }
-  }, [])
+const InventoryButton = ({
+  productValidation,
+  state,
+  labelOverride,
+}: IsInStockButtonProps & {state: InventoryStateNormalized; labelOverride?: string}) => {
+  useBroadcastInventoryState(state)
+  const config = inventoryButtonConfig[state]
 
   return (
     <a
@@ -36,67 +45,10 @@ const IsInStockButton = ({productValidation}: IsInStockButtonProps) => {
       class="btn"
       rel="noreferrer"
       data-inventory-state={productValidation.availability}
-      data-inventory-state-normalized={InventoryStateNormalized.Available}
+      data-inventory-state-normalized={state}
     >
-      <img class="isinstock-logo" width="16" height="16" src={availableImg} />
-      <span>{productValidation.availability === 'PreOrder' ? 'Pre-Order' : 'In Stock'}</span>
-    </a>
-  )
-}
-
-const OutOfStockButton = ({productValidation}: IsInStockButtonProps) => {
-  useEffect(() => {
-    const handleBroadcastInventoryState = () => {
-      broadcastInventoryState(InventoryStateNormalized.Unavailable)
-    }
-
-    handleBroadcastInventoryState()
-    window.addEventListener('focus', handleBroadcastInventoryState)
-
-    return () => {
-      window.removeEventListener('focus', handleBroadcastInventoryState)
-    }
-  }, [])
-
-  return (
-    <a
-      href={productValidation.track_url}
-      target="_blank"
-      class="btn"
-      rel="noreferrer"
-      data-inventory-state={productValidation.availability}
-      data-inventory-state-normalized={InventoryStateNormalized.Unavailable}
-    >
-      <img class="isinstock-logo" width="16" height="16" src={unavailableImg} />
-      <span>Notify Me When Available</span>
-    </a>
-  )
-}
-
-const UnsupportedButton = ({productValidation}: IsInStockButtonProps) => {
-  useEffect(() => {
-    const handleBroadcastInventoryState = () => {
-      broadcastInventoryState(InventoryStateNormalized.Unknown)
-    }
-
-    handleBroadcastInventoryState()
-    window.addEventListener('focus', handleBroadcastInventoryState)
-
-    return () => {
-      window.removeEventListener('focus', handleBroadcastInventoryState)
-    }
-  }, [])
-
-  return (
-    <a
-      href={productValidation.track_url}
-      target="_blank"
-      className="btn"
-      rel="noreferrer"
-      data-inventory-state-normalized={InventoryStateNormalized.Unknown}
-    >
-      <img className="isinstock-logo" width="16" height="16" src={unknownImg} />
-      <span>Not Trackable</span>
+      <img class="isinstock-logo" width="16" height="16" src={config.image} />
+      <span>{labelOverride ?? config.label}</span>
     </a>
   )
 }
@@ -107,14 +59,20 @@ const ProductValidationButton = ({productValidation}: IsInStockButtonProps) => {
   }
 
   if (productValidation.result === ProductValidationResult.Unsupported) {
-    return <UnsupportedButton productValidation={productValidation} />
+    return <InventoryButton productValidation={productValidation} state={InventoryStateNormalized.Unknown} />
   }
 
   if (productValidation.availability !== undefined && isInStock(productValidation.availability)) {
-    return <IsInStockButton productValidation={productValidation} />
+    return (
+      <InventoryButton
+        productValidation={productValidation}
+        state={InventoryStateNormalized.Available}
+        labelOverride={productValidation.availability === 'PreOrder' ? 'Pre-Order' : undefined}
+      />
+    )
   }
 
-  return <OutOfStockButton productValidation={productValidation} />
+  return <InventoryButton productValidation={productValidation} state={InventoryStateNormalized.Unavailable} />
 }
 
 interface InsertIsInStockButtonOptions {

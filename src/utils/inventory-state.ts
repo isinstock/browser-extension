@@ -5,9 +5,12 @@ import {Message, MessageAction} from '../@types/messages'
 
 const inStockAvailability = ['InStock', 'InStoreOnly', 'LimitedAvailability', 'OnlineOnly', 'PreSale', 'PreOrder']
 
+const normalizeAvailability = (value: string): string => value.replace(/^https?:\/\/schema\.org\//, '')
+
 export const isInStock = (itemAvailability: string): boolean => {
+  const normalized = normalizeAvailability(itemAvailability)
   return inStockAvailability.some(
-    candidate => candidate.localeCompare(itemAvailability, undefined, {sensitivity: 'accent'}) === 0,
+    candidate => candidate.localeCompare(normalized, undefined, {sensitivity: 'accent'}) === 0,
   )
 }
 

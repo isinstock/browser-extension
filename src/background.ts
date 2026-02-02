@@ -117,44 +117,18 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
       console.debug('Stored track URL for tab', tabId, message.url)
     }
   } else if (action === MessageAction.InventoryState && 'value' in message) {
+    const iconPaths = (state: string) =>
+      Object.fromEntries([16, 24, 32, 48, 64, 128].map(s => [`${s}`, `/images/inventory-states/${state}/${s}.png`]))
+
     switch (message.value) {
       case InventoryStateNormalized.Available:
-        browser.action.setIcon({
-          path: {
-            '16': '/images/inventory-states/available/16.png',
-            '24': '/images/inventory-states/available/24.png',
-            '32': '/images/inventory-states/available/32.png',
-            '48': '/images/inventory-states/available/48.png',
-            '64': '/images/inventory-states/available/64.png',
-            '128': '/images/inventory-states/available/128.png',
-          },
-        })
+        browser.action.setIcon({path: iconPaths('available')})
         break
-
       case InventoryStateNormalized.Unavailable:
-        browser.action.setIcon({
-          path: {
-            '16': '/images/inventory-states/unavailable/16.png',
-            '24': '/images/inventory-states/unavailable/24.png',
-            '32': '/images/inventory-states/unavailable/32.png',
-            '48': '/images/inventory-states/unavailable/48.png',
-            '64': '/images/inventory-states/unavailable/64.png',
-            '128': '/images/inventory-states/unavailable/128.png',
-          },
-        })
+        browser.action.setIcon({path: iconPaths('unavailable')})
         break
-
       default:
-        browser.action.setIcon({
-          path: {
-            '16': '/images/inventory-states/unknown/16.png',
-            '24': '/images/inventory-states/unknown/24.png',
-            '32': '/images/inventory-states/unknown/32.png',
-            '48': '/images/inventory-states/unknown/48.png',
-            '64': '/images/inventory-states/unknown/64.png',
-            '128': '/images/inventory-states/unknown/128.png',
-          },
-        })
+        browser.action.setIcon({path: iconPaths('unknown')})
         break
     }
   } else {
