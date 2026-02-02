@@ -13,18 +13,21 @@ import {FetchError} from './utils/fetch-error'
 // Store modified URLs per tab (e.g., transformed Best Buy URLs)
 const tabTrackUrls = new Map<number, string>()
 
-// Open isinstock.com when the extension icon is clicked
-browser.action.onClicked.addListener(tab => {
-  console.log(tab)
-  // Use the modified URL if available, otherwise fall back to tab.url
-  const trackUrl = tab.id !== undefined ? tabTrackUrls.get(tab.id) : undefined
-  const urlToTrack = trackUrl ?? tab.url
-  const url =
-    urlToTrack !== undefined && urlToTrack !== ''
-      ? `https://isinstock.com/track?url=${encodeURIComponent(urlToTrack)}`
-      : 'https://isinstock.com'
-  browser.tabs.create({url})
-})
+// Open the side panel on action click in browsers that support it,
+// otherwise fall back to opening a new tab.
+if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
+  chrome.sidePanel.setPanelBehavior({openPanelOnActionClick: true}).catch(console.error)
+} else {
+  browser.action.onClicked.addListener(tab => {
+    const trackUrl = tab.id !== undefined ? tabTrackUrls.get(tab.id) : undefined
+    const urlToTrack = trackUrl ?? tab.url
+    const url =
+      urlToTrack !== undefined && urlToTrack !== ''
+        ? `https://isinstock.com/track?url=${encodeURIComponent(urlToTrack)}`
+        : 'https://isinstock.com'
+    browser.tabs.create({url})
+  })
+}
 
 // Clean up stored URLs when tabs are closed
 browser.tabs.onRemoved.addListener(tabId => {
@@ -102,7 +105,8 @@ browser.runtime.onInstalled.addListener(async ({reason}) => {
 })
 
 // Receives messages from content scripts
-browser.runtime.onMessage.addListener((message: Message, sender) => {
+browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.MessageSender) => {
+  const message = msg as Message
   const {action} = message
 
   if (action === MessageAction.TrackUrl && 'url' in message) {

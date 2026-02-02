@@ -9,5 +9,5 @@ export async function getBrowserExtensionInstallToken(): Promise<string> {
     browserExtensionInstallToken: '',
   })
 
-  return browserExtensionInstallToken
+  return browserExtensionInstallToken as string
 }

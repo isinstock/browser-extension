@@ -7,7 +7,7 @@ import {ObservableElement} from '../@types/observables'
  * @returns A boolean indicating whether the elements should be marked as "fired". If true, elements won't be re-processed.
  *          If false, elements can be re-processed on subsequent mutations.
  */
-type ProductObserverCallback = (productCandidates: ObservableElement[], elgible: boolean) => boolean | Promise<boolean>
+type ProductObserverCallback = (productCandidates: ObservableElement[], eligible: boolean) => boolean | Promise<boolean>
 
 interface SearchOptions {
   // Control if elements are filtered that have had their callback fired.

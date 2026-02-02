@@ -7,7 +7,7 @@ export default function useAuth(): {isLoggedIn: boolean; accessToken: string | n
   useEffect(() => {
     const fetchAccessToken = async () => {
       const {accessToken: localAccessToken} = await browser.storage.local.get('accessToken')
-      setAccessToken(localAccessToken)
+      setAccessToken(localAccessToken as string | null)
     }
 
     fetchAccessToken()
@@ -16,7 +16,7 @@ export default function useAuth(): {isLoggedIn: boolean; accessToken: string | n
   useEffect(() => {
     const handleStorageOnChanged = (changes: Record<string, browser.Storage.StorageChange>, _areaName: string) => {
       if ('accessToken' in changes) {
-        setAccessToken(changes.accessToken.newValue)
+        setAccessToken(changes.accessToken.newValue as string | null)
       }
     }
 

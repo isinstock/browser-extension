@@ -1,7 +1,6 @@
-const build = require('esbuild').build
-const copy = require('esbuild-plugin-copy').copy
+const {context} = require('esbuild')
+const {copy} = require('esbuild-plugin-copy')
 const postcss = require('postcss')
-const pkg = require('./package.json')
 const fs = require('fs')
 const tailwindcss = require('tailwindcss')
 const autoprefixer = require('autoprefixer')
@@ -18,9 +17,9 @@ const copyChromeManifestPlugin = {
     build.onEnd(async () => {
       const manifestPath = 'chrome/manifest.json'
       const destinationPath = `${options.outdir}/manifest.json`
-      const package = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+      const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-      manifest.version = package.version
+      manifest.version = pkg.version
       fs.writeFileSync(destinationPath, JSON.stringify(manifest, null, 2))
       console.log(`Copied ${manifestPath} to ${destinationPath}.`)
     })
@@ -35,9 +34,9 @@ const copyFirefoxManifestPlugin = {
     build.onEnd(async () => {
       const manifestPath = 'firefox/manifest.json'
       const destinationPath = `${options.outdir}/manifest.json`
-      const package = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+      const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-      manifest.version = package.version
+      manifest.version = pkg.version
       fs.writeFileSync(destinationPath, JSON.stringify(manifest, null, 2))
       console.log(`Copied ${manifestPath} to ${destinationPath}.`)
     })
@@ -59,19 +58,20 @@ const cssAsStringPlugin = {
   },
 }
 
+const entryPoints = [
+  './src/background.ts',
+  './src/content_scripts/content_script.tsx',
+  './src/content_scripts/amazon.tsx',
+  './src/content_scripts/bestbuy.tsx',
+]
+
 const config = {
   logLevel: 'info',
-  entryPoints: [
-    './src/background.ts',
-    './src/content_scripts/content_script.tsx',
-    './src/content_scripts/amazon.tsx',
-    './src/content_scripts/bestbuy.tsx',
-  ],
+  entryPoints,
   bundle: true,
   sourcemap: !isProduction,
-  watch,
   minify: isProduction,
-  target: ['ios15', 'chrome100', 'edge100', 'firefox100', 'safari15'],
+  target: ['chrome120', 'edge120', 'firefox120', 'safari17'],
   define: {
     ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
@@ -85,36 +85,52 @@ const config = {
   plugins: [cssAsStringPlugin],
 }
 
-// Chrome
-build({
-  ...config,
-  outdir: 'dist/chrome',
-  plugins: [
-    ...config.plugins,
-    copy({
-      resolveFrom: 'cwd',
-      assets: {
-        from: ['./public/**/*'],
-        to: ['./dist/chrome'],
-      },
-    }),
-    copyChromeManifestPlugin,
-  ],
-})
+async function main() {
+  // Chrome
+  const chromeCtx = await context({
+    ...config,
+    entryPoints: [...entryPoints, './src/sidepanel.ts'],
+    outdir: 'dist/chrome',
+    plugins: [
+      ...config.plugins,
+      copy({
+        resolveFrom: 'cwd',
+        assets: {
+          from: ['./public/**/*'],
+          to: ['./dist/chrome'],
+        },
+      }),
+      copyChromeManifestPlugin,
+    ],
+  })
 
-// Firefox
-build({
-  ...config,
-  outdir: 'dist/firefox',
-  plugins: [
-    ...config.plugins,
-    copy({
-      resolveFrom: 'cwd',
-      assets: {
-        from: ['./public/**/*'],
-        to: ['./dist/firefox'],
-      },
-    }),
-    copyFirefoxManifestPlugin,
-  ],
+  // Firefox
+  const firefoxCtx = await context({
+    ...config,
+    outdir: 'dist/firefox',
+    plugins: [
+      ...config.plugins,
+      copy({
+        resolveFrom: 'cwd',
+        assets: {
+          from: ['./public/**/*'],
+          to: ['./dist/firefox'],
+        },
+      }),
+      copyFirefoxManifestPlugin,
+    ],
+  })
+
+  if (watch) {
+    await Promise.all([chromeCtx.watch(), firefoxCtx.watch()])
+  } else {
+    await Promise.all([chromeCtx.rebuild(), firefoxCtx.rebuild()])
+    chromeCtx.dispose()
+    firefoxCtx.dispose()
+  }
+}
+
+main().catch(err => {
+  console.error(err)
+  process.exit(1)
 })

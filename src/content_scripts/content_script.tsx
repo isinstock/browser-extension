@@ -52,11 +52,11 @@ window.addEventListener('popstate', event => {
   search({event})
 })
 
-browser.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => {
+browser.runtime.onMessage.addListener(((request: {action?: string}) => {
   if (request.action === MessageAction.URLChanged) {
     const event = new CustomEvent('urlChanged', {detail: {request}})
     search({event, filterFired: false})
   } else {
     console.debug('Unknown action', request.action)
   }
-})
+}) as Parameters<typeof browser.runtime.onMessage.addListener>[0])

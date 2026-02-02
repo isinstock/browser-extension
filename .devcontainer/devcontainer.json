@@ -1,4 +1,5 @@
 {
+  "name": "isinstock-browser-extension",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {

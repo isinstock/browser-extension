@@ -2,7 +2,10 @@
   "manifest_version": 3,
   "name": "Is In Stock",
   "description": "Is In Stock is your ultimate shopping superpower.",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "sidePanel"],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiCyV7JcHQ9oCyrPPS2OFXhPL4Rruh7ldfqAW6ETcLcWBmlqCaZLtAJ/PlZjQjb5mJt4MrMDT/ahLv4kUtDJsFyoO4ERP2P4Bc0L7kyLxx0ulP2rnc++4X152HgA33CPu8jvUNIhVhC/hm1PtJAb+yt72SI0WfmTudQaRPQgdZ9MHOe95A511gnlSVYSeLphfwTCkSKh1ePrYkLCXANqJRSxUWAC9Hi6NYFm8EKNP7HCNp9c5ctg0hl+P+U9LE8LmH0+Qqb/jR/FHrcqI+141+FqjJyKhrJ25JIWvECVIm4SdWJw2x78lBP2g18NRUXfcJWa9gObCL5S3AIN3ZyUhhQIDAQAB",
   "action": {
     "default_icon": {
@@ -25,26 +28,15 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "web_accessible_resources": [
     {
       "resources": [
+        "elements/isinstock-button/style.css",
         "images/product-icons.svg",
         "images/product-icons.png",
-        "images/logos/isinstock.svg",
-        "images/logos/isinstock/16.png",
-        "images/logos/isinstock/24.png",
-        "images/logos/isinstock/32.png",
-        "images/logos/isinstock/48.png",
-        "images/logos/isinstock/64.png",
-        "images/logos/isinstock/128.png"
-      ],
-      "extension_ids": [
-        "bnglflgcpflggbpbcbpgeaknekceeojd"
-      ]
-    },
-    {
-      "resources": [
-        "elements/isinstock-button/style.css",
         "images/logos/isinstock.svg",
         "images/logos/isinstock/16.png",
         "images/logos/isinstock/24.png",
@@ -73,6 +65,9 @@
         "images/inventory-states/unavailable/48.png",
         "images/inventory-states/unavailable/64.png",
         "images/inventory-states/unavailable/128.png"
+      ],
+      "extension_ids": [
+        "bnglflgcpflggbpbcbpgeaknekceeojd"
       ],
       "matches": ["<all_urls>"]
     }

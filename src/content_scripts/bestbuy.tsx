@@ -50,7 +50,7 @@ const extractSkuFromProductSchema = (): {sku: string; transformedUrl: string} | 
 
   try {
     const json = JSON.parse(textContent)
-    if (json.sku && json.url) {
+    if (json.sku != null && json.url != null) {
       const transformedUrl = transformBestBuyUrl(json.url, json.sku)
       return {sku: json.sku, transformedUrl}
     }
@@ -117,11 +117,11 @@ window.addEventListener('popstate', event => {
   search({event})
 })
 
-browser.runtime.onMessage.addListener(async (request, _sender, _sendResponse) => {
+browser.runtime.onMessage.addListener(((request: {action?: string}) => {
   if (request.action === MessageAction.URLChanged) {
     const event = new CustomEvent('urlChanged', {detail: {request}})
     search({event, filterFired: false})
   } else {
     console.debug('Unknown action', request.action)
   }
-})
+}) as Parameters<typeof browser.runtime.onMessage.addListener>[0])

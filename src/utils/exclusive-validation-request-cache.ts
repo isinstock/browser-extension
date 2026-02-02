@@ -38,12 +38,12 @@ export default class ExclusiveValidationRequestCache {
       this.controllers[url] = controller
     }
 
-    inFlightRequest.then(callback).catch(error => console.error(error))
+    inFlightRequest!.then(callback).catch(error => console.error(error))
   }
 
   cancelAllRequests() {
     for (const url in this.controllers) {
-      this.controllers[url].abort()
+      this.controllers[url]!.abort()
       delete this.cache[url]
       delete this.controllers[url]
     }

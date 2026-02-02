@@ -36,9 +36,9 @@ export const findOffer = (obj: Product | AggregateOffer): Offer | null => {
   if (isMultipleOffers(obj.offers)) {
     if (obj.offers.length > 1) {
       const newOffers = obj.offers.filter(offer => isNewCondition(offer))
-      return newOffers.length === 1 ? newOffers[0] : null
+      return newOffers.length === 1 ? (newOffers[0] ?? null) : null
     } else if (obj.offers.length === 1) {
-      return obj.offers[0]
+      return obj.offers[0] ?? null
     }
   }
 
