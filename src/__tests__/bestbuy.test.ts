@@ -19,4 +19,15 @@ describe('transformBestBuyUrl', () => {
     const result = transformBestBuyUrl('not-a-url', '123')
     expect(result).toBe('not-a-url')
   })
+
+  test('handles URL with no path segments beyond domain', () => {
+    const result = transformBestBuyUrl('https://www.bestbuy.com/', '123')
+    expect(result).toBe('https://www.bestbuy.com/123.p')
+  })
+
+  test('preserves query parameters', () => {
+    const url = 'https://www.bestbuy.com/product/some-product/ABC123?intl=nosplash'
+    const result = transformBestBuyUrl(url, '7654321')
+    expect(result).toBe('https://www.bestbuy.com/site/some-product/7654321.p?intl=nosplash')
+  })
 })

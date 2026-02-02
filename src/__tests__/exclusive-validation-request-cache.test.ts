@@ -17,7 +17,6 @@ describe('ExclusiveValidationRequestCache', () => {
     const callback = vi.fn()
 
     await cache.fetchWithLock('https://example.com', callback)
-    // Wait for the promise chain to resolve
     await new Promise(r => setTimeout(r, 0))
 
     expect(callback).toHaveBeenCalledWith(responseData)
@@ -80,5 +79,74 @@ describe('ExclusiveValidationRequestCache', () => {
     await cache.fetchWithLock('https://example.com/2', vi.fn())
 
     expect(fetchFn).toHaveBeenCalledTimes(2)
+  })
+
+  test('does not call callback when fetch rejects', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchFn = vi.fn().mockRejectedValue(new Error('Network error'))
+    const cache = new ExclusiveValidationRequestCache(fetchFn)
+    const callback = vi.fn()
+
+    await cache.fetchWithLock('https://example.com', callback)
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(callback).not.toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalled()
+    consoleSpy.mockRestore()
+  })
+
+  test('makes new request after previous one for same URL completed', async () => {
+    const responseData = {result: ProductValidationResult.Supported, availability: 'InStock'}
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse(responseData))
+    const cache = new ExclusiveValidationRequestCache(fetchFn)
+    const callback1 = vi.fn()
+    const callback2 = vi.fn()
+
+    await cache.fetchWithLock('https://example.com', callback1)
+    await new Promise(r => setTimeout(r, 0))
+
+    // First request completed, cache should be cleared
+    await cache.fetchWithLock('https://example.com', callback2)
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(fetchFn).toHaveBeenCalledTimes(2)
+    expect(callback1).toHaveBeenCalled()
+    expect(callback2).toHaveBeenCalled()
+  })
+
+  test('passes correct URL in request body', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(mockResponse({result: ProductValidationResult.Supported}))
+    const cache = new ExclusiveValidationRequestCache(fetchFn)
+
+    await cache.fetchWithLock('https://example.com/product/123', vi.fn())
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      '/api/products/validations',
+      'POST',
+      JSON.stringify({url: 'https://example.com/product/123'}),
+      expect.any(AbortSignal),
+    )
+  })
+
+  test('cancelAllRequests clears cache so next request creates new fetch', async () => {
+    let callCount = 0
+    const fetchFn = vi.fn().mockImplementation(() => {
+      callCount++
+      if (callCount === 1) {
+        return new Promise(() => {}) // first call never resolves
+      }
+      return Promise.resolve(mockResponse({result: ProductValidationResult.Supported}))
+    })
+    const cache = new ExclusiveValidationRequestCache(fetchFn)
+
+    await cache.fetchWithLock('https://example.com', vi.fn())
+    cache.cancelAllRequests()
+
+    const callback = vi.fn()
+    await cache.fetchWithLock('https://example.com', callback)
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(fetchFn).toHaveBeenCalledTimes(2)
+    expect(callback).toHaveBeenCalled()
   })
 })

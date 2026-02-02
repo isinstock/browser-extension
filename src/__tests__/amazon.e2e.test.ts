@@ -2,7 +2,7 @@ import {Browser, HTTPRequest, Page} from 'puppeteer'
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test} from 'vitest'
 
 import {createBrowser} from '../utils/browser'
-import {getButtonState, isValidationRequest} from './e2e-helpers'
+import {getButtonState, interceptValidationRequests, isValidationRequest} from './e2e-helpers'
 
 describe('Browser Extension Test', () => {
   let browser: Browser
@@ -116,25 +116,14 @@ describe('Browser Extension Test', () => {
 
   test('monitors URL changes when no other events are fired', async () => {
     await page.setRequestInterception(true)
-    const interceptedValidationsRequests: string[] = []
-    page.on('request', (interceptedRequest: HTTPRequest) => {
-      if (interceptedRequest.isInterceptResolutionHandled()) {
-        return
-      }
-
-      if (isValidationRequest(interceptedRequest)) {
-        const postData = JSON.parse(interceptedRequest.postData() ?? '{}')
-        interceptedValidationsRequests.push(postData.url)
-      }
-
-      interceptedRequest.continue()
-    })
+    const interceptedRequests = interceptValidationRequests(page)
 
     await page.goto('https://www.amazon.com/dp/B088HH6LW5/')
     await page.click(`[data-dp-url] button, [data-asin='B0BLF2RWNV'] input.a-button-input`)
     await page.waitForRequest(request => isValidationRequest(request))
 
-    expect(interceptedValidationsRequests).toStrictEqual([
+    const urls = interceptedRequests.map(r => JSON.parse(r.postData() ?? '{}').url)
+    expect(urls).toStrictEqual([
       'https://www.amazon.com/dp/B088HH6LW5/',
       'https://www.amazon.com/dp/B0BLF2RWNV/?th=1',
     ])

@@ -1,6 +1,8 @@
-import {describe, expect, test} from 'vitest'
+import {describe, expect, test, vi} from 'vitest'
 
-import {isInStock} from '../utils/inventory-state'
+import {InventoryStateNormalized} from '../@types/inventory-states'
+import {MessageAction} from '../@types/messages'
+import {broadcastInventoryState, isInStock} from '../utils/inventory-state'
 
 describe('isInStock', () => {
   test('returns true for bare InStock', () => {
@@ -40,5 +42,40 @@ describe('isInStock', () => {
   test('is case insensitive (accent sensitivity)', () => {
     expect(isInStock('instock')).toBe(true)
     expect(isInStock('INSTOCK')).toBe(true)
+  })
+})
+
+describe('broadcastInventoryState', () => {
+  test('sends InventoryState message with the given value', async () => {
+    const browser = (await import('webextension-polyfill')).default
+
+    await broadcastInventoryState(InventoryStateNormalized.Available)
+
+    expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
+      action: MessageAction.InventoryState,
+      value: InventoryStateNormalized.Available,
+    })
+  })
+
+  test('sends Unavailable state', async () => {
+    const browser = (await import('webextension-polyfill')).default
+
+    await broadcastInventoryState(InventoryStateNormalized.Unavailable)
+
+    expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
+      action: MessageAction.InventoryState,
+      value: InventoryStateNormalized.Unavailable,
+    })
+  })
+
+  test('sends Unknown state', async () => {
+    const browser = (await import('webextension-polyfill')).default
+
+    await broadcastInventoryState(InventoryStateNormalized.Unknown)
+
+    expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
+      action: MessageAction.InventoryState,
+      value: InventoryStateNormalized.Unknown,
+    })
   })
 })

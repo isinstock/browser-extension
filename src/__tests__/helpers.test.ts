@@ -1,6 +1,6 @@
 import {describe, expect, test} from 'vitest'
 
-import {Offer, Product} from '../@types/linked-data'
+import {AggregateOffer, Offer, Product} from '../@types/linked-data'
 import {findOffer, isAggregateOffer, isMultipleOffers, isNewCondition, isOffer, isProductSchema} from '../utils/helpers'
 
 describe('findOffer', () => {
@@ -13,7 +13,7 @@ describe('findOffer', () => {
     expect(findOffer(product)).toBeNull()
   })
 
-  test('returns offer if offers is an object', () => {
+  test('returns offer if offers is a single Offer', () => {
     const offer: Offer = {
       '@type': 'Offer',
     }
@@ -31,7 +31,6 @@ describe('findOffer', () => {
       '@type': 'Offer',
       itemCondition: 'NewCondition',
     }
-
     const usedOffer: Offer = {
       '@type': 'Offer',
       itemCondition: 'UsedCondition',
@@ -54,6 +53,82 @@ describe('findOffer', () => {
       '@context': 'https://schema.org',
       '@type': 'Product',
       offers: [newOffer, newOffer],
+    }
+
+    expect(findOffer(product)).toBeNull()
+  })
+
+  test('returns the single offer from a single-element array', () => {
+    const offer: Offer = {
+      '@type': 'Offer',
+    }
+    const product: Product = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      offers: [offer],
+    }
+
+    expect(findOffer(product)).toEqual(offer)
+  })
+
+  test('recurses into AggregateOffer to find nested Offer', () => {
+    const offer: Offer = {
+      '@type': 'Offer',
+      availability: 'InStock',
+    }
+    const aggregate: AggregateOffer = {
+      '@type': 'AggregateOffer',
+      offers: [offer],
+    }
+    const product: Product = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      offers: aggregate,
+    }
+
+    expect(findOffer(product)).toEqual(offer)
+  })
+
+  test('returns null for AggregateOffer with no nested offers', () => {
+    const aggregate: AggregateOffer = {
+      '@type': 'AggregateOffer',
+    }
+    const product: Product = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      offers: aggregate,
+    }
+
+    expect(findOffer(product)).toBeNull()
+  })
+
+  test('returns new offer from AggregateOffer with multiple nested offers', () => {
+    const newOffer: Offer = {
+      '@type': 'Offer',
+      itemCondition: 'NewCondition',
+    }
+    const usedOffer: Offer = {
+      '@type': 'Offer',
+      itemCondition: 'UsedCondition',
+    }
+    const aggregate: AggregateOffer = {
+      '@type': 'AggregateOffer',
+      offers: [newOffer, usedOffer],
+    }
+    const product: Product = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      offers: aggregate,
+    }
+
+    expect(findOffer(product)).toEqual(newOffer)
+  })
+
+  test('returns null for empty offers array', () => {
+    const product: Product = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      offers: [],
     }
 
     expect(findOffer(product)).toBeNull()
@@ -123,7 +198,7 @@ describe('isNewCondition', () => {
     expect(isNewCondition({'@type': 'Offer', itemCondition: 'UsedCondition'})).toBe(false)
   })
 
-  test('returns false for undefined', () => {
+  test('returns false for undefined itemCondition', () => {
     expect(isNewCondition({'@type': 'Offer'})).toBe(false)
   })
 })
