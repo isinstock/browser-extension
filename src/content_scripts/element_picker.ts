@@ -2,6 +2,11 @@ import browser from 'webextension-polyfill'
 import {MessageAction, SelectorEntry} from '../@types/messages'
 
 ;(function () {
+  // Tear down any previous picker instance to avoid duplicate listeners/DOM
+  if (typeof (window as any).__isinstockPickerTeardown === 'function') {
+    ;(window as any).__isinstockPickerTeardown()
+  }
+
   let sessionId = ''
   let active = false
   let selectionCount = 0
@@ -271,6 +276,16 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
     document.removeEventListener('keydown', onKeyDown, true)
   }
 
+  function teardown() {
+    cleanup()
+    hoverOverlay.remove()
+    toolbarHost.remove()
+    browser.runtime.onMessage.removeListener(onMessage)
+    delete (window as any).__isinstockPickerTeardown
+  }
+
+  ;(window as any).__isinstockPickerTeardown = teardown
+
   function isPickerUI(el: Element): boolean {
     return el === toolbarHost || el === hoverOverlay || toolbarHost.contains(el)
   }
@@ -355,7 +370,7 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
   })
 
   // Wait for StartElementPicker message to get sessionId and activate
-  browser.runtime.onMessage.addListener((msg: unknown) => {
+  function onMessage(msg: unknown) {
     const message = msg as {action: string; sessionId?: string; error?: string}
     if (message.action === MessageAction.StartElementPicker && message.sessionId) {
       sessionId = message.sessionId
@@ -363,5 +378,7 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
     } else if (message.action === MessageAction.ElementPickerError && message.error) {
       showError(message.error)
     }
-  })
+  }
+
+  browser.runtime.onMessage.addListener(onMessage)
 })()
