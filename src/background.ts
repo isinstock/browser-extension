@@ -8,6 +8,7 @@ import {
   updateBrowserExtensionInstall,
 } from './api/browser-extension-install'
 import {getBrowserExtensionInstallToken, setBrowserExtensionInstallToken} from './utils/browser-extension-install-token'
+import fetchApi from './utils/fetch-api'
 import {FetchError} from './utils/fetch-error'
 
 // Store modified URLs per tab (e.g., transformed Best Buy URLs)
@@ -15,6 +16,16 @@ const tabTrackUrls = new Map<number, string>()
 
 // Store inventory state per tab so we can restore the correct icon on tab switch
 const tabInventoryStates = new Map<number, InventoryStateNormalized>()
+
+// Store picker sessions: sessionId -> session info
+const pickerSessions = new Map<
+  string,
+  {
+    originTabId?: number
+    targetTabId: number
+    url: string
+  }
+>()
 
 // Open the side panel on action click in browsers that support it,
 // otherwise fall back to opening a new tab.
@@ -54,10 +65,25 @@ const setIconForState = (state: InventoryStateNormalized, tabId?: number) => {
   browser.action.setIcon(opts)
 }
 
-// Clean up stored URLs and inventory states when tabs are closed
+// Clean up stored URLs, inventory states, and picker sessions when tabs are closed
 browser.tabs.onRemoved.addListener(tabId => {
   tabTrackUrls.delete(tabId)
   tabInventoryStates.delete(tabId)
+
+  // Check if the removed tab is a picker target tab and notify origin
+  for (const [sid, session] of pickerSessions) {
+    if (session.targetTabId === tabId) {
+      if (session.originTabId !== undefined) {
+        browser.tabs
+          .sendMessage(session.originTabId, {
+            action: MessageAction.ElementPickerCancel,
+            sessionId: sid,
+          })
+          .catch(() => {})
+      }
+      pickerSessions.delete(sid)
+    }
+  }
 })
 
 // Restore the correct icon when switching tabs
@@ -74,16 +100,43 @@ browser.tabs.onUpdated.addListener(
     if (changeInfo.status === 'complete') {
       // Only send message if the tab has been loaded before
       if (loadedTabs.has(tabId)) {
-        browser.tabs.sendMessage(tabId, {
-          action: MessageAction.URLChanged,
-          url: tab.url,
-        })
+        browser.tabs
+          .sendMessage(tabId, {
+            action: MessageAction.URLChanged,
+            url: tab.url,
+          })
+          .catch(() => {})
       } else {
         loadedTabs.set(tabId, true)
       }
     }
   },
 )
+
+async function injectElementPicker(tabId: number, url: string, originTabId?: number, existingSessionId?: string) {
+  const sid = existingSessionId ?? crypto.randomUUID()
+  console.debug('[isinstock-bg] Injecting element picker into tab:', tabId, 'session:', sid, 'origin:', originTabId)
+  pickerSessions.set(sid, {originTabId, targetTabId: tabId, url})
+
+  await browser.scripting.executeScript({
+    target: {tabId},
+    files: ['content_scripts/element_picker.js'],
+  })
+
+  await browser.tabs.sendMessage(tabId, {
+    action: MessageAction.StartElementPicker,
+    sessionId: sid,
+    url,
+  })
+}
+
+// Context menu click handler
+browser.contextMenus.onClicked.addListener((info, tab) => {
+  console.debug('[isinstock-bg] Context menu clicked:', info.menuItemId, 'tab:', tab?.id, tab?.url)
+  if (info.menuItemId === 'track-elements' && tab?.id) {
+    injectElementPicker(tab.id, tab.url ?? '')
+  }
+})
 
 browser.runtime.onStartup.addListener(async () => {
   // onStartup cannot be tested with puppeteer so we skip it
@@ -111,6 +164,13 @@ browser.runtime.onInstalled.addListener(async ({reason}) => {
   if (CI) {
     return
   }
+
+  // Register context menu
+  browser.contextMenus.create({
+    id: 'track-elements',
+    title: 'Track changes on this page',
+    contexts: ['page'],
+  })
 
   try {
     const existingToken = await getBrowserExtensionInstallToken()
@@ -141,6 +201,8 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
   const message = msg as Message
   const {action} = message
 
+  console.debug('[isinstock-bg] Message received:', action, 'from tab:', sender.tab?.id, sender.tab?.url)
+
   if (action === MessageAction.TrackUrl && 'url' in message) {
     // Store the modified URL for this tab
     const tabId = sender.tab?.id
@@ -154,6 +216,122 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
       tabInventoryStates.set(tabId, message.value as InventoryStateNormalized)
     }
     setIconForState(message.value as InventoryStateNormalized, tabId)
+  } else if (action === MessageAction.StartElementPicker && 'url' in message && 'sessionId' in message) {
+    // From bridge: open the target URL in a new tab and inject the picker
+    const startMsg = message as {url: string; sessionId: string}
+    const originTabId = sender.tab?.id
+
+    return (async () => {
+      try {
+        const resp = await fetchApi('/api/custom-tracking/validate', 'POST', JSON.stringify({url: startMsg.url}))
+        if (!resp.ok) {
+          if (originTabId !== undefined) {
+            browser.tabs
+              .sendMessage(originTabId, {
+                action: MessageAction.ElementPickerCancel,
+                sessionId: startMsg.sessionId,
+                error: 'URL validation failed',
+              })
+              .catch(() => {})
+          }
+          return {processed: true}
+        }
+
+        const tab = await browser.tabs.create({url: startMsg.url, active: true})
+        if (!tab.id) return {processed: true}
+
+        // Wait for tab to finish loading
+        await new Promise<void>(resolve => {
+          const listener = (tabId: number, changeInfo: browser.Tabs.OnUpdatedChangeInfoType) => {
+            if (tabId === tab.id && changeInfo.status === 'complete') {
+              browser.tabs.onUpdated.removeListener(listener)
+              resolve()
+            }
+          }
+          browser.tabs.onUpdated.addListener(listener)
+        })
+
+        await injectElementPicker(tab.id, startMsg.url, originTabId, startMsg.sessionId)
+      } catch (e) {
+        console.debug('Error starting element picker from bridge', e)
+        if (originTabId !== undefined) {
+          browser.tabs
+            .sendMessage(originTabId, {
+              action: MessageAction.ElementPickerCancel,
+              sessionId: startMsg.sessionId,
+              error: 'Failed to start element picker',
+            })
+            .catch(() => {})
+        }
+      }
+      return {processed: true}
+    })()
+  } else if (action === MessageAction.ElementPickerUpdate && 'sessionId' in message) {
+    const updateMsg = message as {sessionId: string; selectors: unknown[]}
+    const session = pickerSessions.get(updateMsg.sessionId)
+    if (session?.originTabId !== undefined) {
+      browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
+    }
+  } else if (action === MessageAction.ElementPickerComplete && 'sessionId' in message) {
+    const completeMsg = message as {sessionId: string; selectors: unknown[]}
+    const session = pickerSessions.get(completeMsg.sessionId)
+
+    if (session) {
+      if (session.originTabId !== undefined) {
+        // Flow B: forward to bridge and close target tab
+        browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
+        browser.tabs.remove(session.targetTabId).catch(() => {})
+        pickerSessions.delete(completeMsg.sessionId)
+      } else {
+        // Flow A: POST to API and open subscription URL
+        ;(async () => {
+          try {
+            const resp = await fetchApi(
+              '/api/custom-tracking',
+              'POST',
+              JSON.stringify({
+                url: session.url,
+                content_selectors: completeMsg.selectors,
+              }),
+            )
+            if (resp.ok) {
+              const data = (await resp.json()) as {subscription_url: string}
+              if (data.subscription_url) {
+                browser.tabs.create({url: data.subscription_url})
+              }
+              pickerSessions.delete(completeMsg.sessionId)
+            } else {
+              const errorMsg =
+                resp.status === 401
+                  ? 'You need to sign in to Is In Stock to use custom tracking.'
+                  : `Failed to create tracking (${resp.status}).`
+              browser.tabs
+                .sendMessage(session.targetTabId, {
+                  action: MessageAction.ElementPickerError,
+                  sessionId: completeMsg.sessionId,
+                  error: errorMsg,
+                })
+                .catch(() => {})
+            }
+          } catch (e) {
+            browser.tabs
+              .sendMessage(session.targetTabId, {
+                action: MessageAction.ElementPickerError,
+                sessionId: completeMsg.sessionId,
+                error: 'Failed to connect to Is In Stock.',
+              })
+              .catch(() => {})
+          }
+        })()
+      }
+    }
+  } else if (action === MessageAction.ElementPickerCancel && 'sessionId' in message) {
+    const cancelMsg = message as {sessionId: string}
+    const session = pickerSessions.get(cancelMsg.sessionId)
+    if (session?.originTabId !== undefined) {
+      browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
+    }
+    pickerSessions.delete(cancelMsg.sessionId)
   } else {
     console.log('Unknown action', action)
   }

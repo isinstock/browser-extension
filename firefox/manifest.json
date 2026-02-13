@@ -4,7 +4,9 @@
   "description": "Is In Stock is your ultimate shopping superpower.",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "scripting",
+    "menus"
   ],
   "host_permissions": [
     "http://*/*",
@@ -21,6 +23,18 @@
     "type": "module"
   },
   "content_scripts": [
+    {
+      "js": [
+        "content_scripts/isinstock_bridge.js"
+      ],
+      "run_at": "document_start",
+      "match_about_blank": false,
+      "all_frames": false,
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    },
     {
       "js": [
         "content_scripts/content_script.js"

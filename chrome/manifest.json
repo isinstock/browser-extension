@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "Is In Stock",
   "description": "Is In Stock is your ultimate shopping superpower.",
-  "permissions": ["storage", "tabs", "sidePanel"],
+  "permissions": ["storage", "tabs", "sidePanel", "scripting", "contextMenus"],
+  "host_permissions": ["http://*/*", "https://*/*"],
   "side_panel": {
     "default_path": "sidepanel.html"
   },
@@ -73,6 +74,11 @@
     }
   ],
   "content_scripts": [
+    {
+      "js": ["content_scripts/isinstock_bridge.js"],
+      "matches": ["*://*/*"],
+      "run_at": "document_start"
+    },
     {
       "js": ["content_scripts/content_script.js"],
       "matches": ["*://*/*"],

@@ -63,6 +63,8 @@ const entryPoints = [
   './src/content_scripts/content_script.tsx',
   './src/content_scripts/amazon.tsx',
   './src/content_scripts/bestbuy.tsx',
+  './src/content_scripts/isinstock_bridge.ts',
+  './src/content_scripts/element_picker.ts',
 ]
 
 const config = {
@@ -73,7 +75,7 @@ const config = {
   minify: false,
   target: ['chrome120', 'edge120', 'firefox120', 'safari17'],
   define: {
-    ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"http://localhost:3000"',
+    ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"https://isinstock.localhost"',
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
     CI: isCI ? 'true' : 'false',
   },
