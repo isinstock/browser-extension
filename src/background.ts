@@ -278,9 +278,10 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
 
     if (session) {
       if (session.originTabId !== undefined) {
-        // Flow B: forward to bridge and close target tab
+        // Flow B: forward to bridge, close target tab, and switch back to origin
         browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
         browser.tabs.remove(session.targetTabId).catch(() => {})
+        browser.tabs.update(session.originTabId, {active: true}).catch(() => {})
         pickerSessions.delete(completeMsg.sessionId)
       } else {
         // Flow A: POST to API and open subscription URL
