@@ -725,6 +725,11 @@ import styles from './element_picker.css'
       activate()
     } else if (message.action === MessageAction.ElementPickerError && message.error) {
       showError(message.error)
+    } else if (message.action === MessageAction.ElementPickerSidePanelReady) {
+      if (state.active) {
+        state.useSidePanel = true
+        sendStateSync()
+      }
     } else if (message.action === MessageAction.ElementPickerCommand) {
       const cmd = message as unknown as ElementPickerCommandMessage
       switch (cmd.command) {

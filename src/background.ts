@@ -114,7 +114,13 @@ browser.tabs.onUpdated.addListener(
   },
 )
 
-async function injectElementPicker(tabId: number, url: string, originTabId?: number, existingSessionId?: string) {
+async function injectElementPicker(
+  tabId: number,
+  url: string,
+  originTabId?: number,
+  existingSessionId?: string,
+  sidePanelAlreadyOpen = false,
+) {
   const sid = existingSessionId ?? crypto.randomUUID()
   console.debug('[isinstock-bg] Injecting element picker into tab:', tabId, 'session:', sid, 'origin:', originTabId)
   pickerSessions.set(sid, {originTabId, targetTabId: tabId, url})
@@ -124,8 +130,8 @@ async function injectElementPicker(tabId: number, url: string, originTabId?: num
     files: ['content_scripts/element_picker.js'],
   })
 
-  let useSidePanel = false
-  if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
+  let useSidePanel = sidePanelAlreadyOpen
+  if (!useSidePanel && typeof chrome !== 'undefined' && chrome.sidePanel != null) {
     try {
       await chrome.sidePanel.setOptions({tabId, path: 'sidepanel.html', enabled: true})
       await chrome.sidePanel.open({tabId})
@@ -362,6 +368,32 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
       }
     }
     pickerSessions.delete(cancelMsg.sessionId)
+  } else if (action === MessageAction.ElementPickerSidePanelReady) {
+    return (async () => {
+      try {
+        const [tab] = await browser.tabs.query({active: true, currentWindow: true})
+        if (!tab?.id) return {processed: true}
+
+        // Check if there's already a picker session for this tab
+        for (const session of pickerSessions.values()) {
+          if (session.targetTabId === tab.id) {
+            // Session exists — tell content script to switch to side panel mode and resync
+            browser.tabs
+              .sendMessage(tab.id, {action: MessageAction.ElementPickerSidePanelReady})
+              .catch(() => {})
+            return {processed: true}
+          }
+        }
+
+        // No session — start the picker (side panel is already open)
+        // TODO: Check if an existing tracking record exists for this URL and show
+        // the user an option to update it or create a new one.
+        await injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, true)
+      } catch (e) {
+        console.debug('[isinstock-bg] Error starting picker from side panel', e)
+      }
+      return {processed: true}
+    })()
   } else {
     console.log('Unknown action', action)
   }

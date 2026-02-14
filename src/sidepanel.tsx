@@ -83,6 +83,11 @@ function App() {
       }
     }
     chrome.runtime.onMessage.addListener(listener)
+
+    // Notify background that the side panel is ready — starts the picker
+    // if no session exists, or re-syncs state from an existing session.
+    chrome.runtime.sendMessage({action: MessageAction.ElementPickerSidePanelReady})
+
     return () => chrome.runtime.onMessage.removeListener(listener)
   }, [])
 

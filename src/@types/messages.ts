@@ -12,6 +12,7 @@ export enum MessageAction {
   ElementPickerError = 'element-picker-error',
   ElementPickerStateSync = 'element-picker-state-sync',
   ElementPickerCommand = 'element-picker-command',
+  ElementPickerSidePanelReady = 'element-picker-side-panel-ready',
 }
 
 export enum ElementPickerCommand {
@@ -97,6 +98,10 @@ export interface ElementPickerCommandMessage extends ActionMessage {
   attributeName?: string
 }
 
+export interface ElementPickerSidePanelReadyMessage extends ActionMessage {
+  action: MessageAction.ElementPickerSidePanelReady
+}
+
 export type Message =
   | InventoryStateMessage
   | TrackUrlMessage
@@ -107,3 +112,4 @@ export type Message =
   | ElementPickerErrorMessage
   | ElementPickerStateSyncMessage
   | ElementPickerCommandMessage
+  | ElementPickerSidePanelReadyMessage
