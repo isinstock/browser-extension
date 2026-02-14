@@ -386,8 +386,6 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
         }
 
         // No session — start the picker (side panel is already open)
-        // TODO: Check if an existing tracking record exists for this URL and show
-        // the user an option to update it or create a new one.
         await injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, true)
       } catch (e) {
         console.debug('[isinstock-bg] Error starting picker from side panel', e)
