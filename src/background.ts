@@ -73,6 +73,7 @@ browser.tabs.onRemoved.addListener(tabId => {
   // Check if the removed tab is a picker target tab and notify origin
   for (const [sid, session] of pickerSessions) {
     if (session.targetTabId === tabId) {
+      closeSidePanel(tabId)
       if (session.originTabId !== undefined) {
         browser.tabs
           .sendMessage(session.originTabId, {
@@ -123,11 +124,29 @@ async function injectElementPicker(tabId: number, url: string, originTabId?: num
     files: ['content_scripts/element_picker.js'],
   })
 
+  let useSidePanel = false
+  if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
+    try {
+      await chrome.sidePanel.setOptions({tabId, path: 'sidepanel.html', enabled: true})
+      await chrome.sidePanel.open({tabId})
+      useSidePanel = true
+    } catch {
+      // No user gesture or side panel unavailable — fall back to in-page panel
+    }
+  }
+
   await browser.tabs.sendMessage(tabId, {
     action: MessageAction.StartElementPicker,
     sessionId: sid,
     url,
+    useSidePanel,
   })
+}
+
+function closeSidePanel(tabId: number) {
+  if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
+    chrome.sidePanel.setOptions({tabId, enabled: false}).catch(() => {})
+  }
 }
 
 // Context menu click handler
@@ -266,6 +285,12 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
       }
       return {processed: true}
     })()
+  } else if (action === MessageAction.ElementPickerCommand && 'sessionId' in message) {
+    const cmdMsg = message as {sessionId: string}
+    const session = pickerSessions.get(cmdMsg.sessionId)
+    if (session) {
+      browser.tabs.sendMessage(session.targetTabId, message).catch(() => {})
+    }
   } else if (action === MessageAction.ElementPickerUpdate && 'sessionId' in message) {
     const updateMsg = message as {sessionId: string; selectors: unknown[]}
     const session = pickerSessions.get(updateMsg.sessionId)
@@ -277,6 +302,7 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
     const session = pickerSessions.get(completeMsg.sessionId)
 
     if (session) {
+      closeSidePanel(session.targetTabId)
       if (session.originTabId !== undefined) {
         // Flow B: forward to bridge, close target tab, and switch back to origin
         browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
@@ -329,8 +355,11 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
   } else if (action === MessageAction.ElementPickerCancel && 'sessionId' in message) {
     const cancelMsg = message as {sessionId: string}
     const session = pickerSessions.get(cancelMsg.sessionId)
-    if (session?.originTabId !== undefined) {
-      browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
+    if (session) {
+      closeSidePanel(session.targetTabId)
+      if (session.originTabId !== undefined) {
+        browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
+      }
     }
     pickerSessions.delete(cancelMsg.sessionId)
   } else {

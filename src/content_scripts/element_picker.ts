@@ -1,25 +1,45 @@
 import browser from 'webextension-polyfill'
-import {MessageAction, SelectorEntry} from '../@types/messages'
+import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
+import type {ElementPickerCommandMessage} from '../@types/messages'
+import styles from './element_picker.css'
 
 ;(function () {
-  // Tear down any previous picker instance to avoid duplicate listeners/DOM
   if (typeof (window as any).__isinstockPickerTeardown === 'function') {
     ;(window as any).__isinstockPickerTeardown()
   }
 
-  let sessionId = ''
-  let active = false
-  let selectionCount = 0
+  type ExtractMode = 'text_content' | 'attribute'
 
-  const selections = new Map<
-    HTMLElement,
-    {
-      overlay: HTMLDivElement
-      selector: SelectorEntry
-    }
-  >()
+  interface SelectionState {
+    id: string
+    element: HTMLElement
+    cssSelector: string
+    extract: ExtractMode
+    attributeName: string
+    preview: string
+    overlay: HTMLDivElement
+    row: HTMLDivElement
+  }
 
-  // Hover overlay
+  interface PickerState {
+    active: boolean
+    sessionId: string
+    useSidePanel: boolean
+    selections: Map<string, SelectionState>
+    hoveredSelectionId: string | null
+  }
+
+  const state: PickerState = {
+    active: false,
+    sessionId: '',
+    useSidePanel: false,
+    selections: new Map(),
+    hoveredSelectionId: null,
+  }
+
+  const elementToSelectionId = new WeakMap<HTMLElement, string>()
+
+  // Hover overlay (lives in the page, not shadow DOM)
   const hoverOverlay = document.createElement('div')
   hoverOverlay.style.cssText = `
     position: absolute;
@@ -33,9 +53,9 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
   `
   document.documentElement.appendChild(hoverOverlay)
 
-  // Toolbar using Shadow DOM for style isolation
-  const toolbarHost = document.createElement('div')
-  toolbarHost.style.cssText = `
+  // Panel host using Shadow DOM for style isolation
+  const panelHost = document.createElement('div')
+  panelHost.style.cssText = `
     position: fixed;
     bottom: 0;
     left: 0;
@@ -43,118 +63,190 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
     z-index: 2147483647;
     display: none;
   `
-  document.documentElement.appendChild(toolbarHost)
+  document.documentElement.appendChild(panelHost)
 
-  const shadow = toolbarHost.attachShadow({mode: 'closed'})
-  const toolbarStyle = document.createElement('style')
-  toolbarStyle.textContent = `
-    .toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 20px;
-      background: #1e1b4b;
-      color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
-    }
-    .toolbar-actions {
-      display: flex;
-      gap: 8px;
-    }
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 150ms ease;
-    }
-    .btn-done {
-      background: #4f46e5;
-      color: #fff;
-    }
-    .btn-done:hover {
-      background: #4338ca;
-    }
-    .btn-done:disabled {
-      background: #6366f1;
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .btn-cancel {
-      background: transparent;
-      color: #c7d2fe;
-      border: 1px solid #4338ca;
-    }
-    .btn-cancel:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-    .error {
-      display: none;
-      padding: 12px 20px;
-      background: #7f1d1d;
-      color: #fecaca;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      text-align: center;
-    }
-  `
-  shadow.appendChild(toolbarStyle)
+  const shadow = panelHost.attachShadow({mode: 'closed'})
+
+  const styleEl = document.createElement('style')
+  styleEl.textContent = styles
+  shadow.appendChild(styleEl)
+
+  const panel = document.createElement('div')
+  panel.className = 'panel'
+  shadow.appendChild(panel)
+
+  const errorBar = document.createElement('div')
+  errorBar.className = 'error'
+  panel.appendChild(errorBar)
+
+  const selectorList = document.createElement('div')
+  selectorList.className = 'selector-list'
+  panel.appendChild(selectorList)
+
+  const emptyState = document.createElement('div')
+  emptyState.className = 'empty-state'
+  emptyState.textContent = 'Click any element on the page to start tracking it'
+  selectorList.appendChild(emptyState)
 
   const toolbar = document.createElement('div')
   toolbar.className = 'toolbar'
+  panel.appendChild(toolbar)
 
   const countLabel = document.createElement('span')
   countLabel.textContent = '0 elements selected'
+  toolbar.appendChild(countLabel)
 
   const actions = document.createElement('div')
   actions.className = 'toolbar-actions'
+  toolbar.appendChild(actions)
 
   const doneBtn = document.createElement('button')
   doneBtn.className = 'btn btn-done'
   doneBtn.textContent = 'Done'
   doneBtn.disabled = true
+  actions.appendChild(doneBtn)
 
   const cancelBtn = document.createElement('button')
   cancelBtn.className = 'btn btn-cancel'
   cancelBtn.textContent = 'Cancel'
-
-  const errorBar = document.createElement('div')
-  errorBar.className = 'error'
-
-  actions.appendChild(doneBtn)
   actions.appendChild(cancelBtn)
-  toolbar.appendChild(countLabel)
-  toolbar.appendChild(actions)
-  shadow.appendChild(errorBar)
-  shadow.appendChild(toolbar)
 
-  function updateToolbar() {
-    const count = selections.size
+  // --- Render cycle ---
+
+  let renderScheduled = false
+
+  function scheduleRender() {
+    if (!renderScheduled) {
+      renderScheduled = true
+      requestAnimationFrame(() => {
+        renderScheduled = false
+        renderToolbar()
+      })
+    }
+  }
+
+  function renderToolbar() {
+    const count = state.selections.size
     countLabel.textContent = `${count} element${count === 1 ? '' : 's'} selected`
     doneBtn.disabled = count === 0
+    emptyState.style.display = count === 0 ? 'block' : 'none'
   }
 
-  function showError(message: string) {
-    errorBar.textContent = message
-    errorBar.style.display = 'block'
-    toolbarHost.style.display = 'block'
-    setTimeout(() => {
-      errorBar.style.display = 'none'
-      if (!active) toolbarHost.style.display = 'none'
-    }, 5000)
+  // --- Debounced message sending ---
+
+  let updateTimer: ReturnType<typeof setTimeout> | null = null
+
+  function debouncedSendUpdate() {
+    if (updateTimer !== null) clearTimeout(updateTimer)
+    updateTimer = setTimeout(() => {
+      updateTimer = null
+      sendUpdate()
+    }, 150)
   }
+
+  function sendUpdate() {
+    if (updateTimer !== null) {
+      clearTimeout(updateTimer)
+      updateTimer = null
+    }
+    browser.runtime.sendMessage({
+      action: MessageAction.ElementPickerUpdate,
+      sessionId: state.sessionId,
+      selectors: getSelectors(),
+    })
+  }
+
+  function sendComplete() {
+    browser.runtime.sendMessage({
+      action: MessageAction.ElementPickerComplete,
+      sessionId: state.sessionId,
+      selectors: getSelectors(),
+    })
+    cleanup()
+  }
+
+  function sendCancel() {
+    browser.runtime.sendMessage({
+      action: MessageAction.ElementPickerCancel,
+      sessionId: state.sessionId,
+    })
+    cleanup()
+  }
+
+  function sendStateSync() {
+    if (!state.useSidePanel) return
+    browser.runtime.sendMessage({
+      action: MessageAction.ElementPickerStateSync,
+      sessionId: state.sessionId,
+      selections: Array.from(state.selections.values()).map(s => ({
+        id: s.id,
+        cssSelector: s.cssSelector,
+        extract: s.extract,
+        attributeName: s.attributeName,
+        preview: s.preview,
+        availableAttributes: getElementAttributes(s.element),
+      })),
+    })
+  }
+
+  function getSelectors(): SelectorEntry[] {
+    return Array.from(state.selections.values()).map(s => ({
+      label: s.preview.substring(0, 60) || 'Element',
+      cssSelector: s.cssSelector,
+      extract: s.extract,
+      attributeName: s.attributeName,
+      preview: s.preview,
+    }))
+  }
+
+  // --- Element attributes ---
+
+  const NOISE_ATTRIBUTES = new Set(['class', 'style', 'id'])
+  const CONTENT_ATTRIBUTES = ['href', 'src', 'value', 'content', 'alt', 'title', 'datetime']
+
+  function getElementAttributes(el: HTMLElement): string[] {
+    const attrs = Array.from(el.attributes).map(a => a.name)
+    const filtered = attrs.filter(a => !NOISE_ATTRIBUTES.has(a))
+
+    const dataAttrs: string[] = []
+    const contentAttrs: string[] = []
+    const rest: string[] = []
+
+    for (const attr of filtered) {
+      if (attr.startsWith('data-')) {
+        dataAttrs.push(attr)
+      } else if (CONTENT_ATTRIBUTES.includes(attr)) {
+        contentAttrs.push(attr)
+      } else {
+        rest.push(attr)
+      }
+    }
+
+    dataAttrs.sort()
+    contentAttrs.sort((a, b) => CONTENT_ATTRIBUTES.indexOf(a) - CONTENT_ATTRIBUTES.indexOf(b))
+    rest.sort()
+
+    return [...dataAttrs, ...contentAttrs, ...rest]
+  }
+
+  // --- Preview ---
+
+  function extractPreview(el: HTMLElement, extract: ExtractMode, attributeName: string): string {
+    if (extract === 'attribute') {
+      if (!attributeName) return ''
+      const value = el.getAttribute(attributeName)
+      return value !== null ? value.trim().substring(0, 120) : ''
+    }
+    return (el.textContent ?? '').trim().substring(0, 120)
+  }
+
+  // --- Selector computation ---
 
   function computeSelector(el: Element): string {
-    // Try ID first
     if (el.id) {
       return `#${CSS.escape(el.id)}`
     }
 
-    // Try unique class combination
     if (el.classList.length > 0) {
       const classSelector = Array.from(el.classList)
         .map(c => `.${CSS.escape(c)}`)
@@ -165,7 +257,6 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
       }
     }
 
-    // Structural path with nth-of-type
     const parts: string[] = []
     let current: Element | null = el
     while (current && current !== document.documentElement) {
@@ -187,28 +278,7 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
     return parts.join(' > ')
   }
 
-  function guessLabel(el: Element, preview: string): string {
-    // aria-label
-    const ariaLabel = el.getAttribute('aria-label')
-    if (ariaLabel) return ariaLabel.trim().substring(0, 60)
-
-    // label[for]
-    if (el.id) {
-      const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
-      if (label?.textContent) return label.textContent.trim().substring(0, 60)
-    }
-
-    // text preview
-    if (preview.length > 0) return preview.substring(0, 60)
-
-    // fallback
-    selectionCount++
-    return `Element ${selectionCount}`
-  }
-
-  function extractPreview(el: Element): string {
-    return (el.textContent ?? '').trim().substring(0, 200)
-  }
+  // --- Overlay ---
 
   function positionOverlay(overlay: HTMLElement, el: Element) {
     const rect = el.getBoundingClientRect()
@@ -218,7 +288,7 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
     overlay.style.height = `${rect.height}px`
   }
 
-  function createSelectedOverlay(el: HTMLElement): HTMLDivElement {
+  function createSelectedOverlay(el: HTMLElement, badgeNumber: number): HTMLDivElement {
     const overlay = document.createElement('div')
     overlay.style.cssText = `
       position: absolute;
@@ -227,49 +297,400 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
       background: rgba(5, 150, 105, 0.08);
       border-radius: 3px;
       z-index: 2147483645;
+      overflow: visible;
     `
     positionOverlay(overlay, el)
+
+    const badge = document.createElement('div')
+    badge.style.cssText = `
+      position: absolute;
+      top: -8px;
+      left: -8px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #059669;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      pointer-events: none;
+    `
+    badge.textContent = String(badgeNumber)
+    badge.dataset.overlayBadge = 'true'
+    overlay.appendChild(badge)
+
     document.documentElement.appendChild(overlay)
     return overlay
   }
 
-  function getSelectors(): SelectorEntry[] {
-    return Array.from(selections.values()).map(s => s.selector)
+  // --- Badge renumbering ---
+
+  function updateBadgeNumbers() {
+    let index = 1
+    for (const selection of state.selections.values()) {
+      const badge = selection.overlay.querySelector('[data-overlay-badge]') as HTMLElement | null
+      if (badge) badge.textContent = String(index)
+
+      if (selection.row) {
+        const rowBadge = selection.row.querySelector('.row-badge') as HTMLElement | null
+        if (rowBadge) rowBadge.textContent = String(index)
+      }
+
+      index++
+    }
   }
 
-  function sendUpdate() {
-    browser.runtime.sendMessage({
-      action: MessageAction.ElementPickerUpdate,
-      sessionId,
-      selectors: getSelectors(),
-    })
+  // --- Row building ---
+
+  function buildSelectorRow(selection: SelectionState, badgeNumber: number): HTMLDivElement {
+    const row = document.createElement('div')
+    row.className = 'selector-row'
+    row.dataset.id = selection.id
+
+    const badge = document.createElement('div')
+    badge.className = 'row-badge'
+    badge.textContent = String(badgeNumber)
+    row.appendChild(badge)
+
+    const preview = document.createElement('div')
+    preview.className = 'row-preview'
+    updatePreviewElement(preview, selection)
+    row.appendChild(preview)
+
+    const controls = document.createElement('div')
+    controls.className = 'row-controls'
+    row.appendChild(controls)
+
+    const extractSelect = document.createElement('select')
+    extractSelect.className = 'extract-select'
+    extractSelect.dataset.action = 'extract'
+
+    const textOption = document.createElement('option')
+    textOption.value = 'text_content'
+    textOption.textContent = 'Text'
+    extractSelect.appendChild(textOption)
+
+    const attrOption = document.createElement('option')
+    attrOption.value = 'attribute'
+    attrOption.textContent = 'Attribute'
+    extractSelect.appendChild(attrOption)
+
+    extractSelect.value = selection.extract
+    controls.appendChild(extractSelect)
+
+    const attrSelect = document.createElement('select')
+    attrSelect.className = 'extract-select'
+    attrSelect.dataset.action = 'attribute'
+    attrSelect.style.display = selection.extract === 'attribute' ? 'inline' : 'none'
+    attrSelect.dataset.attrSelect = 'true'
+
+    const placeholder = document.createElement('option')
+    placeholder.value = ''
+    placeholder.textContent = 'Select attribute\u2026'
+    placeholder.disabled = true
+    placeholder.selected = !selection.attributeName
+    attrSelect.appendChild(placeholder)
+
+    for (const attr of getElementAttributes(selection.element)) {
+      const opt = document.createElement('option')
+      opt.value = attr
+      opt.textContent = attr
+      if (attr === selection.attributeName) opt.selected = true
+      attrSelect.appendChild(opt)
+    }
+    controls.appendChild(attrSelect)
+
+    const removeBtn = document.createElement('button')
+    removeBtn.className = 'remove-btn'
+    removeBtn.dataset.action = 'remove'
+    removeBtn.textContent = '\u00d7'
+    removeBtn.title = 'Remove selection'
+    controls.appendChild(removeBtn)
+
+    return row
   }
 
-  function sendComplete() {
-    browser.runtime.sendMessage({
-      action: MessageAction.ElementPickerComplete,
-      sessionId,
-      selectors: getSelectors(),
-    })
-    cleanup()
+  function updatePreviewElement(previewEl: HTMLElement, selection: SelectionState) {
+    previewEl.textContent = ''
+
+    if (selection.extract === 'attribute' && selection.attributeName) {
+      const value = selection.element.getAttribute(selection.attributeName)
+      if (value !== null) {
+        previewEl.textContent = value.trim().substring(0, 120) || '(empty)'
+      } else {
+        const muted = document.createElement('span')
+        muted.className = 'muted'
+        muted.textContent = '(attribute not found)'
+        previewEl.appendChild(muted)
+      }
+    } else if (selection.extract === 'attribute' && !selection.attributeName) {
+      const muted = document.createElement('span')
+      muted.className = 'muted'
+      muted.textContent = '(select an attribute)'
+      previewEl.appendChild(muted)
+    } else {
+      const text = (selection.element.textContent ?? '').trim().substring(0, 120)
+      previewEl.textContent = text || '(empty)'
+    }
   }
 
-  function sendCancel() {
-    browser.runtime.sendMessage({
-      action: MessageAction.ElementPickerCancel,
-      sessionId,
-    })
-    cleanup()
+  // --- Selection management ---
+
+  function addSelection(el: HTMLElement) {
+    const id = crypto.randomUUID()
+    const cssSelector = computeSelector(el)
+    const preview = extractPreview(el, 'text_content', '')
+    const badgeNumber = state.selections.size + 1
+    const overlay = createSelectedOverlay(el, badgeNumber)
+
+    const selection: SelectionState = {
+      id,
+      element: el,
+      cssSelector,
+      extract: 'text_content',
+      attributeName: '',
+      preview,
+      overlay,
+      row: null!,
+    }
+
+    if (!state.useSidePanel) {
+      const row = buildSelectorRow(selection, badgeNumber)
+      selection.row = row
+      selectorList.appendChild(row)
+      row.scrollIntoView({behavior: 'smooth', block: 'nearest'})
+    }
+
+    state.selections.set(id, selection)
+    elementToSelectionId.set(el, id)
+
+    scheduleRender()
+    debouncedSendUpdate()
+    sendStateSync()
+  }
+
+  function removeSelection(id: string) {
+    const selection = state.selections.get(id)
+    if (!selection) return
+
+    if (selection.row) {
+      selection.row.classList.add('removing')
+      selection.row.addEventListener(
+        'animationend',
+        () => {
+          selection.row.remove()
+        },
+        {once: true},
+      )
+    }
+
+    selection.overlay.remove()
+    elementToSelectionId.delete(selection.element)
+    state.selections.delete(id)
+
+    updateBadgeNumbers()
+    scheduleRender()
+    debouncedSendUpdate()
+    sendStateSync()
+  }
+
+  function updateSelectionExtract(id: string, extract: ExtractMode) {
+    const selection = state.selections.get(id)
+    if (!selection) return
+
+    selection.extract = extract
+    if (extract === 'text_content') {
+      selection.attributeName = ''
+    }
+    selection.preview = extractPreview(selection.element, extract, selection.attributeName)
+
+    if (selection.row) {
+      const attrSelect = selection.row.querySelector('[data-attr-select]') as HTMLElement | null
+      if (attrSelect) {
+        attrSelect.style.display = extract === 'attribute' ? 'inline' : 'none'
+      }
+
+      const previewEl = selection.row.querySelector('.row-preview') as HTMLElement | null
+      if (previewEl) updatePreviewElement(previewEl, selection)
+    }
+
+    debouncedSendUpdate()
+    sendStateSync()
+  }
+
+  function updateSelectionAttribute(id: string, attributeName: string) {
+    const selection = state.selections.get(id)
+    if (!selection) return
+
+    selection.attributeName = attributeName
+    selection.preview = extractPreview(selection.element, selection.extract, attributeName)
+
+    if (selection.row) {
+      const previewEl = selection.row.querySelector('.row-preview') as HTMLElement | null
+      if (previewEl) updatePreviewElement(previewEl, selection)
+    }
+
+    debouncedSendUpdate()
+    sendStateSync()
+  }
+
+  // --- Event delegation on selector list ---
+
+  selectorList.addEventListener('click', e => {
+    const target = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null
+    if (!target) return
+    const action = target.dataset.action
+    const id = target.closest('[data-id]')?.getAttribute('data-id')
+    if (!id) return
+
+    if (action === 'remove') {
+      removeSelection(id)
+    }
+  })
+
+  selectorList.addEventListener('change', e => {
+    const target = e.target as HTMLElement
+    if (!target.dataset.action) return
+    const id = target.closest('[data-id]')?.getAttribute('data-id')
+    if (!id) return
+
+    if (target.dataset.action === 'extract') {
+      updateSelectionExtract(id, (target as HTMLSelectElement).value as ExtractMode)
+    } else if (target.dataset.action === 'attribute') {
+      updateSelectionAttribute(id, (target as HTMLSelectElement).value)
+    }
+  })
+
+  // Cross-hover: panel row → page element
+  selectorList.addEventListener('mouseenter', e => {
+    const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
+    if (!row) return
+    const id = row.dataset.id
+    if (!id) return
+
+    const selection = state.selections.get(id)
+    if (!selection) return
+
+    state.hoveredSelectionId = id
+    hoverOverlay.style.display = 'block'
+    positionOverlay(hoverOverlay, selection.element)
+  }, true)
+
+  selectorList.addEventListener('mouseleave', e => {
+    const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
+    if (!row) return
+    const id = row.dataset.id
+    if (!id || state.hoveredSelectionId !== id) return
+
+    state.hoveredSelectionId = null
+    hoverOverlay.style.display = 'none'
+  }, true)
+
+  // --- Error display ---
+
+  function showError(message: string) {
+    errorBar.textContent = message
+    errorBar.style.display = 'block'
+    panelHost.style.display = 'block'
+    setTimeout(() => {
+      errorBar.style.display = 'none'
+      if (!state.active) panelHost.style.display = 'none'
+    }, 5000)
+  }
+
+  // --- Page event handlers ---
+
+  function isPickerUI(el: Element): boolean {
+    return el === panelHost || el === hoverOverlay || panelHost.contains(el)
+  }
+
+  function onMouseOver(e: MouseEvent) {
+    if (!state.active) return
+    const target = e.target as HTMLElement
+    if (isPickerUI(target)) return
+
+    hoverOverlay.style.display = 'block'
+    positionOverlay(hoverOverlay, target)
+
+    // Cross-hover: page element → panel row highlight
+    const id = elementToSelectionId.get(target)
+    if (id) {
+      const selection = state.selections.get(id)
+      if (selection) selection.row.classList.add('highlighted')
+    }
+  }
+
+  function onMouseOut(e: MouseEvent) {
+    if (!state.active) return
+    const target = e.target as HTMLElement
+    if (isPickerUI(target)) return
+
+    hoverOverlay.style.display = 'none'
+
+    const id = elementToSelectionId.get(target)
+    if (id) {
+      const selection = state.selections.get(id)
+      if (selection) selection.row.classList.remove('highlighted')
+    }
+  }
+
+  function onClick(e: MouseEvent) {
+    if (!state.active) return
+    const target = e.target as HTMLElement
+    if (isPickerUI(target)) return
+
+    e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
+
+    const existingId = elementToSelectionId.get(target)
+    if (existingId) {
+      removeSelection(existingId)
+    } else {
+      addSelection(target)
+    }
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (!state.active) return
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      sendCancel()
+    }
+  }
+
+  // --- Lifecycle ---
+
+  function activate() {
+    state.active = true
+    if (!state.useSidePanel) {
+      panelHost.style.display = 'block'
+    }
+    scheduleRender()
+    document.addEventListener('mouseover', onMouseOver, true)
+    document.addEventListener('mouseout', onMouseOut, true)
+    document.addEventListener('click', onClick, true)
+    document.addEventListener('keydown', onKeyDown, true)
   }
 
   function cleanup() {
-    active = false
+    state.active = false
     hoverOverlay.style.display = 'none'
-    toolbarHost.style.display = 'none'
-    for (const {overlay} of selections.values()) {
-      overlay.remove()
+    panelHost.style.display = 'none'
+
+    for (const selection of state.selections.values()) {
+      selection.overlay.remove()
     }
-    selections.clear()
+    state.selections.clear()
+
+    // Clear panel rows, keep emptyState
+    const rows = selectorList.querySelectorAll('.selector-row')
+    rows.forEach(row => row.remove())
+
     document.removeEventListener('mouseover', onMouseOver, true)
     document.removeEventListener('mouseout', onMouseOut, true)
     document.removeEventListener('click', onClick, true)
@@ -279,90 +700,16 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
   function teardown() {
     cleanup()
     hoverOverlay.remove()
-    toolbarHost.remove()
+    panelHost.remove()
     browser.runtime.onMessage.removeListener(onMessage)
     delete (window as any).__isinstockPickerTeardown
   }
 
   ;(window as any).__isinstockPickerTeardown = teardown
 
-  function isPickerUI(el: Element): boolean {
-    return el === toolbarHost || el === hoverOverlay || toolbarHost.contains(el)
-  }
-
-  function onMouseOver(e: MouseEvent) {
-    if (!active) return
-    const target = e.target as HTMLElement
-    if (isPickerUI(target)) return
-    hoverOverlay.style.display = 'block'
-    positionOverlay(hoverOverlay, target)
-  }
-
-  function onMouseOut(e: MouseEvent) {
-    if (!active) return
-    const target = e.target as HTMLElement
-    if (isPickerUI(target)) return
-    hoverOverlay.style.display = 'none'
-  }
-
-  function onClick(e: MouseEvent) {
-    if (!active) return
-    const target = e.target as HTMLElement
-    if (isPickerUI(target)) return
-
-    e.preventDefault()
-    e.stopPropagation()
-    e.stopImmediatePropagation()
-
-    if (selections.has(target)) {
-      // Deselect
-      const entry = selections.get(target)!
-      entry.overlay.remove()
-      selections.delete(target)
-    } else {
-      // Select
-      const cssSelector = computeSelector(target)
-      const preview = extractPreview(target)
-      const label = guessLabel(target, preview)
-      const overlay = createSelectedOverlay(target)
-
-      selections.set(target, {
-        overlay,
-        selector: {
-          label,
-          cssSelector,
-          extract: 'text_content',
-          attributeName: '',
-          preview,
-        },
-      })
-    }
-
-    updateToolbar()
-    sendUpdate()
-  }
-
-  function onKeyDown(e: KeyboardEvent) {
-    if (!active) return
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      sendCancel()
-    }
-  }
-
-  function activate() {
-    active = true
-    toolbarHost.style.display = 'block'
-    updateToolbar()
-    document.addEventListener('mouseover', onMouseOver, true)
-    document.addEventListener('mouseout', onMouseOut, true)
-    document.addEventListener('click', onClick, true)
-    document.addEventListener('keydown', onKeyDown, true)
-  }
-
   // Toolbar button handlers
   doneBtn.addEventListener('click', () => {
-    if (selections.size > 0) sendComplete()
+    if (state.selections.size > 0) sendComplete()
   })
 
   cancelBtn.addEventListener('click', () => {
@@ -371,12 +718,33 @@ import {MessageAction, SelectorEntry} from '../@types/messages'
 
   // Wait for StartElementPicker message to get sessionId and activate
   function onMessage(msg: unknown) {
-    const message = msg as {action: string; sessionId?: string; error?: string}
+    const message = msg as {action: string; sessionId?: string; error?: string; useSidePanel?: boolean}
     if (message.action === MessageAction.StartElementPicker && message.sessionId) {
-      sessionId = message.sessionId
+      state.sessionId = message.sessionId
+      state.useSidePanel = message.useSidePanel === true
       activate()
     } else if (message.action === MessageAction.ElementPickerError && message.error) {
       showError(message.error)
+    } else if (message.action === MessageAction.ElementPickerCommand) {
+      const cmd = message as unknown as ElementPickerCommandMessage
+      switch (cmd.command) {
+        case ElementPickerCommand.Remove:
+          if (cmd.selectionId) removeSelection(cmd.selectionId)
+          break
+        case ElementPickerCommand.ChangeExtract:
+          if (cmd.selectionId && cmd.extract) updateSelectionExtract(cmd.selectionId, cmd.extract as ExtractMode)
+          break
+        case ElementPickerCommand.ChangeAttribute:
+          if (cmd.selectionId && cmd.attributeName !== undefined)
+            updateSelectionAttribute(cmd.selectionId, cmd.attributeName)
+          break
+        case ElementPickerCommand.Done:
+          if (state.selections.size > 0) sendComplete()
+          break
+        case ElementPickerCommand.Cancel:
+          sendCancel()
+          break
+      }
     }
   }
 

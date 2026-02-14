@@ -91,7 +91,7 @@ async function main() {
   // Chrome
   const chromeCtx = await context({
     ...config,
-    entryPoints: [...entryPoints, './src/sidepanel.ts'],
+    entryPoints: [...entryPoints, './src/sidepanel.tsx'],
     outdir: 'dist/chrome',
     plugins: [
       ...config.plugins,
