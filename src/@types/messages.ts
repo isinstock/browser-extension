@@ -6,6 +6,7 @@ export enum MessageAction {
   URLChanged = 'url-changed',
   TrackUrl = 'track-url',
   StartElementPicker = 'start-element-picker',
+  ElementPickerStarted = 'element-picker-started',
   ElementPickerUpdate = 'element-picker-update',
   ElementPickerComplete = 'element-picker-complete',
   ElementPickerCancel = 'element-picker-cancel',
@@ -49,6 +50,12 @@ export interface StartElementPickerMessage extends ActionMessage {
   url: string
   sessionId: string
   useSidePanel?: boolean
+}
+
+export interface ElementPickerStartedMessage extends ActionMessage {
+  action: MessageAction.ElementPickerStarted
+  sessionId: string
+  mode: 'side_panel' | 'tab'
 }
 
 export interface ElementPickerUpdateMessage extends ActionMessage {
@@ -106,6 +113,7 @@ export type Message =
   | InventoryStateMessage
   | TrackUrlMessage
   | StartElementPickerMessage
+  | ElementPickerStartedMessage
   | ElementPickerUpdateMessage
   | ElementPickerCompleteMessage
   | ElementPickerCancelMessage

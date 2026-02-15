@@ -32,7 +32,9 @@ if (hostname === 'isinstock.com' || hostname === 'isinstock.localhost') {
   browser.runtime.onMessage.addListener((msg: unknown) => {
     const message = msg as {action: string; [key: string]: unknown}
 
-    if (message.action === MessageAction.ElementPickerUpdate) {
+    if (message.action === MessageAction.ElementPickerStarted) {
+      document.dispatchEvent(new CustomEvent('isinstock:picker-started', {detail: message}))
+    } else if (message.action === MessageAction.ElementPickerUpdate) {
       document.dispatchEvent(new CustomEvent('isinstock:picker-update', {detail: message}))
     } else if (message.action === MessageAction.ElementPickerComplete) {
       document.dispatchEvent(new CustomEvent('isinstock:picker-complete', {detail: message}))

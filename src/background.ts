@@ -147,6 +147,16 @@ async function injectElementPicker(
     url,
     useSidePanel,
   })
+
+  if (originTabId !== undefined) {
+    browser.tabs
+      .sendMessage(originTabId, {
+        action: MessageAction.ElementPickerStarted,
+        sessionId: sid,
+        mode: useSidePanel ? 'side_panel' : 'tab',
+      })
+      .catch(() => {})
+  }
 }
 
 function closeSidePanel(tabId: number) {
@@ -378,9 +388,7 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
         for (const session of pickerSessions.values()) {
           if (session.targetTabId === tab.id) {
             // Session exists — tell content script to switch to side panel mode and resync
-            browser.tabs
-              .sendMessage(tab.id, {action: MessageAction.ElementPickerSidePanelReady})
-              .catch(() => {})
+            browser.tabs.sendMessage(tab.id, {action: MessageAction.ElementPickerSidePanelReady}).catch(() => {})
             return {processed: true}
           }
         }
