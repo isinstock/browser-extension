@@ -2,7 +2,6 @@ import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
 import type {ElementPickerCommandMessage} from '../@types/messages'
 import styles from './element_picker.css'
-
 ;(function () {
   if (typeof (window as any).__isinstockPickerTeardown === 'function') {
     ;(window as any).__isinstockPickerTeardown()
@@ -65,7 +64,7 @@ import styles from './element_picker.css'
   `
   document.documentElement.appendChild(panelHost)
 
-  const shadow = panelHost.attachShadow({mode: 'closed'})
+  const shadow = panelHost.attachShadow({mode: 'open'})
 
   const styleEl = document.createElement('style')
   styleEl.textContent = styles
@@ -566,29 +565,37 @@ import styles from './element_picker.css'
   })
 
   // Cross-hover: panel row → page element
-  selectorList.addEventListener('mouseenter', e => {
-    const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
-    if (!row) return
-    const id = row.dataset.id
-    if (!id) return
+  selectorList.addEventListener(
+    'mouseenter',
+    e => {
+      const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
+      if (!row) return
+      const id = row.dataset.id
+      if (!id) return
 
-    const selection = state.selections.get(id)
-    if (!selection) return
+      const selection = state.selections.get(id)
+      if (!selection) return
 
-    state.hoveredSelectionId = id
-    hoverOverlay.style.display = 'block'
-    positionOverlay(hoverOverlay, selection.element)
-  }, true)
+      state.hoveredSelectionId = id
+      hoverOverlay.style.display = 'block'
+      positionOverlay(hoverOverlay, selection.element)
+    },
+    true,
+  )
 
-  selectorList.addEventListener('mouseleave', e => {
-    const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
-    if (!row) return
-    const id = row.dataset.id
-    if (!id || state.hoveredSelectionId !== id) return
+  selectorList.addEventListener(
+    'mouseleave',
+    e => {
+      const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
+      if (!row) return
+      const id = row.dataset.id
+      if (!id || state.hoveredSelectionId !== id) return
 
-    state.hoveredSelectionId = null
-    hoverOverlay.style.display = 'none'
-  }, true)
+      state.hoveredSelectionId = null
+      hoverOverlay.style.display = 'none'
+    },
+    true,
+  )
 
   // --- Error display ---
 

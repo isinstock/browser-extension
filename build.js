@@ -8,6 +8,8 @@ const autoprefixer = require('autoprefixer')
 const isProduction = process.argv.includes('--production')
 const isCI = process.env.CI === 'true'
 const watch = process.argv.includes('--watch')
+const isinstockUrl =
+  process.env.ISINSTOCK_URL || (isProduction ? 'https://isinstock.com' : 'https://isinstock.localhost')
 
 const copyChromeManifestPlugin = {
   name: 'copy-chrome-manifest',
@@ -75,7 +77,7 @@ const config = {
   minify: false,
   target: ['chrome120', 'edge120', 'firefox120', 'safari17'],
   define: {
-    ISINSTOCK_URL: isProduction ? '"https://isinstock.com"' : '"https://isinstock.localhost"',
+    ISINSTOCK_URL: JSON.stringify(isinstockUrl),
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
     CI: isCI ? 'true' : 'false',
   },
