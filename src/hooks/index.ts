@@ -1,3 +1,3 @@
-import useAuth from './use-auth'
+import useAccessToken from './use-access-token'
 
-export {useAuth}
+export {useAccessToken}

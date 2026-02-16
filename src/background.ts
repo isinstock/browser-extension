@@ -1,7 +1,13 @@
 import browser from 'webextension-polyfill'
 
 import {InventoryStateNormalized} from './@types/inventory-states'
-import {Message, MessageAction} from './@types/messages'
+import {
+  AuthenticationMessage,
+  ElementPickerCommand,
+  Message,
+  MessageAction,
+  RevokeAuthenticationMessage,
+} from './@types/messages'
 import {
   browserExtensionStartup,
   createBrowserExtensionInstall,
@@ -31,6 +37,22 @@ const pickerSessions = new Map<
 // otherwise fall back to opening a new tab.
 if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
   chrome.sidePanel.setPanelBehavior({openPanelOnActionClick: true}).catch(console.error)
+
+  // Chrome 142+: cancel the picker when the user closes the side panel
+  chrome.sidePanel.onClosed.addListener(({tabId}) => {
+    for (const [sid, session] of pickerSessions) {
+      if (tabId !== undefined && session.targetTabId !== tabId) continue
+      browser.tabs
+        .sendMessage(session.targetTabId, {
+          action: MessageAction.ElementPickerCommand,
+          sessionId: sid,
+          command: ElementPickerCommand.Cancel,
+        })
+        .catch(() => {})
+      pickerSessions.delete(sid)
+      break
+    }
+  })
 } else {
   browser.action.onClicked.addListener(tab => {
     const trackUrl = tab.id !== undefined ? tabTrackUrls.get(tab.id) : undefined
@@ -241,6 +263,25 @@ browser.runtime.onInstalled.addListener(async ({reason}) => {
   }
 })
 
+// Receives authentication messages from isinstock.com pages via externally_connectable.
+// The web page sends chrome.runtime.sendMessage(extensionId, { action, token })
+// which Chrome routes here. Origin is enforced by the externally_connectable manifest key.
+chrome.runtime.onMessageExternal.addListener(
+  (
+    message: AuthenticationMessage | RevokeAuthenticationMessage,
+    _sender: chrome.runtime.MessageSender,
+    sendResponse,
+  ) => {
+    if (message.action === MessageAction.Authentication && message.token) {
+      chrome.storage.local.set({accessToken: message.token})
+      sendResponse({success: true})
+    } else if (message.action === MessageAction.RevokeAuthentication) {
+      chrome.storage.local.remove('accessToken')
+      sendResponse({success: true})
+    }
+  },
+)
+
 // Receives messages from content scripts
 browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.MessageSender) => {
   const message = msg as Message
@@ -328,15 +369,15 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
     const session = pickerSessions.get(completeMsg.sessionId)
 
     if (session) {
-      closeSidePanel(session.targetTabId)
       if (session.originTabId !== undefined) {
         // Flow B: forward to bridge, close target tab, and switch back to origin
+        closeSidePanel(session.targetTabId)
         browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
         browser.tabs.remove(session.targetTabId).catch(() => {})
         browser.tabs.update(session.originTabId, {active: true}).catch(() => {})
         pickerSessions.delete(completeMsg.sessionId)
       } else {
-        // Flow A: POST to API and open subscription URL
+        // Flow A: POST to API, notify sidepanel of result
         ;(async () => {
           try {
             const resp = await fetchApi(
@@ -349,17 +390,21 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
             )
             if (resp.ok) {
               const data = (await resp.json()) as {subscription_url: string}
-              if (data.subscription_url) {
-                browser.tabs.create({url: data.subscription_url})
-              }
+              chrome.runtime
+                .sendMessage({
+                  action: MessageAction.ElementPickerSaved,
+                  sessionId: completeMsg.sessionId,
+                  subscriptionUrl: data.subscription_url,
+                })
+                .catch(() => {})
               pickerSessions.delete(completeMsg.sessionId)
             } else {
               const errorMsg =
                 resp.status === 401
                   ? 'You need to sign in to Is In Stock to use custom tracking.'
                   : `Failed to create tracking (${resp.status}).`
-              browser.tabs
-                .sendMessage(session.targetTabId, {
+              chrome.runtime
+                .sendMessage({
                   action: MessageAction.ElementPickerError,
                   sessionId: completeMsg.sessionId,
                   error: errorMsg,
@@ -367,8 +412,8 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
                 .catch(() => {})
             }
           } catch (e) {
-            browser.tabs
-              .sendMessage(session.targetTabId, {
+            chrome.runtime
+              .sendMessage({
                 action: MessageAction.ElementPickerError,
                 sessionId: completeMsg.sessionId,
                 error: 'Failed to connect to Is In Stock.',
@@ -388,6 +433,12 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
       }
     }
     pickerSessions.delete(cancelMsg.sessionId)
+  } else if (action === MessageAction.ElementPickerStateSync && 'sessionId' in message) {
+    // Relay state sync from content script to the sidepanel.
+    // The sidepanel lives in the extension context and listens via
+    // chrome.runtime.onMessage, so re-broadcasting with sendMessage
+    // ensures it receives the update (content script → background → sidepanel).
+    browser.runtime.sendMessage(message).catch(() => {})
   } else if (action === MessageAction.ElementPickerSidePanelReady) {
     return (async () => {
       try {

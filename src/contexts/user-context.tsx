@@ -1,6 +1,6 @@
 import {type ComponentChildren, createContext} from 'preact'
 
-import {useAuth} from '../hooks'
+import {useAccessToken} from '../hooks'
 
 type UserContextValues = {
   accessToken: string | null
@@ -8,6 +8,6 @@ type UserContextValues = {
 const UserContext = createContext<Partial<UserContextValues>>({})
 
 export function UserProvider({children}: {children: ComponentChildren}) {
-  const {accessToken} = useAuth()
+  const {accessToken} = useAccessToken()
   return <UserContext.Provider value={{accessToken}}>{children}</UserContext.Provider>
 }

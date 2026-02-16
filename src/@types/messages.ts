@@ -14,6 +14,9 @@ export enum MessageAction {
   ElementPickerStateSync = 'element-picker-state-sync',
   ElementPickerCommand = 'element-picker-command',
   ElementPickerSidePanelReady = 'element-picker-side-panel-ready',
+  ElementPickerSaved = 'element-picker-saved',
+  Authentication = 'authentication',
+  RevokeAuthentication = 'revoke-authentication',
 }
 
 export enum ElementPickerCommand {
@@ -22,6 +25,9 @@ export enum ElementPickerCommand {
   ChangeAttribute = 'change-attribute',
   Done = 'done',
   Cancel = 'cancel',
+  SetMode = 'set-mode',
+  RunAdvancedQuery = 'run-advanced-query',
+  AddAdvancedSelector = 'add-advanced-selector',
 }
 
 export interface ActionMessage {
@@ -90,10 +96,20 @@ export interface PickerSelectionInfo {
   availableAttributes: string[]
 }
 
+export interface AdvancedPreviewItem {
+  text: string
+  tagName: string
+}
+
 export interface ElementPickerStateSyncMessage extends ActionMessage {
   action: MessageAction.ElementPickerStateSync
   sessionId: string
   selections: PickerSelectionInfo[]
+  pickerMode: 'click' | 'advanced'
+  advancedMatchCount: number
+  advancedPreviews: AdvancedPreviewItem[]
+  advancedInputValid: boolean
+  advancedQuery: string
 }
 
 export interface ElementPickerCommandMessage extends ActionMessage {
@@ -103,10 +119,27 @@ export interface ElementPickerCommandMessage extends ActionMessage {
   selectionId?: string
   extract?: string
   attributeName?: string
+  mode?: 'click' | 'advanced'
+  selector?: string
 }
 
 export interface ElementPickerSidePanelReadyMessage extends ActionMessage {
   action: MessageAction.ElementPickerSidePanelReady
+}
+
+export interface ElementPickerSavedMessage extends ActionMessage {
+  action: MessageAction.ElementPickerSaved
+  sessionId: string
+  subscriptionUrl?: string
+}
+
+export interface AuthenticationMessage extends ActionMessage {
+  action: MessageAction.Authentication
+  token: string
+}
+
+export interface RevokeAuthenticationMessage extends ActionMessage {
+  action: MessageAction.RevokeAuthentication
 }
 
 export type Message =
@@ -121,3 +154,6 @@ export type Message =
   | ElementPickerStateSyncMessage
   | ElementPickerCommandMessage
   | ElementPickerSidePanelReadyMessage
+  | ElementPickerSavedMessage
+  | AuthenticationMessage
+  | RevokeAuthenticationMessage

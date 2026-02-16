@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'preact/hooks'
 import browser from 'webextension-polyfill'
 
-export default function useAuth(): {isLoggedIn: boolean; accessToken: string | null} {
+export default function useAccessToken(): {isLoggedIn: boolean; accessToken: string | null} {
   const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {

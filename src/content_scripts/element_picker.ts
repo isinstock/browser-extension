@@ -426,6 +426,13 @@ function sendCancel() {
 
 function sendStateSync() {
   if (!state.useSidePanel) return
+
+  const previewLimit = 5
+  const advancedPreviews = state.advancedMatchedElements.slice(0, previewLimit).map(el => ({
+    text: (el.textContent ?? '').trim().substring(0, 80),
+    tagName: el.tagName.toLowerCase(),
+  }))
+
   browser.runtime.sendMessage({
     action: MessageAction.ElementPickerStateSync,
     sessionId: state.sessionId,
@@ -437,6 +444,11 @@ function sendStateSync() {
       preview: s.preview,
       availableAttributes: getElementAttributes(s.element),
     })),
+    pickerMode: state.pickerMode,
+    advancedMatchCount: state.advancedMatchedElements.length,
+    advancedPreviews,
+    advancedInputValid: !advancedInput.classList.contains('invalid'),
+    advancedQuery: advancedInput.value,
   })
 }
 
@@ -1020,6 +1032,20 @@ function onMessage(msg: unknown) {
         break
       case ElementPickerCommand.Cancel:
         sendCancel()
+        break
+      case ElementPickerCommand.SetMode:
+        if (cmd.mode) setPickerMode(cmd.mode)
+        sendStateSync()
+        break
+      case ElementPickerCommand.RunAdvancedQuery:
+        if (cmd.selector !== undefined) {
+          advancedInput.value = cmd.selector
+          runAdvancedQuery(cmd.selector)
+          sendStateSync()
+        }
+        break
+      case ElementPickerCommand.AddAdvancedSelector:
+        addAdvancedSelector()
         break
     }
   }
