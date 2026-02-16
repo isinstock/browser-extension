@@ -1,8 +1,9 @@
+import {render} from 'preact'
 import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
-import type {ElementPickerCommandMessage} from '../@types/messages'
+import type {ElementPickerCommandMessage, PickerSelectionInfo} from '../@types/messages'
+import {PickerPanel} from '../components/picker-panel'
 import {getSelectionColor} from '../utils/selection-colors'
-import styles from './element_picker.css'
 
 // The background script checks __isinstockPickerLoaded before injecting
 // this file, so this guard is just a safety net for edge cases (e.g.,
@@ -23,7 +24,6 @@ interface SelectionState {
   attributeName: string
   preview: string
   overlay: HTMLDivElement
-  row: HTMLDivElement
 }
 
 type PickerMode = 'click' | 'advanced'
@@ -37,6 +37,10 @@ interface PickerState {
   pickerMode: PickerMode
   advancedOverlays: HTMLDivElement[]
   advancedMatchedElements: HTMLElement[]
+  advancedInputValid: boolean
+  advancedQuery: string
+  saving: boolean
+  error: string | null
 }
 
 const state: PickerState = {
@@ -48,6 +52,10 @@ const state: PickerState = {
   pickerMode: 'click',
   advancedOverlays: [],
   advancedMatchedElements: [],
+  advancedInputValid: true,
+  advancedQuery: '',
+  saving: false,
+  error: null,
 }
 
 const elementToSelectionId = new WeakMap<HTMLElement, string>()
@@ -80,140 +88,113 @@ document.documentElement.appendChild(panelHost)
 
 const shadow = panelHost.attachShadow({mode: 'open'})
 
-const styleEl = document.createElement('style')
-styleEl.textContent = styles
-shadow.appendChild(styleEl)
+// Preact render target inside shadow DOM
+const panelRoot = document.createElement('div')
+shadow.appendChild(panelRoot)
 
-const panel = document.createElement('div')
-panel.className = 'panel'
-shadow.appendChild(panel)
+// --- Preact rendering ---
 
-const errorBar = document.createElement('div')
-errorBar.className = 'error'
-panel.appendChild(errorBar)
+function renderPanel() {
+  if (state.useSidePanel) return
 
-const selectorList = document.createElement('div')
-selectorList.className = 'selector-list'
-panel.appendChild(selectorList)
+  const selections: PickerSelectionInfo[] = Array.from(state.selections.values()).map(s => ({
+    id: s.id,
+    cssSelector: s.cssSelector,
+    extract: s.extract,
+    attributeName: s.attributeName,
+    preview: s.preview,
+    availableAttributes: getElementAttributes(s.element),
+  }))
 
-const emptyState = document.createElement('div')
-emptyState.className = 'empty-state'
-emptyState.textContent = 'Click any element on the page to start tracking it'
-selectorList.appendChild(emptyState)
+  render(
+    <PickerPanel
+      selections={selections}
+      pickerMode={state.pickerMode}
+      advancedMatchCount={state.advancedMatchedElements.length}
+      advancedPreviews={state.advancedMatchedElements.slice(0, 5).map(el => ({
+        text: (el.textContent ?? '').trim().substring(0, 80),
+        tagName: el.tagName.toLowerCase(),
+      }))}
+      advancedInputValid={state.advancedInputValid}
+      advancedQuery={state.advancedQuery}
+      saving={state.saving}
+      error={state.error}
+      onCommand={handlePanelCommand}
+      onSelectionHoverStart={handleSelectionHoverStart}
+      onSelectionHoverEnd={handleSelectionHoverEnd}
+    />,
+    panelRoot,
+  )
+}
 
-// --- Advanced mode section ---
-
-const advancedSection = document.createElement('div')
-advancedSection.className = 'advanced-section'
-panel.appendChild(advancedSection)
-
-const advancedInputRow = document.createElement('div')
-advancedInputRow.className = 'advanced-input-row'
-advancedSection.appendChild(advancedInputRow)
-
-const advancedInput = document.createElement('input')
-advancedInput.className = 'advanced-input'
-advancedInput.type = 'text'
-advancedInput.placeholder = 'Enter a CSS selector, e.g. .price, #total, [data-testid="amount"]'
-advancedInput.spellcheck = false
-advancedInput.autocomplete = 'off'
-advancedInputRow.appendChild(advancedInput)
-
-const addSelectorBtn = document.createElement('button')
-addSelectorBtn.className = 'btn-add-selector'
-addSelectorBtn.textContent = 'Add Selector'
-addSelectorBtn.disabled = true
-advancedInputRow.appendChild(addSelectorBtn)
-
-const advancedMatchInfo = document.createElement('div')
-advancedMatchInfo.className = 'advanced-match-info'
-advancedSection.appendChild(advancedMatchInfo)
-
-const advancedPreviewList = document.createElement('div')
-advancedPreviewList.className = 'advanced-preview-list'
-advancedSection.appendChild(advancedPreviewList)
-
-const toolbar = document.createElement('div')
-toolbar.className = 'toolbar'
-panel.appendChild(toolbar)
-
-const toolbarLeft = document.createElement('div')
-toolbarLeft.style.cssText = 'display: flex; align-items: center; gap: 12px;'
-toolbar.appendChild(toolbarLeft)
-
-const countLabel = document.createElement('span')
-countLabel.textContent = '0 elements selected'
-toolbarLeft.appendChild(countLabel)
-
-const modeToggle = document.createElement('button')
-modeToggle.className = 'mode-toggle'
-modeToggle.textContent = 'Advanced'
-modeToggle.title = 'Switch to CSS selector input'
-toolbarLeft.appendChild(modeToggle)
-
-const actions = document.createElement('div')
-actions.className = 'toolbar-actions'
-toolbar.appendChild(actions)
-
-const doneBtn = document.createElement('button')
-doneBtn.className = 'btn btn-done'
-doneBtn.textContent = 'Done'
-doneBtn.disabled = true
-actions.appendChild(doneBtn)
-
-const cancelBtn = document.createElement('button')
-cancelBtn.className = 'btn btn-cancel'
-cancelBtn.textContent = 'Cancel'
-actions.appendChild(cancelBtn)
-
-// --- Render cycle ---
-
-let renderScheduled = false
-
-function scheduleRender() {
-  if (!renderScheduled) {
-    renderScheduled = true
-    requestAnimationFrame(() => {
-      renderScheduled = false
-      renderToolbar()
-    })
+function handlePanelCommand(command: ElementPickerCommand, opts?: Record<string, string>) {
+  switch (command) {
+    case ElementPickerCommand.Remove:
+      if (opts?.selectionId) removeSelection(opts.selectionId)
+      break
+    case ElementPickerCommand.ChangeExtract:
+      if (opts?.selectionId && opts?.extract) updateSelectionExtract(opts.selectionId, opts.extract as ExtractMode)
+      break
+    case ElementPickerCommand.ChangeAttribute:
+      if (opts?.selectionId && opts?.attributeName !== undefined)
+        updateSelectionAttribute(opts.selectionId, opts.attributeName)
+      break
+    case ElementPickerCommand.Done:
+      if (state.selections.size > 0) {
+        state.saving = true
+        state.error = null
+        renderPanel()
+        sendComplete()
+      }
+      break
+    case ElementPickerCommand.Cancel:
+      sendCancel()
+      break
+    case ElementPickerCommand.SetMode:
+      if (opts?.mode) {
+        setPickerMode(opts.mode as PickerMode)
+      }
+      break
+    case ElementPickerCommand.RunAdvancedQuery:
+      if (opts?.selector !== undefined) {
+        runAdvancedQuery(opts.selector)
+      }
+      break
+    case ElementPickerCommand.AddAdvancedSelector:
+      addAdvancedSelector()
+      break
   }
 }
 
-function renderToolbar() {
-  const count = state.selections.size
-  countLabel.textContent = `${count} element${count === 1 ? '' : 's'} selected`
-  doneBtn.disabled = count === 0
-  emptyState.style.display = count === 0 && state.pickerMode === 'click' ? 'block' : 'none'
+// Cross-hover: panel row → page element
+function handleSelectionHoverStart(selectionId: string) {
+  const selection = state.selections.get(selectionId)
+  if (!selection) return
+
+  state.hoveredSelectionId = selectionId
+  hoverOverlay.style.display = 'block'
+  positionOverlay(hoverOverlay, selection.element)
+}
+
+function handleSelectionHoverEnd(selectionId: string) {
+  if (state.hoveredSelectionId !== selectionId) return
+
+  state.hoveredSelectionId = null
+  hoverOverlay.style.display = 'none'
 }
 
 // --- Advanced mode ---
 
 function setPickerMode(mode: PickerMode) {
   state.pickerMode = mode
-  if (mode === 'advanced') {
-    advancedSection.classList.add('visible')
-    emptyState.style.display = 'none'
-    modeToggle.textContent = 'Click to select'
-    modeToggle.title = 'Switch to click-to-select mode'
-    advancedInput.focus()
-  } else {
-    advancedSection.classList.remove('visible')
+  if (mode !== 'advanced') {
     clearAdvancedOverlays()
-    advancedInput.value = ''
-    advancedMatchInfo.textContent = ''
-    advancedPreviewList.textContent = ''
-    addSelectorBtn.disabled = true
-    advancedInput.classList.remove('invalid')
-    modeToggle.textContent = 'Advanced'
-    modeToggle.title = 'Switch to CSS selector input'
+    state.advancedQuery = ''
+    state.advancedInputValid = true
   }
-  scheduleRender()
+  renderPanel()
+  sendStateSync()
 }
-
-modeToggle.addEventListener('click', () => {
-  setPickerMode(state.pickerMode === 'click' ? 'advanced' : 'click')
-})
 
 function clearAdvancedOverlays() {
   for (const overlay of state.advancedOverlays) {
@@ -240,12 +221,11 @@ function createAdvancedOverlay(el: HTMLElement): HTMLDivElement {
 
 function runAdvancedQuery(selector: string) {
   clearAdvancedOverlays()
-  advancedInput.classList.remove('invalid')
+  state.advancedQuery = selector
+  state.advancedInputValid = true
 
   if (!selector.trim()) {
-    advancedMatchInfo.textContent = ''
-    advancedPreviewList.textContent = ''
-    addSelectorBtn.disabled = true
+    renderPanel()
     return
   }
 
@@ -253,10 +233,8 @@ function runAdvancedQuery(selector: string) {
   try {
     elements = document.querySelectorAll(selector)
   } catch {
-    advancedInput.classList.add('invalid')
-    advancedMatchInfo.textContent = 'Invalid selector'
-    advancedPreviewList.textContent = ''
-    addSelectorBtn.disabled = true
+    state.advancedInputValid = false
+    renderPanel()
     return
   }
 
@@ -268,75 +246,16 @@ function runAdvancedQuery(selector: string) {
   })
 
   state.advancedMatchedElements = matched
-  addSelectorBtn.disabled = matched.length === 0
-
-  const countSpan = document.createElement('span')
-  countSpan.className = matched.length === 0 ? 'advanced-match-count zero' : 'advanced-match-count'
-  countSpan.textContent = String(matched.length)
-
-  advancedMatchInfo.textContent = ''
-  advancedMatchInfo.appendChild(countSpan)
-  advancedMatchInfo.appendChild(document.createTextNode(` element${matched.length === 1 ? '' : 's'} match`))
-
-  advancedPreviewList.textContent = ''
-  const previewLimit = 5
-  for (let i = 0; i < Math.min(matched.length, previewLimit); i++) {
-    const el = matched[i]!
-    const item = document.createElement('div')
-    item.className = 'advanced-preview-item'
-    const text = (el.textContent ?? '').trim().substring(0, 80)
-    if (text) {
-      item.textContent = text
-    } else {
-      const muted = document.createElement('span')
-      muted.className = 'muted'
-      muted.textContent = `<${el.tagName.toLowerCase()}>`
-      item.appendChild(muted)
-    }
-    advancedPreviewList.appendChild(item)
-  }
-
-  if (matched.length > previewLimit) {
-    const more = document.createElement('div')
-    more.className = 'advanced-preview-item muted'
-    more.textContent = `\u2026and ${matched.length - previewLimit} more`
-    advancedPreviewList.appendChild(more)
-  }
 
   for (const el of matched) {
     state.advancedOverlays.push(createAdvancedOverlay(el))
   }
+
+  renderPanel()
 }
 
-let advancedQueryTimer: ReturnType<typeof setTimeout> | null = null
-
-advancedInput.addEventListener('input', () => {
-  if (advancedQueryTimer !== null) clearTimeout(advancedQueryTimer)
-  advancedQueryTimer = setTimeout(() => {
-    advancedQueryTimer = null
-    runAdvancedQuery(advancedInput.value)
-  }, 300)
-})
-
-advancedInput.addEventListener('keydown', (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !addSelectorBtn.disabled) {
-    e.preventDefault()
-    addAdvancedSelector()
-  }
-  if (e.key === 'Escape') {
-    e.preventDefault()
-    e.stopPropagation()
-    if (advancedInput.value) {
-      advancedInput.value = ''
-      runAdvancedQuery('')
-    } else {
-      setPickerMode('click')
-    }
-  }
-})
-
 function addAdvancedSelector() {
-  const selector = advancedInput.value.trim()
+  const selector = state.advancedQuery.trim()
   if (!selector || state.advancedMatchedElements.length === 0) return
 
   const firstElement = state.advancedMatchedElements[0]!
@@ -358,31 +277,19 @@ function addAdvancedSelector() {
     attributeName: '',
     preview: preview.substring(0, 120) || 'Element',
     overlay,
-    row: null!,
-  }
-
-  if (!state.useSidePanel) {
-    const row = buildSelectorRow(selection, badgeNumber)
-    selection.row = row
-    selectorList.appendChild(row)
-    row.scrollIntoView({behavior: 'smooth', block: 'nearest'})
   }
 
   state.selections.set(id, selection)
   elementToSelectionId.set(firstElement, id)
 
   clearAdvancedOverlays()
-  advancedInput.value = ''
-  advancedMatchInfo.textContent = ''
-  advancedPreviewList.textContent = ''
-  addSelectorBtn.disabled = true
+  state.advancedQuery = ''
+  state.advancedInputValid = true
 
-  scheduleRender()
+  renderPanel()
   debouncedSendUpdate()
   sendStateSync()
 }
-
-addSelectorBtn.addEventListener('click', addAdvancedSelector)
 
 // --- Debounced message sending ---
 
@@ -448,8 +355,8 @@ function sendStateSync() {
     pickerMode: state.pickerMode,
     advancedMatchCount: state.advancedMatchedElements.length,
     advancedPreviews,
-    advancedInputValid: !advancedInput.classList.contains('invalid'),
-    advancedQuery: advancedInput.value,
+    advancedInputValid: state.advancedInputValid,
+    advancedQuery: state.advancedQuery,
   })
 }
 
@@ -605,112 +512,7 @@ function updateBadgeNumbers() {
     }
     selection.overlay.style.borderColor = color.border
     selection.overlay.style.background = color.background
-
-    if (selection.row) {
-      const rowBadge = selection.row.querySelector('.row-badge') as HTMLElement | null
-      if (rowBadge) {
-        rowBadge.textContent = String(index + 1)
-        rowBadge.style.background = color.badge
-      }
-    }
-
     index++
-  }
-}
-
-// --- Row building ---
-
-function buildSelectorRow(selection: SelectionState, badgeNumber: number): HTMLDivElement {
-  const color = getSelectionColor(badgeNumber - 1)
-  const row = document.createElement('div')
-  row.className = 'selector-row'
-  row.dataset.id = selection.id
-
-  const badge = document.createElement('div')
-  badge.className = 'row-badge'
-  badge.style.background = color.badge
-  badge.textContent = String(badgeNumber)
-  row.appendChild(badge)
-
-  const preview = document.createElement('div')
-  preview.className = 'row-preview'
-  updatePreviewElement(preview, selection)
-  row.appendChild(preview)
-
-  const controls = document.createElement('div')
-  controls.className = 'row-controls'
-  row.appendChild(controls)
-
-  const extractSelect = document.createElement('select')
-  extractSelect.className = 'extract-select'
-  extractSelect.dataset.action = 'extract'
-
-  const textOption = document.createElement('option')
-  textOption.value = 'text_content'
-  textOption.textContent = 'Text'
-  extractSelect.appendChild(textOption)
-
-  const attrOption = document.createElement('option')
-  attrOption.value = 'attribute'
-  attrOption.textContent = 'Attribute'
-  extractSelect.appendChild(attrOption)
-
-  extractSelect.value = selection.extract
-  controls.appendChild(extractSelect)
-
-  const attrSelect = document.createElement('select')
-  attrSelect.className = 'extract-select'
-  attrSelect.dataset.action = 'attribute'
-  attrSelect.style.display = selection.extract === 'attribute' ? 'inline' : 'none'
-  attrSelect.dataset.attrSelect = 'true'
-
-  const placeholder = document.createElement('option')
-  placeholder.value = ''
-  placeholder.textContent = 'Select attribute\u2026'
-  placeholder.disabled = true
-  placeholder.selected = !selection.attributeName
-  attrSelect.appendChild(placeholder)
-
-  for (const attr of getElementAttributes(selection.element)) {
-    const opt = document.createElement('option')
-    opt.value = attr
-    opt.textContent = attr
-    if (attr === selection.attributeName) opt.selected = true
-    attrSelect.appendChild(opt)
-  }
-  controls.appendChild(attrSelect)
-
-  const removeBtn = document.createElement('button')
-  removeBtn.className = 'remove-btn'
-  removeBtn.dataset.action = 'remove'
-  removeBtn.textContent = '\u00d7'
-  removeBtn.title = 'Remove selection'
-  controls.appendChild(removeBtn)
-
-  return row
-}
-
-function updatePreviewElement(previewEl: HTMLElement, selection: SelectionState) {
-  previewEl.textContent = ''
-
-  if (selection.extract === 'attribute' && selection.attributeName) {
-    const value = selection.element.getAttribute(selection.attributeName)
-    if (value !== null) {
-      previewEl.textContent = value.trim().substring(0, 120) || '(empty)'
-    } else {
-      const muted = document.createElement('span')
-      muted.className = 'muted'
-      muted.textContent = '(attribute not found)'
-      previewEl.appendChild(muted)
-    }
-  } else if (selection.extract === 'attribute' && !selection.attributeName) {
-    const muted = document.createElement('span')
-    muted.className = 'muted'
-    muted.textContent = '(select an attribute)'
-    previewEl.appendChild(muted)
-  } else {
-    const text = (selection.element.textContent ?? '').trim().substring(0, 120)
-    previewEl.textContent = text || '(empty)'
   }
 }
 
@@ -731,20 +533,12 @@ function addSelection(el: HTMLElement) {
     attributeName: '',
     preview,
     overlay,
-    row: null!,
-  }
-
-  if (!state.useSidePanel) {
-    const row = buildSelectorRow(selection, badgeNumber)
-    selection.row = row
-    selectorList.appendChild(row)
-    row.scrollIntoView({behavior: 'smooth', block: 'nearest'})
   }
 
   state.selections.set(id, selection)
   elementToSelectionId.set(el, id)
 
-  scheduleRender()
+  renderPanel()
   debouncedSendUpdate()
   sendStateSync()
 }
@@ -753,23 +547,12 @@ function removeSelection(id: string) {
   const selection = state.selections.get(id)
   if (!selection) return
 
-  if (selection.row) {
-    selection.row.classList.add('removing')
-    selection.row.addEventListener(
-      'animationend',
-      () => {
-        selection.row.remove()
-      },
-      {once: true},
-    )
-  }
-
   selection.overlay.remove()
   elementToSelectionId.delete(selection.element)
   state.selections.delete(id)
 
   updateBadgeNumbers()
-  scheduleRender()
+  renderPanel()
   debouncedSendUpdate()
   sendStateSync()
 }
@@ -784,16 +567,7 @@ function updateSelectionExtract(id: string, extract: ExtractMode) {
   }
   selection.preview = extractPreview(selection.element, extract, selection.attributeName)
 
-  if (selection.row) {
-    const attrSelect = selection.row.querySelector('[data-attr-select]') as HTMLElement | null
-    if (attrSelect) {
-      attrSelect.style.display = extract === 'attribute' ? 'inline' : 'none'
-    }
-
-    const previewEl = selection.row.querySelector('.row-preview') as HTMLElement | null
-    if (previewEl) updatePreviewElement(previewEl, selection)
-  }
-
+  renderPanel()
   debouncedSendUpdate()
   sendStateSync()
 }
@@ -805,83 +579,20 @@ function updateSelectionAttribute(id: string, attributeName: string) {
   selection.attributeName = attributeName
   selection.preview = extractPreview(selection.element, selection.extract, attributeName)
 
-  if (selection.row) {
-    const previewEl = selection.row.querySelector('.row-preview') as HTMLElement | null
-    if (previewEl) updatePreviewElement(previewEl, selection)
-  }
-
+  renderPanel()
   debouncedSendUpdate()
   sendStateSync()
 }
 
-// --- Event delegation on selector list ---
-
-selectorList.addEventListener('click', e => {
-  const target = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null
-  if (!target) return
-  const action = target.dataset.action
-  const id = target.closest('[data-id]')?.getAttribute('data-id')
-  if (!id) return
-
-  if (action === 'remove') {
-    removeSelection(id)
-  }
-})
-
-selectorList.addEventListener('change', e => {
-  const target = e.target as HTMLElement
-  if (!target.dataset.action) return
-  const id = target.closest('[data-id]')?.getAttribute('data-id')
-  if (!id) return
-
-  if (target.dataset.action === 'extract') {
-    updateSelectionExtract(id, (target as HTMLSelectElement).value as ExtractMode)
-  } else if (target.dataset.action === 'attribute') {
-    updateSelectionAttribute(id, (target as HTMLSelectElement).value)
-  }
-})
-
-// Cross-hover: panel row → page element
-selectorList.addEventListener(
-  'mouseenter',
-  e => {
-    const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
-    if (!row) return
-    const id = row.dataset.id
-    if (!id) return
-
-    const selection = state.selections.get(id)
-    if (!selection) return
-
-    state.hoveredSelectionId = id
-    hoverOverlay.style.display = 'block'
-    positionOverlay(hoverOverlay, selection.element)
-  },
-  true,
-)
-
-selectorList.addEventListener(
-  'mouseleave',
-  e => {
-    const row = (e.target as HTMLElement).closest('.selector-row') as HTMLElement | null
-    if (!row) return
-    const id = row.dataset.id
-    if (!id || state.hoveredSelectionId !== id) return
-
-    state.hoveredSelectionId = null
-    hoverOverlay.style.display = 'none'
-  },
-  true,
-)
-
 // --- Error display ---
 
 function showError(message: string) {
-  errorBar.textContent = message
-  errorBar.style.display = 'block'
+  state.error = message
   panelHost.style.display = 'block'
+  renderPanel()
   setTimeout(() => {
-    errorBar.style.display = 'none'
+    state.error = null
+    renderPanel()
     if (!state.active) panelHost.style.display = 'none'
   }, 5000)
 }
@@ -901,10 +612,12 @@ function onMouseOver(e: MouseEvent) {
   positionOverlay(hoverOverlay, target)
 
   // Cross-hover: page element → panel row highlight
-  const id = elementToSelectionId.get(target)
-  if (id) {
-    const selection = state.selections.get(id)
-    if (selection?.row) selection.row.classList.add('highlighted')
+  if (!state.useSidePanel) {
+    const id = elementToSelectionId.get(target)
+    if (id) {
+      const row = shadow.querySelector(`[data-selection-id="${id}"]`) as HTMLElement | null
+      if (row) row.classList.add('highlighted')
+    }
   }
 }
 
@@ -915,10 +628,12 @@ function onMouseOut(e: MouseEvent) {
 
   hoverOverlay.style.display = 'none'
 
-  const id = elementToSelectionId.get(target)
-  if (id) {
-    const selection = state.selections.get(id)
-    if (selection?.row) selection.row.classList.remove('highlighted')
+  if (!state.useSidePanel) {
+    const id = elementToSelectionId.get(target)
+    if (id) {
+      const row = shadow.querySelector(`[data-selection-id="${id}"]`) as HTMLElement | null
+      if (row) row.classList.remove('highlighted')
+    }
   }
 }
 
@@ -954,38 +669,36 @@ function activate() {
   state.active = true
   if (!state.useSidePanel) {
     panelHost.style.display = 'block'
+    renderPanel()
   }
-  scheduleRender()
   document.addEventListener('mouseover', onMouseOver, true)
   document.addEventListener('mouseout', onMouseOut, true)
   document.addEventListener('click', onClick, true)
   document.addEventListener('keydown', onKeyDown, true)
 }
 
+function destroyInPagePanel() {
+  render(null, panelRoot)
+  panelHost.style.display = 'none'
+}
+
 function cleanup() {
   state.active = false
+  state.saving = false
+  state.error = null
   hoverOverlay.style.display = 'none'
-  panelHost.style.display = 'none'
+
+  destroyInPagePanel()
 
   for (const selection of state.selections.values()) {
     selection.overlay.remove()
   }
   state.selections.clear()
 
-  // Clear advanced mode state
   clearAdvancedOverlays()
-  advancedInput.value = ''
-  advancedMatchInfo.textContent = ''
-  advancedPreviewList.textContent = ''
-  addSelectorBtn.disabled = true
-  advancedInput.classList.remove('invalid')
-  advancedSection.classList.remove('visible')
+  state.advancedQuery = ''
+  state.advancedInputValid = true
   state.pickerMode = 'click'
-  modeToggle.textContent = 'Advanced'
-
-  // Clear panel rows, keep emptyState
-  const rows = selectorList.querySelectorAll('.selector-row')
-  rows.forEach(row => row.remove())
 
   document.removeEventListener('mouseover', onMouseOver, true)
   document.removeEventListener('mouseout', onMouseOut, true)
@@ -1001,15 +714,6 @@ function teardown() {
   delete (window as any).__isinstockPickerLoaded
 }
 
-// Toolbar button handlers
-doneBtn.addEventListener('click', () => {
-  if (state.selections.size > 0) sendComplete()
-})
-
-cancelBtn.addEventListener('click', () => {
-  sendCancel()
-})
-
 // Wait for StartElementPicker message to get sessionId and activate
 function onMessage(msg: unknown) {
   const message = msg as {action: string; sessionId?: string; error?: string; useSidePanel?: boolean}
@@ -1022,6 +726,7 @@ function onMessage(msg: unknown) {
   } else if (message.action === MessageAction.ElementPickerSidePanelReady) {
     if (state.active) {
       state.useSidePanel = true
+      destroyInPagePanel()
       sendStateSync()
     }
   } else if (message.action === MessageAction.ElementPickerCommand) {
@@ -1049,7 +754,6 @@ function onMessage(msg: unknown) {
         break
       case ElementPickerCommand.RunAdvancedQuery:
         if (cmd.selector !== undefined) {
-          advancedInput.value = cmd.selector
           runAdvancedQuery(cmd.selector)
           sendStateSync()
         }

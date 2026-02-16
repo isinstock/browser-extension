@@ -66,7 +66,7 @@ const entryPoints = [
   './src/content_scripts/amazon.tsx',
   './src/content_scripts/bestbuy.tsx',
   './src/content_scripts/isinstock_bridge.ts',
-  './src/content_scripts/element_picker.ts',
+  './src/content_scripts/element_picker.tsx',
 ]
 
 const config = {
