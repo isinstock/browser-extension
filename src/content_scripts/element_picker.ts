@@ -20,12 +20,17 @@ import styles from './element_picker.css'
     row: HTMLDivElement
   }
 
+  type PickerMode = 'click' | 'advanced'
+
   interface PickerState {
     active: boolean
     sessionId: string
     useSidePanel: boolean
     selections: Map<string, SelectionState>
     hoveredSelectionId: string | null
+    pickerMode: PickerMode
+    advancedOverlays: HTMLDivElement[]
+    advancedMatchedElements: HTMLElement[]
   }
 
   const state: PickerState = {
@@ -34,6 +39,9 @@ import styles from './element_picker.css'
     useSidePanel: false,
     selections: new Map(),
     hoveredSelectionId: null,
+    pickerMode: 'click',
+    advancedOverlays: [],
+    advancedMatchedElements: [],
   }
 
   const elementToSelectionId = new WeakMap<HTMLElement, string>()
@@ -87,13 +95,55 @@ import styles from './element_picker.css'
   emptyState.textContent = 'Click any element on the page to start tracking it'
   selectorList.appendChild(emptyState)
 
+  // --- Advanced mode section ---
+
+  const advancedSection = document.createElement('div')
+  advancedSection.className = 'advanced-section'
+  panel.appendChild(advancedSection)
+
+  const advancedInputRow = document.createElement('div')
+  advancedInputRow.className = 'advanced-input-row'
+  advancedSection.appendChild(advancedInputRow)
+
+  const advancedInput = document.createElement('input')
+  advancedInput.className = 'advanced-input'
+  advancedInput.type = 'text'
+  advancedInput.placeholder = 'Enter a CSS selector, e.g. .price, #total, [data-testid="amount"]'
+  advancedInput.spellcheck = false
+  advancedInput.autocomplete = 'off'
+  advancedInputRow.appendChild(advancedInput)
+
+  const addSelectorBtn = document.createElement('button')
+  addSelectorBtn.className = 'btn-add-selector'
+  addSelectorBtn.textContent = 'Add Selector'
+  addSelectorBtn.disabled = true
+  advancedInputRow.appendChild(addSelectorBtn)
+
+  const advancedMatchInfo = document.createElement('div')
+  advancedMatchInfo.className = 'advanced-match-info'
+  advancedSection.appendChild(advancedMatchInfo)
+
+  const advancedPreviewList = document.createElement('div')
+  advancedPreviewList.className = 'advanced-preview-list'
+  advancedSection.appendChild(advancedPreviewList)
+
   const toolbar = document.createElement('div')
   toolbar.className = 'toolbar'
   panel.appendChild(toolbar)
 
+  const toolbarLeft = document.createElement('div')
+  toolbarLeft.style.cssText = 'display: flex; align-items: center; gap: 12px;'
+  toolbar.appendChild(toolbarLeft)
+
   const countLabel = document.createElement('span')
   countLabel.textContent = '0 elements selected'
-  toolbar.appendChild(countLabel)
+  toolbarLeft.appendChild(countLabel)
+
+  const modeToggle = document.createElement('button')
+  modeToggle.className = 'mode-toggle'
+  modeToggle.textContent = 'Advanced'
+  modeToggle.title = 'Switch to CSS selector input'
+  toolbarLeft.appendChild(modeToggle)
 
   const actions = document.createElement('div')
   actions.className = 'toolbar-actions'
@@ -128,8 +178,205 @@ import styles from './element_picker.css'
     const count = state.selections.size
     countLabel.textContent = `${count} element${count === 1 ? '' : 's'} selected`
     doneBtn.disabled = count === 0
-    emptyState.style.display = count === 0 ? 'block' : 'none'
+    emptyState.style.display = count === 0 && state.pickerMode === 'click' ? 'block' : 'none'
   }
+
+  // --- Advanced mode ---
+
+  function setPickerMode(mode: PickerMode) {
+    state.pickerMode = mode
+    if (mode === 'advanced') {
+      advancedSection.classList.add('visible')
+      emptyState.style.display = 'none'
+      modeToggle.textContent = 'Click to select'
+      modeToggle.title = 'Switch to click-to-select mode'
+      advancedInput.focus()
+    } else {
+      advancedSection.classList.remove('visible')
+      clearAdvancedOverlays()
+      advancedInput.value = ''
+      advancedMatchInfo.textContent = ''
+      advancedPreviewList.textContent = ''
+      addSelectorBtn.disabled = true
+      advancedInput.classList.remove('invalid')
+      modeToggle.textContent = 'Advanced'
+      modeToggle.title = 'Switch to CSS selector input'
+    }
+    scheduleRender()
+  }
+
+  modeToggle.addEventListener('click', () => {
+    setPickerMode(state.pickerMode === 'click' ? 'advanced' : 'click')
+  })
+
+  function clearAdvancedOverlays() {
+    for (const overlay of state.advancedOverlays) {
+      overlay.remove()
+    }
+    state.advancedOverlays = []
+    state.advancedMatchedElements = []
+  }
+
+  function createAdvancedOverlay(el: HTMLElement): HTMLDivElement {
+    const overlay = document.createElement('div')
+    overlay.style.cssText = `
+      position: absolute;
+      pointer-events: none;
+      border: 2px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+      border-radius: 3px;
+      z-index: 2147483644;
+    `
+    positionOverlay(overlay, el)
+    document.documentElement.appendChild(overlay)
+    return overlay
+  }
+
+  function runAdvancedQuery(selector: string) {
+    clearAdvancedOverlays()
+    advancedInput.classList.remove('invalid')
+
+    if (!selector.trim()) {
+      advancedMatchInfo.textContent = ''
+      advancedPreviewList.textContent = ''
+      addSelectorBtn.disabled = true
+      return
+    }
+
+    let elements: NodeListOf<Element>
+    try {
+      elements = document.querySelectorAll(selector)
+    } catch {
+      advancedInput.classList.add('invalid')
+      advancedMatchInfo.textContent = 'Invalid selector'
+      advancedPreviewList.textContent = ''
+      addSelectorBtn.disabled = true
+      return
+    }
+
+    const matched: HTMLElement[] = []
+    elements.forEach(el => {
+      if (el instanceof HTMLElement && !isPickerUI(el)) {
+        matched.push(el)
+      }
+    })
+
+    state.advancedMatchedElements = matched
+    addSelectorBtn.disabled = matched.length === 0
+
+    const countSpan = document.createElement('span')
+    countSpan.className = matched.length === 0 ? 'advanced-match-count zero' : 'advanced-match-count'
+    countSpan.textContent = String(matched.length)
+
+    advancedMatchInfo.textContent = ''
+    advancedMatchInfo.appendChild(countSpan)
+    advancedMatchInfo.appendChild(document.createTextNode(` element${matched.length === 1 ? '' : 's'} match`))
+
+    advancedPreviewList.textContent = ''
+    const previewLimit = 5
+    for (let i = 0; i < Math.min(matched.length, previewLimit); i++) {
+      const el = matched[i]!
+      const item = document.createElement('div')
+      item.className = 'advanced-preview-item'
+      const text = (el.textContent ?? '').trim().substring(0, 80)
+      if (text) {
+        item.textContent = text
+      } else {
+        const muted = document.createElement('span')
+        muted.className = 'muted'
+        muted.textContent = `<${el.tagName.toLowerCase()}>`
+        item.appendChild(muted)
+      }
+      advancedPreviewList.appendChild(item)
+    }
+
+    if (matched.length > previewLimit) {
+      const more = document.createElement('div')
+      more.className = 'advanced-preview-item muted'
+      more.textContent = `\u2026and ${matched.length - previewLimit} more`
+      advancedPreviewList.appendChild(more)
+    }
+
+    for (const el of matched) {
+      state.advancedOverlays.push(createAdvancedOverlay(el))
+    }
+  }
+
+  let advancedQueryTimer: ReturnType<typeof setTimeout> | null = null
+
+  advancedInput.addEventListener('input', () => {
+    if (advancedQueryTimer !== null) clearTimeout(advancedQueryTimer)
+    advancedQueryTimer = setTimeout(() => {
+      advancedQueryTimer = null
+      runAdvancedQuery(advancedInput.value)
+    }, 300)
+  })
+
+  advancedInput.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && !addSelectorBtn.disabled) {
+      e.preventDefault()
+      addAdvancedSelector()
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      if (advancedInput.value) {
+        advancedInput.value = ''
+        runAdvancedQuery('')
+      } else {
+        setPickerMode('click')
+      }
+    }
+  })
+
+  function addAdvancedSelector() {
+    const selector = advancedInput.value.trim()
+    if (!selector || state.advancedMatchedElements.length === 0) return
+
+    const firstElement = state.advancedMatchedElements[0]!
+    const preview = state.advancedMatchedElements
+      .slice(0, 3)
+      .map(el => (el.textContent ?? '').trim().substring(0, 40))
+      .filter(Boolean)
+      .join(', ')
+
+    const id = crypto.randomUUID()
+    const badgeNumber = state.selections.size + 1
+    const overlay = createSelectedOverlay(firstElement, badgeNumber)
+
+    const selection: SelectionState = {
+      id,
+      element: firstElement,
+      cssSelector: selector,
+      extract: 'text_content',
+      attributeName: '',
+      preview: preview.substring(0, 120) || 'Element',
+      overlay,
+      row: null!,
+    }
+
+    if (!state.useSidePanel) {
+      const row = buildSelectorRow(selection, badgeNumber)
+      selection.row = row
+      selectorList.appendChild(row)
+      row.scrollIntoView({behavior: 'smooth', block: 'nearest'})
+    }
+
+    state.selections.set(id, selection)
+    elementToSelectionId.set(firstElement, id)
+
+    clearAdvancedOverlays()
+    advancedInput.value = ''
+    advancedMatchInfo.textContent = ''
+    advancedPreviewList.textContent = ''
+    addSelectorBtn.disabled = true
+
+    scheduleRender()
+    debouncedSendUpdate()
+    sendStateSync()
+  }
+
+  addSelectorBtn.addEventListener('click', addAdvancedSelector)
 
   // --- Debounced message sending ---
 
@@ -617,6 +864,7 @@ import styles from './element_picker.css'
 
   function onMouseOver(e: MouseEvent) {
     if (!state.active) return
+    if (state.pickerMode === 'advanced') return
     const target = e.target as HTMLElement
     if (isPickerUI(target)) return
 
@@ -633,6 +881,7 @@ import styles from './element_picker.css'
 
   function onMouseOut(e: MouseEvent) {
     if (!state.active) return
+    if (state.pickerMode === 'advanced') return
     const target = e.target as HTMLElement
     if (isPickerUI(target)) return
 
@@ -647,6 +896,7 @@ import styles from './element_picker.css'
 
   function onClick(e: MouseEvent) {
     if (!state.active) return
+    if (state.pickerMode === 'advanced') return
     const target = e.target as HTMLElement
     if (isPickerUI(target)) return
 
@@ -665,6 +915,7 @@ import styles from './element_picker.css'
   function onKeyDown(e: KeyboardEvent) {
     if (!state.active) return
     if (e.key === 'Escape') {
+      if (state.pickerMode === 'advanced') return
       e.preventDefault()
       sendCancel()
     }
@@ -693,6 +944,17 @@ import styles from './element_picker.css'
       selection.overlay.remove()
     }
     state.selections.clear()
+
+    // Clear advanced mode state
+    clearAdvancedOverlays()
+    advancedInput.value = ''
+    advancedMatchInfo.textContent = ''
+    advancedPreviewList.textContent = ''
+    addSelectorBtn.disabled = true
+    advancedInput.classList.remove('invalid')
+    advancedSection.classList.remove('visible')
+    state.pickerMode = 'click'
+    modeToggle.textContent = 'Advanced'
 
     // Clear panel rows, keep emptyState
     const rows = selectorList.querySelectorAll('.selector-row')

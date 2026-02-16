@@ -67,13 +67,21 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* Row badge */
@@ -146,7 +154,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
 }
 
 .remove-btn:hover {
@@ -201,6 +211,143 @@
 
 .btn-cancel:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mode toggle */
+.mode-toggle {
+  color: #a5b4fc;
+  font-size: 13px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  transition: color 150ms ease;
+}
+
+.mode-toggle:hover {
+  color: #c7d2fe;
+}
+
+/* Advanced mode section */
+.advanced-section {
+  display: none;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.advanced-section.visible {
+  display: block;
+}
+
+.advanced-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.advanced-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #4338ca;
+  border-radius: 6px;
+  background: #312e81;
+  color: #e0e7ff;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.advanced-input::placeholder {
+  color: #6366f1;
+}
+
+.advanced-input:focus {
+  border-color: #818cf8;
+}
+
+.advanced-input.invalid {
+  border-color: #ef4444;
+}
+
+.btn-add-selector {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: #059669;
+  color: #fff;
+  font-family: inherit;
+  white-space: nowrap;
+  transition:
+    background 150ms ease,
+    opacity 150ms ease;
+}
+
+.btn-add-selector:hover {
+  background: #047857;
+}
+
+.btn-add-selector:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.advanced-match-info {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #a5b4fc;
+}
+
+.advanced-match-count {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.advanced-match-count.zero {
+  color: #818cf8;
+}
+
+.advanced-preview-list {
+  margin-top: 6px;
+  max-height: 100px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4338ca #1e1b4b;
+}
+
+.advanced-preview-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.advanced-preview-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.advanced-preview-list::-webkit-scrollbar-thumb {
+  background: #4338ca;
+  border-radius: 2px;
+}
+
+.advanced-preview-item {
+  padding: 2px 0;
+  font-size: 12px;
+  color: #c7d2fe;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.advanced-preview-item .muted {
+  color: #818cf8;
+  font-style: italic;
 }
 
 /* Overlay badge (used in page overlays via inline styles, defined here for reference) */
