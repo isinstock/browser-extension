@@ -125,10 +125,20 @@ async function injectElementPicker(
   console.debug('[isinstock-bg] Injecting element picker into tab:', tabId, 'session:', sid, 'origin:', originTabId)
   pickerSessions.set(sid, {originTabId, targetTabId: tabId, url})
 
-  await browser.scripting.executeScript({
+  // Check if the picker script is already loaded in this tab to avoid
+  // re-injecting and re-creating all the DOM elements / listeners.
+  const results = await browser.scripting.executeScript({
     target: {tabId},
-    files: ['content_scripts/element_picker.js'],
+    func: () => (window as any).__isinstockPickerLoaded === true,
   })
+  const alreadyLoaded = results[0]?.result === true
+
+  if (!alreadyLoaded) {
+    await browser.scripting.executeScript({
+      target: {tabId},
+      files: ['content_scripts/element_picker.js'],
+    })
+  }
 
   let useSidePanel = sidePanelAlreadyOpen
   if (!useSidePanel && typeof chrome !== 'undefined' && chrome.sidePanel != null) {

@@ -4,8 +4,21 @@
 
 :host {
   @apply text-base;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial,
-    Noto Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Roboto,
+    Helvetica Neue,
+    Arial,
+    Noto Sans,
+    sans-serif,
+    Apple Color Emoji,
+    Segoe UI Emoji,
+    Segoe UI Symbol,
+    Noto Color Emoji;
 }
 
 .btn {
@@ -30,7 +43,6 @@
   @apply w-4 h-4;
 }
 
-
 @keyframes select-menu-animation {
   0% {
     @apply scale-90 opacity-0;
@@ -52,7 +64,7 @@
 }
 
 .inventory-button-unavailable {
-  @apply bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-indigo-500;
+  @apply bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-sky-500;
 }
 
 .inventory-button-icon {
