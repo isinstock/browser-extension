@@ -29,6 +29,9 @@
   "background": {
     "service_worker": "background.js"
   },
+  "externally_connectable": {
+    "matches": ["https://isinstock.com/*", "https://*.isinstock.com/*", "http://isinstock.localhost/*"]
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
@@ -67,9 +70,7 @@
         "images/inventory-states/unavailable/64.png",
         "images/inventory-states/unavailable/128.png"
       ],
-      "extension_ids": [
-        "bnglflgcpflggbpbcbpgeaknekceeojd"
-      ],
+      "extension_ids": ["bnglflgcpflggbpbcbpgeaknekceeojd"],
       "matches": ["<all_urls>"]
     }
   ],
