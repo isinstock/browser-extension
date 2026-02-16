@@ -3,6 +3,11 @@ import {Product} from './linked-data'
 import {Coordinate, LocationStyle, LocationStyleNormalized} from './locations'
 import {Retailer} from './retailers'
 
+export interface CurrentUser {
+  email: string
+  created_at: string
+}
+
 export interface InventorySubscriptionManufactureImage {
   thumbnail: string
   small: string

@@ -55,9 +55,133 @@
         border-radius: 3px;
       }
 
+      .view-content-centered {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
       .view-footer {
         padding: 12px;
         border-top: 1px solid #e5e7eb;
+      }
+
+      /* --- Header --- */
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        flex-shrink: 0;
+      }
+
+      .header-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .header-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .header-avatar-wrapper {
+        position: relative;
+      }
+
+      .header-avatar-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        cursor: pointer;
+        padding: 0;
+        transition: opacity 150ms ease;
+      }
+
+      .header-avatar-btn:hover {
+        opacity: 0.8;
+      }
+
+      .header-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+
+      .header-avatar-fallback {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #00aae7;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .header-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        min-width: 200px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 100;
+        overflow: hidden;
+      }
+
+      .header-dropdown-email {
+        padding: 10px 12px;
+        font-size: 12px;
+        color: #6b7280;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .header-dropdown-divider {
+        height: 1px;
+        background: #e5e7eb;
+      }
+
+      .header-dropdown-item {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        font-size: 13px;
+        font-family: inherit;
+        color: #374151;
+        text-align: left;
+        cursor: pointer;
+        transition: background 150ms ease;
+      }
+
+      .header-dropdown-item:hover {
+        background: #f3f4f6;
+      }
+
+      .header-dropdown-item-danger {
+        color: #ef4444;
+      }
+
+      .header-dropdown-item-danger:hover {
+        background: #fef2f2;
       }
 
       /* --- Buttons --- */
@@ -152,6 +276,10 @@
         font-size: 13px;
         color: #9ca3af;
         line-height: 1.5;
+      }
+
+      .empty-state .btn {
+        margin-top: 8px;
       }
 
       .loading-state {
@@ -355,7 +483,6 @@
         width: 22px;
         height: 22px;
         border-radius: 50%;
-        background: #32b91c;
         color: #fff;
         font-size: 11px;
         font-weight: 600;
@@ -377,6 +504,17 @@
       .row-preview .muted {
         color: #9ca3af;
         font-style: italic;
+      }
+
+      .row-selector {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        color: #6b7280;
+        font-family: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, monospace;
       }
 
       .row-controls {

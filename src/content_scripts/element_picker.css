@@ -84,13 +84,12 @@
   }
 }
 
-/* Row badge */
+/* Row badge — background set via inline style per selection color */
 .row-badge {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #32b91c;
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -358,7 +357,6 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #32b91c;
   color: #fff;
   font-size: 11px;
   font-weight: 600;

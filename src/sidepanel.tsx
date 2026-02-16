@@ -2,7 +2,9 @@ import {render} from 'preact'
 import {useState, useEffect, useCallback, useRef} from 'preact/hooks'
 import {ElementPickerCommand, MessageAction} from './@types/messages'
 import type {PickerSelectionInfo, AdvancedPreviewItem, ElementPickerStateSyncMessage} from './@types/messages'
-import {useAccessToken} from './hooks'
+import type {CurrentUser} from './@types/api'
+import {useAccessToken, useCurrentUser} from './hooks'
+import {getSelectionColor} from './utils/selection-colors'
 
 type AppView = 'subscriptions' | 'picker'
 type PickerMode = 'click' | 'advanced'
@@ -27,11 +29,91 @@ interface Subscription {
   product: SubscriptionProduct
 }
 
+function gravatarUrl(email: string, size: number = 80): string {
+  const hash = email.trim().toLowerCase()
+  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=mp`
+}
+
+function emailInitial(email: string): string {
+  return email.charAt(0).toUpperCase()
+}
+
+function Header({user, onDisconnect}: {user: CurrentUser; onDisconnect: () => void}) {
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!dropdownOpen) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside, true)
+    return () => document.removeEventListener('click', handleClickOutside, true)
+  }, [dropdownOpen])
+
+  return (
+    <div class="header">
+      <div class="header-brand">
+        <svg class="header-logo" width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+            stroke="#00aae7"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span class="header-title">Is In Stock</span>
+      </div>
+      <div class="header-avatar-wrapper" ref={dropdownRef}>
+        <button class="header-avatar-btn" onClick={() => setDropdownOpen(!dropdownOpen)} title={user.email}>
+          <img
+            class="header-avatar"
+            src={gravatarUrl(user.email)}
+            alt=""
+            onError={e => {
+              const target = e.target as HTMLImageElement
+              target.style.display = 'none'
+              const fallback = target.nextElementSibling as HTMLElement
+              if (fallback) fallback.style.display = 'flex'
+            }}
+          />
+          <div class="header-avatar-fallback">{emailInitial(user.email)}</div>
+        </button>
+        {dropdownOpen && (
+          <div class="header-dropdown">
+            <div class="header-dropdown-email">{user.email}</div>
+            <div class="header-dropdown-divider" />
+            <button
+              class="header-dropdown-item header-dropdown-item-danger"
+              onClick={() => {
+                setDropdownOpen(false)
+                onDisconnect()
+              }}
+            >
+              Disconnect
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
   const {accessToken, isLoggedIn} = useAccessToken()
+  const {user} = useCurrentUser()
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const handleDisconnect = useCallback(() => {
+    chrome.storage.local.remove('accessToken')
+  }, [])
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -71,24 +153,19 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
   if (!isLoggedIn) {
     return (
       <div class="view">
-        <div class="view-content">
+        <div class="view-content view-content-centered">
           <div class="empty-state">
             <div class="empty-state-icon">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
                 <path d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
               </svg>
             </div>
-            <p class="empty-state-title">Sign in to get started</p>
+            <p class="empty-state-title">Connect to get started</p>
             <p class="empty-state-body">Track products and get notified when they're back in stock or prices drop.</p>
-            <a href={`${ISINSTOCK_URL}/users/login`} target="_blank" rel="noreferrer" class="btn btn-primary">
-              Sign in
+            <a href={`${ISINSTOCK_URL}/extension/authorize`} target="_blank" rel="noreferrer" class="btn btn-primary">
+              Connect account
             </a>
           </div>
-        </div>
-        <div class="view-footer">
-          <button class="btn btn-primary btn-full" onClick={onTrackNew}>
-            Track new
-          </button>
         </div>
       </div>
     )
@@ -97,7 +174,8 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
   if (loading) {
     return (
       <div class="view">
-        <div class="view-content">
+        {user && <Header user={user} onDisconnect={handleDisconnect} />}
+        <div class="view-content view-content-centered">
           <div class="loading-state">
             <div class="spinner" />
           </div>
@@ -109,24 +187,24 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
   if (error) {
     return (
       <div class="view">
-        <div class="view-content">
+        {user && <Header user={user} onDisconnect={handleDisconnect} />}
+        <div class="view-content view-content-centered">
           <div class="empty-state">
             <p class="empty-state-body">{error}</p>
+            <button class="btn btn-primary" onClick={onTrackNew}>
+              Track new
+            </button>
           </div>
-        </div>
-        <div class="view-footer">
-          <button class="btn btn-primary btn-full" onClick={onTrackNew}>
-            Track new
-          </button>
         </div>
       </div>
     )
   }
 
-  return (
-    <div class="view">
-      <div class="view-content">
-        {subscriptions.length === 0 ? (
+  if (subscriptions.length === 0) {
+    return (
+      <div class="view">
+        {user && <Header user={user} onDisconnect={handleDisconnect} />}
+        <div class="view-content view-content-centered">
           <div class="empty-state">
             <div class="empty-state-icon">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
@@ -135,45 +213,55 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
             </div>
             <p class="empty-state-title">No products yet</p>
             <p class="empty-state-body">Start tracking products to see them here.</p>
+            <button class="btn btn-primary" onClick={onTrackNew}>
+              Track new
+            </button>
           </div>
-        ) : (
-          <div class="subscription-list">
-            {subscriptions.map(sub => (
-              <a
-                key={sub.id}
-                href={`${ISINSTOCK_URL}/p/${sub.product.public_id}`}
-                target="_blank"
-                rel="noreferrer"
-                class="subscription-item"
-              >
-                <div class="subscription-image">
-                  {sub.product.image_url ? (
-                    <img src={sub.product.image_url} alt="" />
-                  ) : (
-                    <div class="subscription-image-placeholder">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
-                        <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div class="subscription-info">
-                  <div class="subscription-name">{sub.product.name}</div>
-                  <div class="subscription-meta">
-                    <span class="subscription-retailer">{sub.product.retailer_name}</span>
-                    {sub.product.price && <span class="subscription-price">{sub.product.price}</span>}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div class="view">
+      {user && <Header user={user} onDisconnect={handleDisconnect} />}
+      <div class="view-content">
+        <div class="subscription-list">
+          {subscriptions.map(sub => (
+            <a
+              key={sub.id}
+              href={`${ISINSTOCK_URL}/p/${sub.product.public_id}`}
+              target="_blank"
+              rel="noreferrer"
+              class="subscription-item"
+            >
+              <div class="subscription-image">
+                {sub.product.image_url ? (
+                  <img src={sub.product.image_url} alt="" />
+                ) : (
+                  <div class="subscription-image-placeholder">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
+                      <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                    </svg>
                   </div>
-                </div>
-                {sub.product.availability && (
-                  <div
-                    class={`subscription-availability ${sub.product.availability === 'in_stock' ? 'available' : 'unavailable'}`}
-                    title={sub.product.availability === 'in_stock' ? 'In stock' : 'Out of stock'}
-                  />
                 )}
-              </a>
-            ))}
-          </div>
-        )}
+              </div>
+              <div class="subscription-info">
+                <div class="subscription-name">{sub.product.name}</div>
+                <div class="subscription-meta">
+                  <span class="subscription-retailer">{sub.product.retailer_name}</span>
+                  {sub.product.price && <span class="subscription-price">{sub.product.price}</span>}
+                </div>
+              </div>
+              {sub.product.availability && (
+                <div
+                  class={`subscription-availability ${sub.product.availability === 'in_stock' ? 'available' : 'unavailable'}`}
+                  title={sub.product.availability === 'in_stock' ? 'In stock' : 'Out of stock'}
+                />
+              )}
+            </a>
+          ))}
+        </div>
       </div>
       <div class="view-footer">
         <button class="btn btn-primary btn-full" onClick={onTrackNew}>
@@ -200,67 +288,81 @@ function SegmentedControl({value, onChange}: {value: PickerMode; onChange: (mode
 function SelectorRow({
   selection,
   index,
+  pickerMode,
   onCommand,
 }: {
   selection: PickerSelectionInfo
   index: number
+  pickerMode: PickerMode
   onCommand: (command: ElementPickerCommand, opts?: Record<string, string>) => void
 }) {
-  return (
-    <div class="selector-row">
-      <div class="row-badge">{index + 1}</div>
-      <div class="row-preview">
-        {selection.extract === 'attribute' && selection.attributeName ? (
-          selection.preview || <span class="muted">(empty)</span>
-        ) : selection.extract === 'attribute' && !selection.attributeName ? (
-          <span class="muted">(select an attribute)</span>
-        ) : (
-          selection.preview || '(empty)'
-        )}
-      </div>
-      <div class="row-controls">
-        <select
-          class="extract-select"
-          value={selection.extract}
-          onChange={e =>
-            onCommand(ElementPickerCommand.ChangeExtract, {
-              selectionId: selection.id,
-              extract: (e.target as HTMLSelectElement).value,
-            })
-          }
-        >
-          <option value="text_content">Text</option>
-          <option value="attribute">Attribute</option>
-        </select>
-        {selection.extract === 'attribute' && (
+  if (pickerMode === 'advanced') {
+    return (
+      <div class="selector-row">
+        <div class="row-badge" style={{background: getSelectionColor(index).badge}}>
+          {index + 1}
+        </div>
+        <div class="row-selector">{selection.cssSelector}</div>
+        <div class="row-controls">
           <select
             class="extract-select"
-            value={selection.attributeName}
+            value={selection.extract}
             onChange={e =>
-              onCommand(ElementPickerCommand.ChangeAttribute, {
+              onCommand(ElementPickerCommand.ChangeExtract, {
                 selectionId: selection.id,
-                attributeName: (e.target as HTMLSelectElement).value,
+                extract: (e.target as HTMLSelectElement).value,
               })
             }
           >
-            <option value="" disabled selected={!selection.attributeName}>
-              Select attribute…
-            </option>
-            {selection.availableAttributes.map(attr => (
-              <option key={attr} value={attr}>
-                {attr}
-              </option>
-            ))}
+            <option value="text_content">Text</option>
+            <option value="attribute">Attribute</option>
           </select>
-        )}
-        <button
-          class="remove-btn"
-          title="Remove selection"
-          onClick={() => onCommand(ElementPickerCommand.Remove, {selectionId: selection.id})}
-        >
-          ×
-        </button>
+          {selection.extract === 'attribute' && (
+            <select
+              class="extract-select"
+              value={selection.attributeName}
+              onChange={e =>
+                onCommand(ElementPickerCommand.ChangeAttribute, {
+                  selectionId: selection.id,
+                  attributeName: (e.target as HTMLSelectElement).value,
+                })
+              }
+            >
+              <option value="" disabled selected={!selection.attributeName}>
+                Select attribute…
+              </option>
+              {selection.availableAttributes.map(attr => (
+                <option key={attr} value={attr}>
+                  {attr}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            class="remove-btn"
+            title="Remove selection"
+            onClick={() => onCommand(ElementPickerCommand.Remove, {selectionId: selection.id})}
+          >
+            ×
+          </button>
+        </div>
       </div>
+    )
+  }
+
+  return (
+    <div class="selector-row">
+      <div class="row-badge" style={{background: getSelectionColor(index).badge}}>
+        {index + 1}
+      </div>
+      <div class="row-preview">{selection.preview || '(empty)'}</div>
+      <button
+        class="remove-btn"
+        title="Remove selection"
+        onClick={() => onCommand(ElementPickerCommand.Remove, {selectionId: selection.id})}
+      >
+        ×
+      </button>
     </div>
   )
 }
@@ -455,7 +557,9 @@ function PickerView({onBack}: {onBack: () => void}) {
               <p class="empty-state-body">Click any element on the page to start tracking it</p>
             </div>
           ) : (
-            selections.map((sel, i) => <SelectorRow key={sel.id} selection={sel} index={i} onCommand={sendCommand} />)
+            selections.map((sel, i) => (
+              <SelectorRow key={sel.id} selection={sel} index={i} pickerMode={pickerMode} onCommand={sendCommand} />
+            ))
           )}
         </div>
       ) : (
@@ -471,7 +575,7 @@ function PickerView({onBack}: {onBack: () => void}) {
             <>
               <div class="added-selectors-label">Added selectors</div>
               {selections.map((sel, i) => (
-                <SelectorRow key={sel.id} selection={sel} index={i} onCommand={sendCommand} />
+                <SelectorRow key={sel.id} selection={sel} index={i} pickerMode={pickerMode} onCommand={sendCommand} />
               ))}
             </>
           )}

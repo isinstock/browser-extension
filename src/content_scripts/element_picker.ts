@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
 import type {ElementPickerCommandMessage} from '../@types/messages'
+import {getSelectionColor} from '../utils/selection-colors'
 import styles from './element_picker.css'
 
 // The background script checks __isinstockPickerLoaded before injecting
@@ -552,12 +553,13 @@ function positionOverlay(overlay: HTMLElement, el: Element) {
 }
 
 function createSelectedOverlay(el: HTMLElement, badgeNumber: number): HTMLDivElement {
+  const color = getSelectionColor(badgeNumber - 1)
   const overlay = document.createElement('div')
   overlay.style.cssText = `
       position: absolute;
       pointer-events: none;
-      border: 2px solid #32B91C;
-      background: rgba(50, 185, 28, 0.08);
+      border: 2px solid ${color.border};
+      background: ${color.background};
       border-radius: 3px;
       z-index: 2147483645;
       overflow: visible;
@@ -572,7 +574,7 @@ function createSelectedOverlay(el: HTMLElement, badgeNumber: number): HTMLDivEle
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      background: #32B91C;
+      background: ${color.badge};
       color: #fff;
       font-size: 11px;
       font-weight: 600;
@@ -593,14 +595,23 @@ function createSelectedOverlay(el: HTMLElement, badgeNumber: number): HTMLDivEle
 // --- Badge renumbering ---
 
 function updateBadgeNumbers() {
-  let index = 1
+  let index = 0
   for (const selection of state.selections.values()) {
+    const color = getSelectionColor(index)
     const badge = selection.overlay.querySelector('[data-overlay-badge]') as HTMLElement | null
-    if (badge) badge.textContent = String(index)
+    if (badge) {
+      badge.textContent = String(index + 1)
+      badge.style.background = color.badge
+    }
+    selection.overlay.style.borderColor = color.border
+    selection.overlay.style.background = color.background
 
     if (selection.row) {
       const rowBadge = selection.row.querySelector('.row-badge') as HTMLElement | null
-      if (rowBadge) rowBadge.textContent = String(index)
+      if (rowBadge) {
+        rowBadge.textContent = String(index + 1)
+        rowBadge.style.background = color.badge
+      }
     }
 
     index++
@@ -610,12 +621,14 @@ function updateBadgeNumbers() {
 // --- Row building ---
 
 function buildSelectorRow(selection: SelectionState, badgeNumber: number): HTMLDivElement {
+  const color = getSelectionColor(badgeNumber - 1)
   const row = document.createElement('div')
   row.className = 'selector-row'
   row.dataset.id = selection.id
 
   const badge = document.createElement('div')
   badge.className = 'row-badge'
+  badge.style.background = color.badge
   badge.textContent = String(badgeNumber)
   row.appendChild(badge)
 
@@ -881,7 +894,6 @@ function isPickerUI(el: Element): boolean {
 
 function onMouseOver(e: MouseEvent) {
   if (!state.active) return
-  if (state.pickerMode === 'advanced') return
   const target = e.target as HTMLElement
   if (isPickerUI(target)) return
 
@@ -892,13 +904,12 @@ function onMouseOver(e: MouseEvent) {
   const id = elementToSelectionId.get(target)
   if (id) {
     const selection = state.selections.get(id)
-    if (selection) selection.row.classList.add('highlighted')
+    if (selection?.row) selection.row.classList.add('highlighted')
   }
 }
 
 function onMouseOut(e: MouseEvent) {
   if (!state.active) return
-  if (state.pickerMode === 'advanced') return
   const target = e.target as HTMLElement
   if (isPickerUI(target)) return
 
@@ -907,13 +918,12 @@ function onMouseOut(e: MouseEvent) {
   const id = elementToSelectionId.get(target)
   if (id) {
     const selection = state.selections.get(id)
-    if (selection) selection.row.classList.remove('highlighted')
+    if (selection?.row) selection.row.classList.remove('highlighted')
   }
 }
 
 function onClick(e: MouseEvent) {
   if (!state.active) return
-  if (state.pickerMode === 'advanced') return
   const target = e.target as HTMLElement
   if (isPickerUI(target)) return
 
