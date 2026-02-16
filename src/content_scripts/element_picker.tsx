@@ -18,12 +18,12 @@ type ExtractMode = 'text_content' | 'attribute'
 
 interface SelectionState {
   id: string
-  element: HTMLElement
+  elements: HTMLElement[]
   cssSelector: string
   extract: ExtractMode
   attributeName: string
   preview: string
-  overlay: HTMLDivElement
+  overlays: HTMLDivElement[]
 }
 
 type PickerMode = 'click' | 'advanced'
@@ -103,7 +103,7 @@ function renderPanel() {
     extract: s.extract,
     attributeName: s.attributeName,
     preview: s.preview,
-    availableAttributes: getElementAttributes(s.element),
+    availableAttributes: getElementAttributes(s.elements[0]!),
   }))
 
   render(
@@ -173,7 +173,7 @@ function handleSelectionHoverStart(selectionId: string) {
 
   state.hoveredSelectionId = selectionId
   hoverOverlay.style.display = 'block'
-  positionOverlay(hoverOverlay, selection.element)
+  positionOverlay(hoverOverlay, selection.elements[0]!)
 }
 
 function handleSelectionHoverEnd(selectionId: string) {
@@ -258,8 +258,8 @@ function addAdvancedSelector() {
   const selector = state.advancedQuery.trim()
   if (!selector || state.advancedMatchedElements.length === 0) return
 
-  const firstElement = state.advancedMatchedElements[0]!
-  const preview = state.advancedMatchedElements
+  const matchedElements = state.advancedMatchedElements
+  const preview = matchedElements
     .slice(0, 3)
     .map(el => (el.textContent ?? '').trim().substring(0, 40))
     .filter(Boolean)
@@ -267,20 +267,22 @@ function addAdvancedSelector() {
 
   const id = crypto.randomUUID()
   const badgeNumber = state.selections.size + 1
-  const overlay = createSelectedOverlay(firstElement, badgeNumber)
+  const overlays = matchedElements.map((el, i) => createSelectedOverlay(el, badgeNumber, i > 0))
 
   const selection: SelectionState = {
     id,
-    element: firstElement,
+    elements: matchedElements,
     cssSelector: selector,
     extract: 'text_content',
     attributeName: '',
     preview: preview.substring(0, 120) || 'Element',
-    overlay,
+    overlays,
   }
 
   state.selections.set(id, selection)
-  elementToSelectionId.set(firstElement, id)
+  for (const el of matchedElements) {
+    elementToSelectionId.set(el, id)
+  }
 
   clearAdvancedOverlays()
   state.advancedQuery = ''
@@ -350,7 +352,7 @@ function sendStateSync() {
       extract: s.extract,
       attributeName: s.attributeName,
       preview: s.preview,
-      availableAttributes: getElementAttributes(s.element),
+      availableAttributes: getElementAttributes(s.elements[0]!),
     })),
     pickerMode: state.pickerMode,
     advancedMatchCount: state.advancedMatchedElements.length,
@@ -459,7 +461,7 @@ function positionOverlay(overlay: HTMLElement, el: Element) {
   overlay.style.height = `${rect.height}px`
 }
 
-function createSelectedOverlay(el: HTMLElement, badgeNumber: number): HTMLDivElement {
+function createSelectedOverlay(el: HTMLElement, badgeNumber: number, hideBadge = false): HTMLDivElement {
   const color = getSelectionColor(badgeNumber - 1)
   const overlay = document.createElement('div')
   overlay.style.cssText = `
@@ -473,27 +475,29 @@ function createSelectedOverlay(el: HTMLElement, badgeNumber: number): HTMLDivEle
     `
   positionOverlay(overlay, el)
 
-  const badge = document.createElement('div')
-  badge.style.cssText = `
-      position: absolute;
-      top: -8px;
-      left: -8px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: ${color.badge};
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      pointer-events: none;
-    `
-  badge.textContent = String(badgeNumber)
-  badge.dataset.overlayBadge = 'true'
-  overlay.appendChild(badge)
+  if (!hideBadge) {
+    const badge = document.createElement('div')
+    badge.style.cssText = `
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: ${color.badge};
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        pointer-events: none;
+      `
+    badge.textContent = String(badgeNumber)
+    badge.dataset.overlayBadge = 'true'
+    overlay.appendChild(badge)
+  }
 
   document.documentElement.appendChild(overlay)
   return overlay
@@ -505,13 +509,15 @@ function updateBadgeNumbers() {
   let index = 0
   for (const selection of state.selections.values()) {
     const color = getSelectionColor(index)
-    const badge = selection.overlay.querySelector('[data-overlay-badge]') as HTMLElement | null
-    if (badge) {
-      badge.textContent = String(index + 1)
-      badge.style.background = color.badge
+    for (const overlay of selection.overlays) {
+      const badge = overlay.querySelector('[data-overlay-badge]') as HTMLElement | null
+      if (badge) {
+        badge.textContent = String(index + 1)
+        badge.style.background = color.badge
+      }
+      overlay.style.borderColor = color.border
+      overlay.style.background = color.background
     }
-    selection.overlay.style.borderColor = color.border
-    selection.overlay.style.background = color.background
     index++
   }
 }
@@ -527,12 +533,12 @@ function addSelection(el: HTMLElement) {
 
   const selection: SelectionState = {
     id,
-    element: el,
+    elements: [el],
     cssSelector,
     extract: 'text_content',
     attributeName: '',
     preview,
-    overlay,
+    overlays: [overlay],
   }
 
   state.selections.set(id, selection)
@@ -547,8 +553,12 @@ function removeSelection(id: string) {
   const selection = state.selections.get(id)
   if (!selection) return
 
-  selection.overlay.remove()
-  elementToSelectionId.delete(selection.element)
+  for (const overlay of selection.overlays) {
+    overlay.remove()
+  }
+  for (const el of selection.elements) {
+    elementToSelectionId.delete(el)
+  }
   state.selections.delete(id)
 
   updateBadgeNumbers()
@@ -565,7 +575,7 @@ function updateSelectionExtract(id: string, extract: ExtractMode) {
   if (extract === 'text_content') {
     selection.attributeName = ''
   }
-  selection.preview = extractPreview(selection.element, extract, selection.attributeName)
+  selection.preview = extractPreview(selection.elements[0]!, extract, selection.attributeName)
 
   renderPanel()
   debouncedSendUpdate()
@@ -577,7 +587,7 @@ function updateSelectionAttribute(id: string, attributeName: string) {
   if (!selection) return
 
   selection.attributeName = attributeName
-  selection.preview = extractPreview(selection.element, selection.extract, attributeName)
+  selection.preview = extractPreview(selection.elements[0]!, selection.extract, attributeName)
 
   renderPanel()
   debouncedSendUpdate()
@@ -691,7 +701,9 @@ function cleanup() {
   destroyInPagePanel()
 
   for (const selection of state.selections.values()) {
-    selection.overlay.remove()
+    for (const overlay of selection.overlays) {
+      overlay.remove()
+    }
   }
   state.selections.clear()
 

@@ -162,22 +162,11 @@ async function injectElementPicker(
     })
   }
 
-  let useSidePanel = sidePanelAlreadyOpen
-  if (!useSidePanel && typeof chrome !== 'undefined' && chrome.sidePanel != null) {
-    try {
-      await chrome.sidePanel.setOptions({tabId, path: 'sidepanel.html', enabled: true})
-      await chrome.sidePanel.open({tabId})
-      useSidePanel = true
-    } catch {
-      // No user gesture or side panel unavailable — fall back to in-page panel
-    }
-  }
-
   await browser.tabs.sendMessage(tabId, {
     action: MessageAction.StartElementPicker,
     sessionId: sid,
     url,
-    useSidePanel,
+    useSidePanel: sidePanelAlreadyOpen,
   })
 
   if (originTabId !== undefined) {
@@ -185,7 +174,7 @@ async function injectElementPicker(
       .sendMessage(originTabId, {
         action: MessageAction.ElementPickerStarted,
         sessionId: sid,
-        mode: useSidePanel ? 'side_panel' : 'tab',
+        mode: sidePanelAlreadyOpen ? 'side_panel' : 'tab',
       })
       .catch(() => {})
   }
