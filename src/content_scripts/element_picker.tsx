@@ -3,6 +3,7 @@ import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
 import type {ElementPickerCommandMessage, PickerSelectionInfo} from '../@types/messages'
 import {PickerPanel} from '../components/picker-panel'
+import {getAvailableAttributes} from '../utils/element-attributes'
 import {getSelectionColor} from '../utils/selection-colors'
 
 // The background script checks __isinstockPickerLoaded before injecting
@@ -41,6 +42,8 @@ interface PickerState {
   advancedQuery: string
   saving: boolean
   error: string | null
+  validating: boolean
+  validationError: string | null
 }
 
 const state: PickerState = {
@@ -56,6 +59,8 @@ const state: PickerState = {
   advancedQuery: '',
   saving: false,
   error: null,
+  validating: false,
+  validationError: null,
 }
 
 const elementToSelectionId = new WeakMap<HTMLElement, string>()
@@ -103,7 +108,7 @@ function renderPanel() {
     extract: s.extract,
     attributeName: s.attributeName,
     preview: s.preview,
-    availableAttributes: getElementAttributes(s.elements[0]!),
+    availableAttributes: getAvailableAttributes(s.elements),
   }))
 
   render(
@@ -119,6 +124,8 @@ function renderPanel() {
       advancedQuery={state.advancedQuery}
       saving={state.saving}
       error={state.error}
+      validating={state.validating}
+      validationError={state.validationError}
       onCommand={handlePanelCommand}
       onSelectionHoverStart={handleSelectionHoverStart}
       onSelectionHoverEnd={handleSelectionHoverEnd}
@@ -352,7 +359,7 @@ function sendStateSync() {
       extract: s.extract,
       attributeName: s.attributeName,
       preview: s.preview,
-      availableAttributes: getElementAttributes(s.elements[0]!),
+      availableAttributes: getAvailableAttributes(s.elements),
     })),
     pickerMode: state.pickerMode,
     advancedMatchCount: state.advancedMatchedElements.length,
@@ -370,36 +377,6 @@ function getSelectors(): SelectorEntry[] {
     attributeName: s.attributeName,
     preview: s.preview,
   }))
-}
-
-// --- Element attributes ---
-
-const NOISE_ATTRIBUTES = new Set(['class', 'style', 'id'])
-const CONTENT_ATTRIBUTES = ['href', 'src', 'value', 'content', 'alt', 'title', 'datetime']
-
-function getElementAttributes(el: HTMLElement): string[] {
-  const attrs = Array.from(el.attributes).map(a => a.name)
-  const filtered = attrs.filter(a => !NOISE_ATTRIBUTES.has(a))
-
-  const dataAttrs: string[] = []
-  const contentAttrs: string[] = []
-  const rest: string[] = []
-
-  for (const attr of filtered) {
-    if (attr.startsWith('data-')) {
-      dataAttrs.push(attr)
-    } else if (CONTENT_ATTRIBUTES.includes(attr)) {
-      contentAttrs.push(attr)
-    } else {
-      rest.push(attr)
-    }
-  }
-
-  dataAttrs.sort()
-  contentAttrs.sort((a, b) => CONTENT_ATTRIBUTES.indexOf(a) - CONTENT_ATTRIBUTES.indexOf(b))
-  rest.sort()
-
-  return [...dataAttrs, ...contentAttrs, ...rest]
 }
 
 // --- Preview ---
@@ -696,6 +673,8 @@ function cleanup() {
   state.active = false
   state.saving = false
   state.error = null
+  state.validating = false
+  state.validationError = null
   hoverOverlay.style.display = 'none'
 
   destroyInPagePanel()
@@ -726,20 +705,35 @@ function teardown() {
   delete (window as any).__isinstockPickerLoaded
 }
 
-// Wait for StartElementPicker message to get sessionId and activate
+// Wait for StartElementPicker message to show validating state, then
+// PageValidationPassed to activate or PageValidationFailed to show error.
 function onMessage(msg: unknown) {
-  const message = msg as {action: string; sessionId?: string; error?: string; useSidePanel?: boolean}
+  const message = msg as {action: string; sessionId?: string; error?: string; message?: string; useSidePanel?: boolean}
   if (message.action === MessageAction.StartElementPicker && message.sessionId) {
     state.sessionId = message.sessionId
     state.useSidePanel = message.useSidePanel === true
+    state.validating = true
+    state.validationError = null
+    if (!state.useSidePanel) {
+      panelHost.style.display = 'block'
+      renderPanel()
+    }
+  } else if (message.action === MessageAction.PageValidationPassed) {
+    state.validating = false
     activate()
+  } else if (message.action === MessageAction.PageValidationFailed) {
+    state.validating = false
+    state.validationError = message.message ?? 'This page cannot be tracked.'
+    if (!state.useSidePanel) {
+      renderPanel()
+    }
   } else if (message.action === MessageAction.ElementPickerError && message.error) {
     showError(message.error)
   } else if (message.action === MessageAction.ElementPickerSidePanelReady) {
-    if (state.active) {
+    if (state.active || state.validating) {
       state.useSidePanel = true
       destroyInPagePanel()
-      sendStateSync()
+      if (state.active) sendStateSync()
     }
   } else if (message.action === MessageAction.ElementPickerCommand) {
     const cmd = message as unknown as ElementPickerCommandMessage

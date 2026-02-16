@@ -15,8 +15,14 @@ export enum MessageAction {
   ElementPickerCommand = 'element-picker-command',
   ElementPickerSidePanelReady = 'element-picker-side-panel-ready',
   ElementPickerSaved = 'element-picker-saved',
+  PageValidationPassed = 'page-validation-passed',
+  PageValidationFailed = 'page-validation-failed',
   Authentication = 'authentication',
   RevokeAuthentication = 'revoke-authentication',
+}
+
+export enum ContextMenuItem {
+  TrackElements = 'track-elements',
 }
 
 export enum ElementPickerCommand {
@@ -142,6 +148,17 @@ export interface RevokeAuthenticationMessage extends ActionMessage {
   action: MessageAction.RevokeAuthentication
 }
 
+export interface PageValidationPassedMessage extends ActionMessage {
+  action: MessageAction.PageValidationPassed
+  sessionId: string
+}
+
+export interface PageValidationFailedMessage extends ActionMessage {
+  action: MessageAction.PageValidationFailed
+  reason: 'unreachable' | 'redirected' | 'title_mismatch'
+  message: string
+}
+
 export type Message =
   | InventoryStateMessage
   | TrackUrlMessage
@@ -157,3 +174,5 @@ export type Message =
   | ElementPickerSavedMessage
   | AuthenticationMessage
   | RevokeAuthenticationMessage
+  | PageValidationPassedMessage
+  | PageValidationFailedMessage

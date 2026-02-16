@@ -1,7 +1,12 @@
 import {render} from 'preact'
 import {useState, useEffect, useCallback, useRef} from 'preact/hooks'
 import {ElementPickerCommand, MessageAction} from './@types/messages'
-import type {PickerSelectionInfo, AdvancedPreviewItem, ElementPickerStateSyncMessage} from './@types/messages'
+import type {
+  PickerSelectionInfo,
+  AdvancedPreviewItem,
+  ElementPickerStateSyncMessage,
+  PageValidationFailedMessage,
+} from './@types/messages'
 import type {CurrentUser} from './@types/api'
 import {useAccessToken, useCurrentUser} from './hooks'
 import {PickerPanel} from './components/picker-panel'
@@ -110,9 +115,51 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [canTrack, setCanTrack] = useState(false)
 
   const handleDisconnect = useCallback(() => {
     chrome.storage.local.remove('accessToken')
+  }, [])
+
+  useEffect(() => {
+    const updateCanTrack = (url?: string) => {
+      if (!url) {
+        setCanTrack(false)
+        return
+      }
+      try {
+        const scheme = new URL(url).protocol
+        setCanTrack(scheme === 'http:' || scheme === 'https:')
+      } catch {
+        setCanTrack(false)
+      }
+    }
+
+    chrome.tabs.query({active: true, currentWindow: true}).then(([tab]) => {
+      updateCanTrack(tab?.url)
+    })
+
+    const onActivated = ({tabId}: chrome.tabs.OnActivatedInfo) => {
+      chrome.tabs.get(tabId).then(tab => updateCanTrack(tab.url))
+    }
+
+    const onUpdated = (tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo, tab: chrome.tabs.Tab) => {
+      if (changeInfo.status === 'complete' || changeInfo.url) {
+        chrome.tabs.query({active: true, currentWindow: true}).then(([activeTab]) => {
+          if (activeTab?.id === tabId) {
+            updateCanTrack(tab.url)
+          }
+        })
+      }
+    }
+
+    chrome.tabs.onActivated.addListener(onActivated)
+    chrome.tabs.onUpdated.addListener(onUpdated)
+
+    return () => {
+      chrome.tabs.onActivated.removeListener(onActivated)
+      chrome.tabs.onUpdated.removeListener(onUpdated)
+    }
   }, [])
 
   useEffect(() => {
@@ -191,7 +238,7 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
         <div class="view-content view-content-centered">
           <div class="empty-state">
             <p class="empty-state-body">{error}</p>
-            <button class="btn btn-primary" onClick={onTrackNew}>
+            <button class="btn btn-primary" onClick={onTrackNew} disabled={!canTrack}>
               Track new
             </button>
           </div>
@@ -213,7 +260,7 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
             </div>
             <p class="empty-state-title">No products yet</p>
             <p class="empty-state-body">Start tracking products to see them here.</p>
-            <button class="btn btn-primary" onClick={onTrackNew}>
+            <button class="btn btn-primary" onClick={onTrackNew} disabled={!canTrack}>
               Track new
             </button>
           </div>
@@ -264,7 +311,7 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
         </div>
       </div>
       <div class="view-footer">
-        <button class="btn btn-primary btn-full" onClick={onTrackNew}>
+        <button class="btn btn-primary btn-full" onClick={onTrackNew} disabled={!canTrack}>
           Track new
         </button>
       </div>
@@ -283,6 +330,8 @@ function PickerView({onBack}: {onBack: () => void}) {
   const [modeLoaded, setModeLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [validating, setValidating] = useState(true)
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   useEffect(() => {
     chrome.storage.local.get(PICKER_MODE_STORAGE_KEY, result => {
@@ -310,6 +359,12 @@ function PickerView({onBack}: {onBack: () => void}) {
       } else if (message.action === MessageAction.ElementPickerError) {
         setSaving(false)
         setError((message as {error: string}).error)
+      } else if (message.action === MessageAction.PageValidationPassed) {
+        setValidating(false)
+      } else if (message.action === MessageAction.PageValidationFailed) {
+        const msg = message as unknown as PageValidationFailedMessage
+        setValidating(false)
+        setValidationError(msg.message)
       }
     }
     chrome.runtime.onMessage.addListener(listener)
@@ -367,6 +422,8 @@ function PickerView({onBack}: {onBack: () => void}) {
         advancedQuery={advancedQuery}
         saving={saving}
         error={error}
+        validating={validating}
+        validationError={validationError}
         onCommand={handleCommand}
         onBack={onBack}
       />

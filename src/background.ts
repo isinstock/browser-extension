@@ -3,11 +3,13 @@ import browser from 'webextension-polyfill'
 import {InventoryStateNormalized} from './@types/inventory-states'
 import {
   AuthenticationMessage,
+  ContextMenuItem,
   ElementPickerCommand,
   Message,
   MessageAction,
   RevokeAuthenticationMessage,
 } from './@types/messages'
+import type {PageValidationFailedMessage} from './@types/messages'
 import {
   browserExtensionStartup,
   createBrowserExtensionInstall,
@@ -142,6 +144,7 @@ async function injectElementPicker(
   originTabId?: number,
   existingSessionId?: string,
   sidePanelAlreadyOpen = false,
+  title?: string,
 ) {
   const sid = existingSessionId ?? crypto.randomUUID()
   console.debug('[isinstock-bg] Injecting element picker into tab:', tabId, 'session:', sid, 'origin:', originTabId)
@@ -162,6 +165,7 @@ async function injectElementPicker(
     })
   }
 
+  // Send StartElementPicker immediately — the content script shows a spinner
   await browser.tabs.sendMessage(tabId, {
     action: MessageAction.StartElementPicker,
     sessionId: sid,
@@ -178,6 +182,37 @@ async function injectElementPicker(
       })
       .catch(() => {})
   }
+
+  // Validate async — send result to content script (and side panel if open)
+  const pageTitle =
+    title ??
+    (await browser.tabs
+      .get(tabId)
+      .then(t => t.title)
+      .catch(() => undefined))
+  const result = await validatePage(url, pageTitle)
+
+  if (result.accessible) {
+    browser.tabs.sendMessage(tabId, {action: MessageAction.PageValidationPassed, sessionId: sid}).catch(() => {})
+    if (sidePanelAlreadyOpen) {
+      chrome.runtime.sendMessage({action: MessageAction.PageValidationPassed, sessionId: sid}).catch(() => {})
+    }
+  } else {
+    const failMsg = validationFailedMessage(result)
+    browser.tabs.sendMessage(tabId, failMsg).catch(() => {})
+    if (sidePanelAlreadyOpen) {
+      chrome.runtime.sendMessage(failMsg).catch(() => {})
+    }
+    if (originTabId !== undefined) {
+      browser.tabs
+        .sendMessage(originTabId, {
+          action: MessageAction.ElementPickerCancel,
+          sessionId: sid,
+          error: failMsg.message,
+        })
+        .catch(() => {})
+    }
+  }
 }
 
 function closeSidePanel(tabId: number) {
@@ -186,11 +221,69 @@ function closeSidePanel(tabId: number) {
   }
 }
 
+interface ValidateResult {
+  accessible: boolean
+  url?: string
+  redirected?: boolean
+  title_mismatch?: boolean
+  server_title?: string
+  error?: string
+  message?: string
+}
+
+async function validatePage(url: string, title?: string): Promise<ValidateResult> {
+  try {
+    const body: Record<string, string> = {url}
+    if (title) body.title = title
+    const resp = await fetchApi('/api/custom-tracking/validate', 'POST', JSON.stringify(body))
+    return (await resp.json()) as ValidateResult
+  } catch {
+    return {accessible: false, error: 'unreachable', message: 'Failed to connect to Is In Stock.'}
+  }
+}
+
+function validationFailedMessage(result: ValidateResult): PageValidationFailedMessage {
+  if (result.error === 'unreachable') {
+    return {
+      action: MessageAction.PageValidationFailed,
+      reason: 'unreachable',
+      message: result.message || 'This page could not be reached by our server.',
+    }
+  }
+  if (result.redirected) {
+    return {
+      action: MessageAction.PageValidationFailed,
+      reason: 'redirected',
+      message: `This page redirects to a different site (${result.url}), so it can't be reliably tracked.`,
+    }
+  }
+  if (result.title_mismatch) {
+    return {
+      action: MessageAction.PageValidationFailed,
+      reason: 'title_mismatch',
+      message: "This page appears to be blocked by bot protection, so it can't be reliably tracked.",
+    }
+  }
+  return {
+    action: MessageAction.PageValidationFailed,
+    reason: 'unreachable',
+    message: 'This page could not be validated for tracking.',
+  }
+}
+
+// Register context menu at the top level so it survives service worker restarts.
+// contextMenus.create with a duplicate id is a no-op (logs a harmless error).
+browser.contextMenus.create({
+  id: ContextMenuItem.TrackElements,
+  title: 'Track changes on this page',
+  contexts: ['page'],
+})
+
 // Context menu click handler
 browser.contextMenus.onClicked.addListener((info, tab) => {
   console.debug('[isinstock-bg] Context menu clicked:', info.menuItemId, 'tab:', tab?.id, tab?.url)
-  if (info.menuItemId === 'track-elements' && tab?.id) {
-    injectElementPicker(tab.id, tab.url ?? '')
+  if (info.menuItemId === ContextMenuItem.TrackElements && tab?.id) {
+    injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, false, tab.title)
   }
 })
 
@@ -220,13 +313,6 @@ browser.runtime.onInstalled.addListener(async ({reason}) => {
   if (CI) {
     return
   }
-
-  // Register context menu
-  browser.contextMenus.create({
-    id: 'track-elements',
-    title: 'Track changes on this page',
-    contexts: ['page'],
-  })
 
   try {
     const existingToken = await getBrowserExtensionInstallToken()
@@ -298,20 +384,6 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
 
     return (async () => {
       try {
-        const resp = await fetchApi('/api/custom-tracking/validate', 'POST', JSON.stringify({url: startMsg.url}))
-        if (!resp.ok) {
-          if (originTabId !== undefined) {
-            browser.tabs
-              .sendMessage(originTabId, {
-                action: MessageAction.ElementPickerCancel,
-                sessionId: startMsg.sessionId,
-                error: 'URL validation failed',
-              })
-              .catch(() => {})
-          }
-          return {processed: true}
-        }
-
         const tab = await browser.tabs.create({url: startMsg.url, active: true})
         if (!tab.id) return {processed: true}
 
@@ -326,6 +398,9 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
           browser.tabs.onUpdated.addListener(listener)
         })
 
+        // Inject picker — validation happens inside injectElementPicker.
+        // If validation fails, injectElementPicker sends ElementPickerCancel
+        // back to the origin tab.
         await injectElementPicker(tab.id, startMsg.url, originTabId, startMsg.sessionId)
       } catch (e) {
         console.debug('Error starting element picker from bridge', e)
@@ -443,8 +518,10 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
           }
         }
 
-        // No session — start the picker (side panel is already open)
-        await injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, true)
+        // No session — start the picker (side panel is already open).
+        // Validation happens inside injectElementPicker; the side panel
+        // will receive PageValidationPassed/Failed via chrome.runtime.sendMessage.
+        await injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, true, tab.title)
       } catch (e) {
         console.debug('[isinstock-bg] Error starting picker from side panel', e)
       }

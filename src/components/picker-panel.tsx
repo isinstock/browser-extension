@@ -15,6 +15,8 @@ export interface PickerPanelProps {
   advancedQuery: string
   saving: boolean
   error: string | null
+  validating?: boolean
+  validationError?: string | null
   onCommand: (command: ElementPickerCommand, opts?: Record<string, string>) => void
   onBack?: () => void
   onSelectionHoverStart?: (selectionId: string) => void
@@ -226,6 +228,8 @@ export function PickerPanel({
   advancedQuery,
   saving,
   error,
+  validating,
+  validationError,
   onCommand,
   onBack,
   onSelectionHoverStart,
@@ -244,6 +248,44 @@ export function PickerPanel({
   }
 
   const stopKeyboard = (e: Event) => e.stopPropagation()
+
+  if (validating) {
+    return (
+      <div class="picker-panel" onKeyDown={stopKeyboard} onKeyUp={stopKeyboard} onKeyPress={stopKeyboard}>
+        <style>{styles}</style>
+        <div class="validation-state">
+          <div class="validation-spinner" />
+          <p class="validation-text">Checking page…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (validationError) {
+    return (
+      <div class="picker-panel" onKeyDown={stopKeyboard} onKeyUp={stopKeyboard} onKeyPress={stopKeyboard}>
+        <style>{styles}</style>
+        <div class="validation-state">
+          <svg
+            class="validation-error-icon"
+            width="40"
+            height="40"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ef4444"
+            stroke-width="1.5"
+          >
+            <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+          <p class="validation-error-title">Can't track this page</p>
+          <p class="validation-error-message">{validationError}</p>
+          <button class="btn btn-secondary" onClick={handleCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div class="picker-panel" onKeyDown={stopKeyboard} onKeyUp={stopKeyboard} onKeyPress={stopKeyboard}>
