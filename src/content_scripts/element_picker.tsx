@@ -1,12 +1,15 @@
 import {render} from 'preact'
 import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
+import {captureException, initSentry} from '../utils/sentry'
+
+initSentry('element-picker')
 import {DebugPanel} from '../components/debug-panel'
 import {PickerPanel} from '../components/picker-panel'
 import type {ClassFrequencyCache} from '../utils/class-frequency-cache'
 import {buildClassFrequencyCache} from '../utils/class-frequency-cache'
-import {findCollection} from '../utils/collection-selector'
-import type {CollectionResult} from '../utils/collection-selector'
+import {findCollection, lastCollectionTrace} from '../utils/collection-selector'
+import type {CollectionResult, CollectionTrace} from '../utils/collection-selector'
 import {computeSelector, lastTrace} from '../utils/compute-selector'
 import type {SelectorTrace} from '../utils/compute-selector'
 import {getAvailableAttributes} from '../utils/element-attributes'
@@ -131,6 +134,7 @@ document.documentElement.appendChild(highlightStyle)
 // --- Debug panel (dev only, separate host so it's not clipped by the bottom-anchored panel) ---
 
 let debugTrace: SelectorTrace | null = null
+let debugCollectionTrace: CollectionTrace | null = null
 let debugHost: HTMLDivElement | null = null
 let debugShadow: ShadowRoot | null = null
 let debugRoot: HTMLDivElement | null = null
@@ -152,7 +156,7 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
 
 function renderDebugPanel() {
   if (!debugRoot) return
-  render(<DebugPanel trace={debugTrace} mode={state.pickerMode} />, debugRoot)
+  render(<DebugPanel trace={debugTrace} collectionTrace={debugCollectionTrace} mode={state.pickerMode} />, debugRoot)
 }
 
 // Panel host using Shadow DOM for style isolation
@@ -647,9 +651,14 @@ function onMouseOver(e: MouseEvent) {
   if (isPickerUI(target)) return
 
   // Shift+hover: detect collection and highlight all matching elements
-  if (e.shiftKey && state.pickerMode === 'click') {
+  if (e.shiftKey) {
     clearCollectionHighlights()
     const result = findCollection(target)
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      debugTrace = null
+      debugCollectionTrace = lastCollectionTrace
+      renderDebugPanel()
+    }
     if (result) {
       state.collectionResult = result
       // Clear regular hover
@@ -675,9 +684,10 @@ function onMouseOver(e: MouseEvent) {
   hoveredElement = target
 
   // Debug panel: preview selector evaluation for hovered element
-  if (typeof __DEV__ !== 'undefined' && __DEV__ && state.pickerMode === 'click') {
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
     computeSelector(target, classFrequencyCache)
     debugTrace = lastTrace
+    debugCollectionTrace = null
     renderDebugPanel()
   }
 
@@ -699,6 +709,7 @@ function onMouseOut(e: MouseEvent) {
     hoveredElement = null
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       debugTrace = null
+      debugCollectionTrace = null
       renderDebugPanel()
     }
   }
@@ -723,7 +734,7 @@ function onClick(e: MouseEvent) {
   e.stopImmediatePropagation()
 
   // Shift+click: add the detected collection as a multi-element selection
-  if (e.shiftKey && state.collectionResult && state.pickerMode === 'click') {
+  if (e.shiftKey && state.collectionResult) {
     addCollectionSelection(state.collectionResult)
     return
   }
@@ -760,6 +771,7 @@ async function activate() {
   panelHost.style.display = 'block'
   pagePadding.start(panelHost)
   renderPanel()
+  renderDebugPanel()
   document.addEventListener('mouseover', onMouseOver, true)
   document.addEventListener('mouseout', onMouseOut, true)
   document.addEventListener('click', onClick, true)
@@ -784,6 +796,7 @@ function cleanup() {
     hoveredElement = null
   }
   debugTrace = null
+  debugCollectionTrace = null
   renderDebugPanel()
 
   delete document.documentElement.dataset.isinstockPickerActive

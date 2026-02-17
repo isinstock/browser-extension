@@ -1,6 +1,9 @@
 import {insertIsInStockButton, removeIsInStockButton} from '../elements/isinstock-button'
 import {registerContentScript} from '../utils/content-script'
 import {isProduct, notFoundCallback, SELECTOR} from '../utils/products'
+import {initSentry} from '../utils/sentry'
+
+initSentry('content-script')
 
 registerContentScript(SELECTOR, async (validationRequests, productCandidates, containsProductCandidates) => {
   const products = productCandidates.filter(productCandidate => isProduct(productCandidate))

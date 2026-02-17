@@ -7,6 +7,29 @@ export interface CollectionResult {
   elements: HTMLElement[]
 }
 
+export interface CollectionTraceLevel {
+  level: number
+  tag: string
+  parentTag: string
+  siblingCount: number
+  strategy: string | null
+  selector: string | null
+  matchCount: number | null
+}
+
+export interface CollectionTrace {
+  targetTag: string
+  targetClasses: string[]
+  levels: CollectionTraceLevel[]
+  result: 'matched' | 'no-match'
+  matchedVia: string | null
+  matchedSelector: string | null
+  matchedCount: number | null
+}
+
+/** Last collection evaluation trace — updated on every findCollection call. */
+export let lastCollectionTrace: CollectionTrace | null = null
+
 /**
  * Returns the sorted intersection of class lists across all elements.
  * Only classes present on every element are included.
@@ -267,20 +290,33 @@ export function findCollection(target: HTMLElement): CollectionResult | null {
   let current: HTMLElement = target
   let level = 0
 
-  console.debug(`[collection] Starting from <${target.tagName.toLowerCase()}>, classes: [${Array.from(target.classList).join(', ')}]`)
+  const trace: CollectionTrace = {
+    targetTag: target.tagName.toLowerCase(),
+    targetClasses: Array.from(target.classList),
+    levels: [],
+    result: 'no-match',
+    matchedVia: null,
+    matchedSelector: null,
+    matchedCount: null,
+  }
+  lastCollectionTrace = trace
+
+  console.debug(`[collection] Starting from <${trace.targetTag}>, classes: [${trace.targetClasses.join(', ')}]`)
 
   while (level < MAX_ANCESTOR_LEVELS) {
     const parent = current.parentElement
     if (!parent || parent === document.documentElement) {
       console.debug(`[collection] Level ${level}: hit document boundary, stopping`)
+      trace.levels.push({level, tag: current.tagName.toLowerCase(), parentTag: '(boundary)', siblingCount: 0, strategy: null, selector: null, matchCount: null})
       break
     }
 
     const siblings = getSameTagSiblings(current, parent)
     const tag = current.tagName.toLowerCase()
+    const parentTag = parent.tagName.toLowerCase()
 
     console.debug(
-      `[collection] Level ${level}: <${tag}> has ${siblings.length} same-tag siblings under <${parent.tagName.toLowerCase()}>`,
+      `[collection] Level ${level}: <${tag}> has ${siblings.length} same-tag siblings under <${parentTag}>`,
     )
 
     if (siblings.length >= 2) {
@@ -288,6 +324,11 @@ export function findCollection(target: HTMLElement): CollectionResult | null {
       const testIdResult = tryTestIdSelector(tag, siblings, parent, target)
       if (testIdResult) {
         console.debug(`[collection] Matched via test ID: ${testIdResult.selector} (${testIdResult.elements.length} elements)`)
+        trace.levels.push({level, tag, parentTag, siblingCount: siblings.length, strategy: 'test-id', selector: testIdResult.selector, matchCount: testIdResult.elements.length})
+        trace.result = 'matched'
+        trace.matchedVia = 'test-id'
+        trace.matchedSelector = testIdResult.selector
+        trace.matchedCount = testIdResult.elements.length
         return testIdResult
       }
 
@@ -295,6 +336,11 @@ export function findCollection(target: HTMLElement): CollectionResult | null {
       const globalResult = tryGlobalSelector(tag, siblings, target)
       if (globalResult) {
         console.debug(`[collection] Matched via global: ${globalResult.selector} (${globalResult.elements.length} elements)`)
+        trace.levels.push({level, tag, parentTag, siblingCount: siblings.length, strategy: 'global', selector: globalResult.selector, matchCount: globalResult.elements.length})
+        trace.result = 'matched'
+        trace.matchedVia = 'global'
+        trace.matchedSelector = globalResult.selector
+        trace.matchedCount = globalResult.elements.length
         return globalResult
       }
 
@@ -302,10 +348,18 @@ export function findCollection(target: HTMLElement): CollectionResult | null {
       const scopedResult = tryParentScopedSelector(tag, siblings, parent, target)
       if (scopedResult) {
         console.debug(`[collection] Matched via parent-scoped: ${scopedResult.selector} (${scopedResult.elements.length} elements)`)
+        trace.levels.push({level, tag, parentTag, siblingCount: siblings.length, strategy: 'parent-scoped', selector: scopedResult.selector, matchCount: scopedResult.elements.length})
+        trace.result = 'matched'
+        trace.matchedVia = 'parent-scoped'
+        trace.matchedSelector = scopedResult.selector
+        trace.matchedCount = scopedResult.elements.length
         return scopedResult
       }
 
       console.debug(`[collection] Level ${level}: no strategy matched for ${siblings.length} <${tag}> siblings`)
+      trace.levels.push({level, tag, parentTag, siblingCount: siblings.length, strategy: null, selector: null, matchCount: null})
+    } else {
+      trace.levels.push({level, tag, parentTag, siblingCount: siblings.length, strategy: null, selector: null, matchCount: null})
     }
 
     current = parent as HTMLElement

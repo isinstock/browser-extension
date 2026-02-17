@@ -82,6 +82,7 @@ const config = {
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
     CI: isCI ? 'true' : 'false',
     __DEV__: JSON.stringify(!isProduction),
+    SENTRY_DSN: JSON.stringify(process.env.SENTRY_DSN || ''),
   },
   drop: isProduction ? ['console'] : [],
   loader: {

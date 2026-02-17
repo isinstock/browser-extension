@@ -3,6 +3,9 @@ import {useState, useEffect, useCallback, useRef} from 'preact/hooks'
 import {MessageAction} from './@types/messages'
 import type {CurrentUser} from './@types/api'
 import {useAccessToken, useCurrentUser} from './hooks'
+import {initSentry} from './utils/sentry'
+
+initSentry('sidepanel')
 
 interface SubscriptionProduct {
   id: number

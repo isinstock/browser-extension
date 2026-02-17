@@ -1,6 +1,9 @@
 import browser from 'webextension-polyfill'
 
 import {InventoryStateNormalized} from './@types/inventory-states'
+import {captureException, initSentry} from './utils/sentry'
+
+initSentry('background')
 import {
   AuthenticationMessage,
   ContextMenuItem,
@@ -269,6 +272,7 @@ browser.runtime.onStartup.addListener(async () => {
     if (error instanceof FetchError && error.status === 404) {
       console.debug('Browser extension install not found')
     } else {
+      captureException(error)
       throw error
     }
   }
@@ -291,6 +295,7 @@ browser.runtime.onInstalled.addListener(async ({reason}) => {
     if (error instanceof FetchError && error.status === 404) {
       console.debug('Browser extension install not found, creating new one')
     } else {
+      captureException(error)
       throw error
     }
   }
@@ -302,6 +307,7 @@ browser.runtime.onInstalled.addListener(async ({reason}) => {
     await setBrowserExtensionInstallToken(token)
   } catch (e) {
     console.debug('Error creating browser extension install', e)
+    captureException(e)
   }
 })
 
@@ -371,6 +377,7 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
         await injectElementPicker(tab.id, startMsg.url, originTabId, startMsg.sessionId)
       } catch (e) {
         console.debug('Error starting element picker from bridge', e)
+        captureException(e)
         if (originTabId !== undefined) {
           browser.tabs
             .sendMessage(originTabId, {
@@ -436,6 +443,7 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
                 .catch(() => {})
             }
           } catch (e) {
+            captureException(e)
             browser.tabs
               .sendMessage(session.targetTabId, {
                 action: MessageAction.ElementPickerError,
@@ -466,6 +474,7 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
         }
       } catch (e) {
         console.debug('[isinstock-bg] Error starting picker from side panel', e)
+        captureException(e)
       }
       return {processed: true}
     })()

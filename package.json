@@ -20,6 +20,7 @@
     "style": "prettier --write \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
+    "@sentry/browser": "^10.39.0",
     "preact": "^10.28.3"
   },
   "devDependencies": {
