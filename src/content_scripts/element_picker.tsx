@@ -3,6 +3,8 @@ import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
 import type {ElementPickerCommandMessage, PickerSelectionInfo} from '../@types/messages'
 import {PickerPanel} from '../components/picker-panel'
+import {findCollection} from '../utils/collection-selector'
+import type {CollectionResult} from '../utils/collection-selector'
 import {getAvailableAttributes} from '../utils/element-attributes'
 import {getSelectionColor} from '../utils/selection-colors'
 
@@ -44,6 +46,8 @@ interface PickerState {
   error: string | null
   validating: boolean
   validationError: string | null
+  collectionResult: CollectionResult | null
+  collectionOverlays: HTMLDivElement[]
 }
 
 const state: PickerState = {
@@ -61,6 +65,8 @@ const state: PickerState = {
   error: null,
   validating: false,
   validationError: null,
+  collectionResult: null,
+  collectionOverlays: [],
 }
 
 const elementToSelectionId = new WeakMap<HTMLElement, string>()
@@ -196,6 +202,7 @@ function setPickerMode(mode: PickerMode) {
   state.pickerMode = mode
   if (mode !== 'advanced') {
     clearAdvancedOverlays()
+    clearCollectionOverlays()
     state.advancedQuery = ''
     state.advancedInputValid = true
   }
@@ -209,6 +216,31 @@ function clearAdvancedOverlays() {
   }
   state.advancedOverlays = []
   state.advancedMatchedElements = []
+}
+
+// --- Collection detection (shift+hover) ---
+
+function clearCollectionOverlays() {
+  for (const overlay of state.collectionOverlays) {
+    overlay.remove()
+  }
+  state.collectionOverlays = []
+  state.collectionResult = null
+}
+
+function createCollectionOverlay(el: HTMLElement): HTMLDivElement {
+  const overlay = document.createElement('div')
+  overlay.style.cssText = `
+      position: absolute;
+      pointer-events: none;
+      border: 2px dashed #00aae7;
+      background: rgba(0, 170, 231, 0.08);
+      border-radius: 3px;
+      z-index: 2147483644;
+    `
+  positionOverlay(overlay, el)
+  document.documentElement.appendChild(overlay)
+  return overlay
 }
 
 function createAdvancedOverlay(el: HTMLElement): HTMLDivElement {
@@ -526,6 +558,39 @@ function addSelection(el: HTMLElement) {
   sendStateSync()
 }
 
+function addCollectionSelection(result: CollectionResult) {
+  const id = crypto.randomUUID()
+  const preview = result.elements
+    .slice(0, 3)
+    .map(el => (el.textContent ?? '').trim().substring(0, 40))
+    .filter(Boolean)
+    .join(', ')
+
+  const badgeNumber = state.selections.size + 1
+  const overlays = result.elements.map((el, i) => createSelectedOverlay(el, badgeNumber, i > 0))
+
+  const selection: SelectionState = {
+    id,
+    elements: result.elements,
+    cssSelector: result.selector,
+    extract: 'text_content',
+    attributeName: '',
+    preview: preview.substring(0, 120) || 'Collection',
+    overlays,
+  }
+
+  state.selections.set(id, selection)
+  for (const el of result.elements) {
+    elementToSelectionId.set(el, id)
+  }
+
+  clearCollectionOverlays()
+
+  renderPanel()
+  debouncedSendUpdate()
+  sendStateSync()
+}
+
 function removeSelection(id: string) {
   const selection = state.selections.get(id)
   if (!selection) return
@@ -595,6 +660,22 @@ function onMouseOver(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (isPickerUI(target)) return
 
+  // Shift+hover: detect collection and highlight all matching elements
+  if (e.shiftKey && state.pickerMode === 'click') {
+    clearCollectionOverlays()
+    const result = findCollection(target)
+    if (result) {
+      state.collectionResult = result
+      hoverOverlay.style.display = 'none'
+      for (const el of result.elements) {
+        state.collectionOverlays.push(createCollectionOverlay(el))
+      }
+      return
+    }
+  } else if (state.collectionOverlays.length > 0) {
+    clearCollectionOverlays()
+  }
+
   hoverOverlay.style.display = 'block'
   positionOverlay(hoverOverlay, target)
 
@@ -614,6 +695,9 @@ function onMouseOut(e: MouseEvent) {
   if (isPickerUI(target)) return
 
   hoverOverlay.style.display = 'none'
+  if (state.collectionOverlays.length > 0) {
+    clearCollectionOverlays()
+  }
 
   if (!state.useSidePanel) {
     const id = elementToSelectionId.get(target)
@@ -632,6 +716,12 @@ function onClick(e: MouseEvent) {
   e.preventDefault()
   e.stopPropagation()
   e.stopImmediatePropagation()
+
+  // Shift+click: add the detected collection as a multi-element selection
+  if (e.shiftKey && state.collectionResult && state.pickerMode === 'click') {
+    addCollectionSelection(state.collectionResult)
+    return
+  }
 
   const existingId = elementToSelectionId.get(target)
   if (existingId) {

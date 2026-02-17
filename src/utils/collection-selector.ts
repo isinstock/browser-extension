@@ -1,0 +1,213 @@
+const MAX_ANCESTOR_LEVELS = 5
+
+export interface CollectionResult {
+  selector: string
+  elements: HTMLElement[]
+}
+
+/**
+ * Returns the sorted intersection of class lists across all elements.
+ * Only classes present on every element are included.
+ */
+export function getSharedClasses(elements: HTMLElement[]): string[] {
+  if (elements.length === 0) return []
+
+  let shared: Set<string> | null = null
+  for (const el of elements) {
+    const classes = new Set(el.classList)
+    if (shared === null) {
+      shared = classes
+    } else {
+      for (const c of shared) {
+        if (!classes.has(c)) shared.delete(c)
+      }
+    }
+  }
+
+  return shared ? Array.from(shared).sort() : []
+}
+
+/**
+ * Returns same-tag sibling HTMLElements under the given parent.
+ */
+function getSameTagSiblings(element: HTMLElement, parent: Element): HTMLElement[] {
+  const tag = element.tagName
+  return toHTMLElements(Array.from(parent.children).filter(c => c.tagName === tag))
+}
+
+/**
+ * Filters an Element array to only HTMLElement instances.
+ */
+function toHTMLElements(elements: Element[]): HTMLElement[] {
+  return elements.filter((e): e is HTMLElement => e instanceof HTMLElement)
+}
+
+/**
+ * Computes a selector that uniquely identifies the given parent element on the page.
+ * Returns null if no unique selector can be built.
+ *
+ * Strategies tried in order:
+ * 1. #id (if parent has an id)
+ * 2. tag.class1.class2 (all classes combined, if unique)
+ * 3. tag.class (individual classes, if any single one is unique)
+ * 4. tag (if unique on page)
+ */
+function computeParentSelector(parent: Element): string | null {
+  if (parent.id) {
+    return `#${CSS.escape(parent.id)}`
+  }
+
+  const tag = parent.tagName.toLowerCase()
+
+  if (parent.classList.length > 0) {
+    const allClasses = Array.from(parent.classList)
+      .map(c => `.${CSS.escape(c)}`)
+      .join('')
+    const combinedSelector = `${tag}${allClasses}`
+    if (document.querySelectorAll(combinedSelector).length === 1) {
+      return combinedSelector
+    }
+
+    for (const cls of parent.classList) {
+      const singleSelector = `${tag}.${CSS.escape(cls)}`
+      if (document.querySelectorAll(singleSelector).length === 1) {
+        return singleSelector
+      }
+    }
+  }
+
+  if (document.querySelectorAll(tag).length === 1) {
+    return tag
+  }
+
+  return null
+}
+
+/**
+ * Tries to build a collection selector using global selectors (Strategy 1).
+ * Tests shared classes first, then target-specific classes for subset matching.
+ */
+function tryGlobalSelector(tag: string, siblings: HTMLElement[], target: HTMLElement): CollectionResult | null {
+  const sharedClasses = getSharedClasses(siblings)
+
+  // Try each shared class individually as tag.class
+  for (const cls of sharedClasses) {
+    const selector = `${tag}.${CSS.escape(cls)}`
+    const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+    if (matched.length === siblings.length) {
+      return {selector, elements: matched}
+    }
+  }
+
+  // Try all shared classes combined
+  if (sharedClasses.length > 1) {
+    const selector = `${tag}${sharedClasses.map(c => `.${CSS.escape(c)}`).join('')}`
+    const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+    if (matched.length === siblings.length) {
+      return {selector, elements: matched}
+    }
+  }
+
+  // Try target's own classes for subset detection (handles mixed children)
+  // e.g. parent has [li.product, li.product, li.separator] — target has class "product"
+  const targetClasses = Array.from(target.classList).sort()
+  for (const cls of targetClasses) {
+    if (sharedClasses.includes(cls)) continue // already tried above
+    const selector = `${tag}.${CSS.escape(cls)}`
+    const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+    // Must match more than 1 element and target must be among them
+    if (matched.length > 1 && matched.includes(target)) {
+      return {selector, elements: matched}
+    }
+  }
+
+  return null
+}
+
+/**
+ * Tries to build a collection selector using parent-scoped selectors (Strategy 2).
+ */
+function tryParentScopedSelector(
+  tag: string,
+  siblings: HTMLElement[],
+  parent: Element,
+  target: HTMLElement,
+): CollectionResult | null {
+  const parentSelector = computeParentSelector(parent)
+  if (!parentSelector) return null
+
+  const sharedClasses = getSharedClasses(siblings)
+
+  // Try parent > tag.class for each shared class
+  for (const cls of sharedClasses) {
+    const selector = `${parentSelector} > ${tag}.${CSS.escape(cls)}`
+    const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+    if (matched.length === siblings.length) {
+      return {selector, elements: matched}
+    }
+  }
+
+  // Try parent > tag.class for target's own classes (subset)
+  const targetClasses = Array.from(target.classList).sort()
+  for (const cls of targetClasses) {
+    if (sharedClasses.includes(cls)) continue
+    const selector = `${parentSelector} > ${tag}.${CSS.escape(cls)}`
+    const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+    if (matched.length > 1 && matched.includes(target)) {
+      return {selector, elements: matched}
+    }
+  }
+
+  // Fallback: parent > tag (all same-tag children)
+  const selector = `${parentSelector} > ${tag}`
+  const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+  if (matched.length >= 2 && matched.includes(target)) {
+    return {selector, elements: matched}
+  }
+
+  return null
+}
+
+/**
+ * Finds a collection of similar elements given a target element.
+ *
+ * Walks up the DOM tree from the target (max 5 ancestor levels), looking for
+ * same-tag siblings at each level. When found, attempts to build the simplest
+ * CSS selector that identifies the group.
+ *
+ * Strategies tried at each level (in order):
+ * 1. Global selectors: tag.sharedClass (if globally unique to the group)
+ * 2. Parent-scoped selectors: parentSelector > tag.class or parentSelector > tag
+ * 3. Continue walking up if no selector found
+ *
+ * Returns the first successful match (nearest/most specific collection),
+ * or null if no collection can be identified.
+ */
+export function findCollection(target: HTMLElement): CollectionResult | null {
+  let current: HTMLElement = target
+  let level = 0
+
+  while (level < MAX_ANCESTOR_LEVELS) {
+    const parent = current.parentElement
+    if (!parent || parent === document.documentElement) break
+
+    const siblings = getSameTagSiblings(current, parent)
+
+    if (siblings.length >= 2) {
+      const tag = current.tagName.toLowerCase()
+
+      // Strategy 1: Global selectors
+      const globalResult = tryGlobalSelector(tag, siblings, target)
+      if (globalResult) return globalResult
+
+      // Strategy 2: Parent-scoped selectors
+      const scopedResult = tryParentScopedSelector(tag, siblings, parent, target)
+      if (scopedResult) return scopedResult
+    }
+
+    current = parent as HTMLElement
+    level++
+  }
+
+  return null
+}

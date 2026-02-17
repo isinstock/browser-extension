@@ -54,16 +54,25 @@ function SelectorRow({
   if (pickerMode === 'advanced') {
     return (
       <div
-        class="selector-row"
+        class="selector-row selector-row-stacked"
         data-selection-id={selection.id}
         onMouseEnter={() => onHoverStart?.(selection.id)}
         onMouseLeave={() => onHoverEnd?.(selection.id)}
       >
-        <div class="row-badge" style={{background: getSelectionColor(index).badge}}>
-          {index + 1}
+        <div class="row-top">
+          <div class="row-badge" style={{background: getSelectionColor(index).badge}}>
+            {index + 1}
+          </div>
+          <div class="row-selector">{selection.cssSelector}</div>
+          <button
+            class="remove-btn"
+            title="Remove selection"
+            onClick={() => onCommand(ElementPickerCommand.Remove, {selectionId: selection.id})}
+          >
+            ×
+          </button>
         </div>
-        <div class="row-selector">{selection.cssSelector}</div>
-        <div class="row-controls">
+        <div class="row-bottom">
           <select
             class="extract-select"
             value={selection.extract}
@@ -98,13 +107,6 @@ function SelectorRow({
               ))}
             </select>
           )}
-          <button
-            class="remove-btn"
-            title="Remove selection"
-            onClick={() => onCommand(ElementPickerCommand.Remove, {selectionId: selection.id})}
-          >
-            ×
-          </button>
         </div>
       </div>
     )
