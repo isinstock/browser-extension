@@ -379,4 +379,36 @@ describe('computeSelector', () => {
 
     cleanup()
   })
+
+  test('lastTrace includes raw element info (id, classes, testIdAttrs)', () => {
+    const container = el('div', {}, [
+      el('div', {id: 'zcf-rawinfo', class: 'zcf-alpha zcf-beta', 'data-testid': 'my-card'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    computeSelector(target)
+
+    expect(lastTrace).not.toBeNull()
+    expect(lastTrace!.id).toBe('zcf-rawinfo')
+    expect(lastTrace!.classes).toEqual(['zcf-alpha', 'zcf-beta'])
+    expect(lastTrace!.testIdAttrs).toEqual([{name: 'data-testid', value: 'my-card'}])
+
+    cleanup()
+  })
+
+  test('lastTrace has null id and empty arrays when element has no id/classes/testIds', () => {
+    const container = el('div', {id: 'zcf-bare-wrap'}, [el('p'), el('p')])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    computeSelector(target)
+
+    expect(lastTrace).not.toBeNull()
+    expect(lastTrace!.id).toBeNull()
+    expect(lastTrace!.classes).toEqual([])
+    expect(lastTrace!.testIdAttrs).toEqual([])
+
+    cleanup()
+  })
 })

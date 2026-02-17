@@ -36,6 +36,17 @@ function formatSelectorTrace(trace: SelectorTrace, mode: PickerMode): string {
 
   lines.push(`Mode: ${modeLabel}`)
   lines.push(`Element: <${trace.tag}>`)
+  if (trace.id) {
+    lines.push(`ID: ${trace.id}`)
+  }
+  if (trace.classes.length > 0) {
+    lines.push(`Classes: .${trace.classes.join(', .')}`)
+  }
+  if (trace.testIdAttrs.length > 0) {
+    for (const attr of trace.testIdAttrs) {
+      lines.push(`${attr.name}: "${attr.value}"`)
+    }
+  }
   lines.push(`Strategy: ${trace.strategy}`)
   lines.push('')
   lines.push(`Result: ${trace.result}`)

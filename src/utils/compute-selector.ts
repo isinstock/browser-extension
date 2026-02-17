@@ -1,4 +1,5 @@
 import type {ClassFrequencyCache} from './class-frequency-cache'
+import {TEST_ID_ATTRIBUTES} from './test-id-attributes'
 import {getTestIdSelector} from './test-id-attributes'
 
 declare const __DEV__: boolean
@@ -10,6 +11,9 @@ export interface SelectorTraceCandidate {
 
 export interface SelectorTrace {
   tag: string
+  id: string | null
+  classes: string[]
+  testIdAttrs: {name: string; value: string}[]
   candidates: SelectorTraceCandidate[]
   strategy: 'test-id' | 'id' | 'single-class' | 'class-combination' | 'structural'
   result: string
@@ -35,11 +39,24 @@ export let lastTrace: SelectorTrace | null = null
 export function computeSelector(el: Element, cache?: ClassFrequencyCache): string {
   lastTrace = null
 
+  // Collect element info for trace
+  const elTag = el.tagName.toLowerCase()
+  const elId = el.id || null
+  const elClasses = Array.from(el.classList)
+  const elTestIdAttrs: {name: string; value: string}[] = []
+  for (const attr of TEST_ID_ATTRIBUTES) {
+    const value = el.getAttribute(attr)
+    if (value) elTestIdAttrs.push({name: attr, value})
+  }
+
   // Prefer test ID attributes — they're stable, developer-intentional identifiers
   const testIdSelector = getTestIdSelector(el)
   if (testIdSelector && document.querySelectorAll(testIdSelector).length === 1) {
     lastTrace = {
-      tag: el.tagName.toLowerCase(),
+      tag: elTag,
+      id: elId,
+      classes: elClasses,
+      testIdAttrs: elTestIdAttrs,
       candidates: [],
       strategy: 'test-id',
       result: testIdSelector,
@@ -52,7 +69,10 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
   if (el.id) {
     const selector = `#${CSS.escape(el.id)}`
     lastTrace = {
-      tag: el.tagName.toLowerCase(),
+      tag: elTag,
+      id: elId,
+      classes: elClasses,
+      testIdAttrs: elTestIdAttrs,
       candidates: [],
       strategy: 'id',
       result: selector,
@@ -91,6 +111,9 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
         const dropped = scored.filter(x => x !== s)
         lastTrace = {
           tag,
+          id: elId,
+          classes: elClasses,
+          testIdAttrs: elTestIdAttrs,
           candidates: [...scored],
           strategy: 'single-class',
           result: selector,
@@ -119,6 +142,9 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
         const dropped = scored.filter(x => !used.includes(x.name))
         lastTrace = {
           tag,
+          id: elId,
+          classes: elClasses,
+          testIdAttrs: elTestIdAttrs,
           candidates: [...scored],
           strategy: 'class-combination',
           result: selector,
@@ -163,7 +189,10 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
 
   const result = parts.join(' > ')
   lastTrace = {
-    tag: el.tagName.toLowerCase(),
+    tag: elTag,
+    id: elId,
+    classes: elClasses,
+    testIdAttrs: elTestIdAttrs,
     candidates: [],
     strategy: 'structural',
     result,
