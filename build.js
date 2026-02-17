@@ -1,4 +1,4 @@
-const {context} = require('esbuild')
+const {context, analyzeMetafile} = require('esbuild')
 const {copy} = require('esbuild-plugin-copy')
 const postcss = require('postcss')
 const fs = require('fs')
@@ -71,6 +71,7 @@ const entryPoints = [
 
 const config = {
   logLevel: 'info',
+  metafile: true,
   entryPoints,
   bundle: true,
   sourcemap: !isProduction,
@@ -80,6 +81,7 @@ const config = {
     ISINSTOCK_URL: JSON.stringify(isinstockUrl),
     CHROME_EXTENSION_ID: '"bnglflgcpflggbpbcbpgeaknekceeojd"',
     CI: isCI ? 'true' : 'false',
+    __DEV__: JSON.stringify(!isProduction),
   },
   drop: isProduction ? ['console'] : [],
   loader: {
@@ -90,6 +92,15 @@ const config = {
 }
 
 async function main() {
+  console.log('Build environment:')
+  console.log(`  production: ${isProduction}`)
+  console.log(`  __DEV__:    ${!isProduction}`)
+  console.log(`  CI:         ${isCI}`)
+  console.log(`  watch:      ${watch}`)
+  console.log(`  sourcemap:  ${!isProduction}`)
+  console.log(`  URL:        ${isinstockUrl}`)
+  console.log()
+
   // Chrome
   const chromeCtx = await context({
     ...config,
@@ -128,7 +139,14 @@ async function main() {
   if (watch) {
     await Promise.all([chromeCtx.watch(), firefoxCtx.watch()])
   } else {
-    await Promise.all([chromeCtx.rebuild(), firefoxCtx.rebuild()])
+    const [chromeResult, firefoxResult] = await Promise.all([chromeCtx.rebuild(), firefoxCtx.rebuild()])
+
+    console.log('\n--- Chrome build ---')
+    console.log(await analyzeMetafile(chromeResult.metafile))
+
+    console.log('--- Firefox build ---')
+    console.log(await analyzeMetafile(firefoxResult.metafile))
+
     chromeCtx.dispose()
     firefoxCtx.dispose()
   }

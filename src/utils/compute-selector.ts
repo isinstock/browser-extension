@@ -1,6 +1,25 @@
 import type {ClassFrequencyCache} from './class-frequency-cache'
 import {getTestIdSelector} from './test-id-attributes'
 
+declare const __DEV__: boolean
+
+export interface SelectorTraceCandidate {
+  name: string
+  count: number
+}
+
+export interface SelectorTrace {
+  tag: string
+  candidates: SelectorTraceCandidate[]
+  strategy: 'test-id' | 'id' | 'single-class' | 'class-combination' | 'structural'
+  result: string
+  kept: string[]
+  dropped: SelectorTraceCandidate[]
+}
+
+/** Last evaluation trace — updated on every computeSelector call. */
+export let lastTrace: SelectorTrace | null = null
+
 /**
  * Computes a CSS selector that uniquely identifies the given element on the page.
  *
@@ -14,14 +33,33 @@ import {getTestIdSelector} from './test-id-attributes'
  * counts instead of per-class DOM queries.
  */
 export function computeSelector(el: Element, cache?: ClassFrequencyCache): string {
+  lastTrace = null
+
   // Prefer test ID attributes — they're stable, developer-intentional identifiers
   const testIdSelector = getTestIdSelector(el)
   if (testIdSelector && document.querySelectorAll(testIdSelector).length === 1) {
+    lastTrace = {
+      tag: el.tagName.toLowerCase(),
+      candidates: [],
+      strategy: 'test-id',
+      result: testIdSelector,
+      kept: [],
+      dropped: [],
+    }
     return testIdSelector
   }
 
   if (el.id) {
-    return `#${CSS.escape(el.id)}`
+    const selector = `#${CSS.escape(el.id)}`
+    lastTrace = {
+      tag: el.tagName.toLowerCase(),
+      candidates: [],
+      strategy: 'id',
+      result: selector,
+      kept: [],
+      dropped: [],
+    }
+    return selector
   }
 
   if (el.classList.length > 0) {
@@ -39,22 +77,34 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
     // Sort by frequency ascending — most specific (fewest matches) first
     scored.sort((a, b) => a.count - b.count)
 
-    console.debug(
-      `[selector] Evaluating ${classes.length} classes on <${tag}>`,
-      scored.map(s => `${s.name}(${s.count})`).join(', '),
-    )
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug(
+        `[selector] Evaluating ${classes.length} classes on <${tag}>`,
+        scored.map(s => `${s.name}(${s.count})`).join(', '),
+      )
+    }
 
     // Try single classes first — if tag.class is unique, that's the best selector
     for (const s of scored) {
       if (s.count === 1) {
         const selector = `${tag}.${CSS.escape(s.name)}`
         const dropped = scored.filter(x => x !== s)
-        console.debug(
-          `[selector] Result: ${selector}`,
-          dropped.length > 0
-            ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
-            : '',
-        )
+        lastTrace = {
+          tag,
+          candidates: [...scored],
+          strategy: 'single-class',
+          result: selector,
+          kept: [s.name],
+          dropped,
+        }
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.debug(
+            `[selector] Result: ${selector}`,
+            dropped.length > 0
+              ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
+              : '',
+          )
+        }
         return selector
       }
     }
@@ -67,17 +117,29 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
       const matchCount = document.querySelectorAll(selector).length
       if (matchCount === 1) {
         const dropped = scored.filter(x => !used.includes(x.name))
-        console.debug(
-          `[selector] Result: ${selector} (${used.length} classes)`,
-          dropped.length > 0
-            ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
-            : '',
-        )
+        lastTrace = {
+          tag,
+          candidates: [...scored],
+          strategy: 'class-combination',
+          result: selector,
+          kept: [...used],
+          dropped,
+        }
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.debug(
+            `[selector] Result: ${selector} (${used.length} classes)`,
+            dropped.length > 0
+              ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
+              : '',
+          )
+        }
         return selector
       }
     }
 
-    console.debug(`[selector] No unique class combination found, falling back to structural path`)
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug(`[selector] No unique class combination found, falling back to structural path`)
+    }
   }
 
   const parts: string[] = []
@@ -98,5 +160,15 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
     }
     current = parent
   }
-  return parts.join(' > ')
+
+  const result = parts.join(' > ')
+  lastTrace = {
+    tag: el.tagName.toLowerCase(),
+    candidates: [],
+    strategy: 'structural',
+    result,
+    kept: [],
+    dropped: [],
+  }
+  return result
 }

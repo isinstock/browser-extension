@@ -3,8 +3,11 @@
 import {describe, expect, test, vi} from 'vitest'
 
 import {buildClassFrequencyCache} from '../utils/class-frequency-cache'
-import {computeSelector} from '../utils/compute-selector'
+import {computeSelector, lastTrace} from '../utils/compute-selector'
 import {el, mount, polyfillCSSEscape} from './test-helpers'
+
+// Make __DEV__ available in tests
+;(globalThis as any).__DEV__ = true
 
 polyfillCSSEscape()
 
@@ -317,6 +320,63 @@ describe('computeSelector', () => {
     )
 
     debugSpy.mockRestore()
+    cleanup()
+  })
+
+  // --- Trace data ---
+
+  test('lastTrace contains evaluation details after computeSelector', () => {
+    const container = el('div', {}, [
+      el('span', {class: 'zcf-trc-unique zcf-trc-common zcf-trc-vcommon'}),
+      el('div', {class: 'zcf-trc-common'}),
+      el('div', {class: 'zcf-trc-common zcf-trc-vcommon'}),
+      el('span', {class: 'zcf-trc-vcommon'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    computeSelector(target)
+
+    expect(lastTrace).not.toBeNull()
+    expect(lastTrace!.tag).toBe('span')
+    expect(lastTrace!.strategy).toBe('single-class')
+    expect(lastTrace!.result).toBe('span.zcf-trc-unique')
+    expect(lastTrace!.kept).toEqual(['zcf-trc-unique'])
+    expect(lastTrace!.dropped.length).toBe(2)
+    expect(lastTrace!.candidates.length).toBe(3)
+    // Candidates should be sorted by count ascending
+    expect(lastTrace!.candidates[0]!.count).toBeLessThanOrEqual(lastTrace!.candidates[1]!.count)
+
+    cleanup()
+  })
+
+  test('lastTrace shows structural strategy when no classes are unique', () => {
+    const container = el('div', {id: 'zcf-trc-wrap'}, [
+      el('div', {class: 'zcf-trc-dup'}),
+      el('div', {class: 'zcf-trc-dup'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[1] as Element
+    computeSelector(target)
+
+    expect(lastTrace).not.toBeNull()
+    expect(lastTrace!.strategy).toBe('structural')
+
+    cleanup()
+  })
+
+  test('lastTrace shows id strategy', () => {
+    const container = el('div', {}, [el('div', {id: 'zcf-trc-myid'})])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    computeSelector(target)
+
+    expect(lastTrace).not.toBeNull()
+    expect(lastTrace!.strategy).toBe('id')
+    expect(lastTrace!.result).toBe('#zcf-trc-myid')
+
     cleanup()
   })
 })

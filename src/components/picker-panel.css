@@ -192,6 +192,34 @@
   font-family: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, monospace;
 }
 
+.selector-edit-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 12px;
+  font-family: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, monospace;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.selector-edit-input:focus {
+  border-color: #00aae7;
+}
+
+.selector-edit-input.invalid {
+  border-color: #ef4444;
+}
+
+.selector-match-info {
+  padding-left: 32px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
 .extract-select {
   padding: 4px 8px;
   border: 1px solid #d1d5db;

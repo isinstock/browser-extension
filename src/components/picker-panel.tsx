@@ -50,6 +50,37 @@ function SelectorRow({
   onHoverStart?: (selectionId: string) => void
   onHoverEnd?: (selectionId: string) => void
 }) {
+  const [localSelector, setLocalSelector] = useState(selection.cssSelector)
+  const [matchInfo, setMatchInfo] = useState<{valid: boolean; count: number} | null>(null)
+  const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setLocalSelector(selection.cssSelector)
+    setMatchInfo(null)
+  }, [selection.cssSelector])
+
+  const handleSelectorInput = (value: string) => {
+    setLocalSelector(value)
+    if (editTimer.current !== null) clearTimeout(editTimer.current)
+
+    // Validate locally for immediate feedback
+    let valid = true
+    let count = 0
+    try {
+      count = document.querySelectorAll(value).length
+    } catch {
+      valid = false
+    }
+    setMatchInfo(value === selection.cssSelector ? null : {valid, count})
+
+    editTimer.current = setTimeout(() => {
+      editTimer.current = null
+      if (valid && value.trim()) {
+        onCommand(ElementPickerCommand.EditSelector, {selectionId: selection.id, selector: value})
+      }
+    }, 300)
+  }
+
   if (pickerMode === 'advanced') {
     return (
       <div
@@ -62,7 +93,14 @@ function SelectorRow({
           <div class="row-badge" style={{background: getSelectionColor(index).badge}}>
             {index + 1}
           </div>
-          <div class="row-selector">{selection.cssSelector}</div>
+          <input
+            class={`selector-edit-input ${matchInfo && !matchInfo.valid ? 'invalid' : ''}`}
+            type="text"
+            value={localSelector}
+            spellcheck={false}
+            autocomplete="off"
+            onInput={e => handleSelectorInput((e.target as HTMLInputElement).value)}
+          />
           <button
             class="remove-btn"
             title="Remove selection"
@@ -71,6 +109,18 @@ function SelectorRow({
             ×
           </button>
         </div>
+        {matchInfo && (
+          <div class="selector-match-info">
+            {!matchInfo.valid ? (
+              <span class="match-count zero">Invalid selector</span>
+            ) : (
+              <>
+                <span class={`match-count ${matchInfo.count === 0 ? 'zero' : ''}`}>{matchInfo.count}</span>{' '}
+                match{matchInfo.count === 1 ? '' : 'es'}
+              </>
+            )}
+          </div>
+        )}
         <div class="row-bottom">
           <select
             class="extract-select"

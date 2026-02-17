@@ -32,6 +32,7 @@ export enum ElementPickerCommand {
   SetMode = 'set-mode',
   RunAdvancedQuery = 'run-advanced-query',
   AddAdvancedSelector = 'add-advanced-selector',
+  EditSelector = 'edit-selector',
 }
 
 export interface ActionMessage {

@@ -1,14 +1,19 @@
 import {render} from 'preact'
 import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
+import {DebugPanel} from '../components/debug-panel'
 import {PickerPanel} from '../components/picker-panel'
 import type {ClassFrequencyCache} from '../utils/class-frequency-cache'
 import {buildClassFrequencyCache} from '../utils/class-frequency-cache'
 import {findCollection} from '../utils/collection-selector'
 import type {CollectionResult} from '../utils/collection-selector'
-import {computeSelector} from '../utils/compute-selector'
+import {computeSelector, lastTrace} from '../utils/compute-selector'
+import type {SelectorTrace} from '../utils/compute-selector'
 import {getAvailableAttributes} from '../utils/element-attributes'
+import {PagePaddingManager} from '../utils/page-padding'
 import {getSelectionColor} from '../utils/selection-colors'
+
+declare const __DEV__: boolean
 
 // The background script checks __isinstockPickerLoaded before injecting
 // this file, so this guard is just a safety net for edge cases (e.g.,
@@ -28,7 +33,6 @@ interface SelectionState {
   extract: ExtractMode
   attributeName: string
   preview: string
-  overlays: HTMLDivElement[]
 }
 
 type PickerMode = 'click' | 'advanced'
@@ -39,7 +43,6 @@ interface PickerState {
   selections: Map<string, SelectionState>
   hoveredSelectionId: string | null
   pickerMode: PickerMode
-  advancedOverlays: HTMLDivElement[]
   advancedMatchedElements: HTMLElement[]
   advancedInputValid: boolean
   advancedQuery: string
@@ -48,7 +51,7 @@ interface PickerState {
   validating: boolean
   validationError: string | null
   collectionResult: CollectionResult | null
-  collectionOverlays: HTMLDivElement[]
+  collectionElements: HTMLElement[]
 }
 
 const state: PickerState = {
@@ -57,7 +60,6 @@ const state: PickerState = {
   selections: new Map(),
   hoveredSelectionId: null,
   pickerMode: 'click',
-  advancedOverlays: [],
   advancedMatchedElements: [],
   advancedInputValid: true,
   advancedQuery: '',
@@ -66,26 +68,92 @@ const state: PickerState = {
   validating: false,
   validationError: null,
   collectionResult: null,
-  collectionOverlays: [],
+  collectionElements: [],
 }
 
 const elementToSelectionId = new WeakMap<HTMLElement, string>()
 
 let classFrequencyCache: ClassFrequencyCache | undefined
 
-// Hover overlay (lives in the page, not shadow DOM)
-const hoverOverlay = document.createElement('div')
-hoverOverlay.style.cssText = `
+// --- Highlight styles (injected once, uses data attributes on actual elements) ---
+
+const highlightStyle = document.createElement('style')
+highlightStyle.textContent = `
+  [data-isinstock-hover] {
+    outline: 2px solid #00aae7 !important;
+    outline-offset: -1px !important;
+  }
+
+  [data-isinstock-selected] {
+    outline: 2px solid var(--isinstock-border) !important;
+    outline-offset: -1px !important;
+    position: relative;
+  }
+
+  [data-isinstock-badge]::before {
+    content: attr(data-isinstock-badge);
     position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--isinstock-badge);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     pointer-events: none;
-    border: 2px solid #00aae7;
-    background: rgba(0, 170, 231, 0.08);
-    border-radius: 3px;
-    z-index: 2147483646;
-    transition: top 75ms ease, left 75ms ease, width 75ms ease, height 75ms ease;
-    display: none;
+    z-index: 2147483645;
+    line-height: 1;
+  }
+
+  [data-isinstock-collection] {
+    outline: 2px dashed #00aae7 !important;
+    outline-offset: -1px !important;
+  }
+
+  [data-isinstock-advanced] {
+    outline: 2px solid #6350e9 !important;
+    outline-offset: -1px !important;
+  }
+
+  [data-isinstock-picker-active] {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+`
+document.documentElement.appendChild(highlightStyle)
+
+// --- Debug panel (dev only, separate host so it's not clipped by the bottom-anchored panel) ---
+
+let debugTrace: SelectorTrace | null = null
+let debugHost: HTMLDivElement | null = null
+let debugShadow: ShadowRoot | null = null
+let debugRoot: HTMLDivElement | null = null
+
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  debugHost = document.createElement('div')
+  debugHost.style.cssText = `
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 2147483647;
+    pointer-events: none;
   `
-document.documentElement.appendChild(hoverOverlay)
+  document.documentElement.appendChild(debugHost)
+  debugShadow = debugHost.attachShadow({mode: 'open'})
+  debugRoot = document.createElement('div')
+  debugShadow.appendChild(debugRoot)
+}
+
+function renderDebugPanel() {
+  if (!debugRoot) return
+  render(<DebugPanel trace={debugTrace} mode={state.pickerMode} />, debugRoot)
+}
 
 // Panel host using Shadow DOM for style isolation
 const panelHost = document.createElement('div')
@@ -98,6 +166,10 @@ panelHost.style.cssText = `
     display: none;
   `
 document.documentElement.appendChild(panelHost)
+
+// Keep page scrollable behind the panel by adding bottom padding that
+// matches the panel's rendered height (updated via ResizeObserver).
+const pagePadding = new PagePaddingManager()
 
 const shadow = panelHost.attachShadow({mode: 'open'})
 
@@ -176,6 +248,11 @@ function handlePanelCommand(command: ElementPickerCommand, opts?: Record<string,
     case ElementPickerCommand.AddAdvancedSelector:
       addAdvancedSelector()
       break
+    case ElementPickerCommand.EditSelector:
+      if (opts?.selectionId && opts?.selector !== undefined) {
+        updateSelectionSelector(opts.selectionId, opts.selector)
+      }
+      break
   }
 }
 
@@ -185,15 +262,17 @@ function handleSelectionHoverStart(selectionId: string) {
   if (!selection) return
 
   state.hoveredSelectionId = selectionId
-  hoverOverlay.style.display = 'block'
-  positionOverlay(hoverOverlay, selection.elements[0]!)
+  selection.elements[0]!.dataset.isinstockHover = ''
 }
 
 function handleSelectionHoverEnd(selectionId: string) {
   if (state.hoveredSelectionId !== selectionId) return
 
+  const selection = state.selections.get(selectionId)
+  if (selection) {
+    delete selection.elements[0]!.dataset.isinstockHover
+  }
   state.hoveredSelectionId = null
-  hoverOverlay.style.display = 'none'
 }
 
 // --- Advanced mode ---
@@ -201,8 +280,8 @@ function handleSelectionHoverEnd(selectionId: string) {
 function setPickerMode(mode: PickerMode) {
   state.pickerMode = mode
   if (mode !== 'advanced') {
-    clearAdvancedOverlays()
-    clearCollectionOverlays()
+    clearAdvancedHighlights()
+    clearCollectionHighlights()
     state.advancedQuery = ''
     state.advancedInputValid = true
   }
@@ -210,56 +289,25 @@ function setPickerMode(mode: PickerMode) {
   renderPanel()
 }
 
-function clearAdvancedOverlays() {
-  for (const overlay of state.advancedOverlays) {
-    overlay.remove()
+function clearAdvancedHighlights() {
+  for (const el of state.advancedMatchedElements) {
+    delete el.dataset.isinstockAdvanced
   }
-  state.advancedOverlays = []
   state.advancedMatchedElements = []
 }
 
 // --- Collection detection (shift+hover) ---
 
-function clearCollectionOverlays() {
-  for (const overlay of state.collectionOverlays) {
-    overlay.remove()
+function clearCollectionHighlights() {
+  for (const el of state.collectionElements) {
+    delete el.dataset.isinstockCollection
   }
-  state.collectionOverlays = []
+  state.collectionElements = []
   state.collectionResult = null
 }
 
-function createCollectionOverlay(el: HTMLElement): HTMLDivElement {
-  const overlay = document.createElement('div')
-  overlay.style.cssText = `
-      position: absolute;
-      pointer-events: none;
-      border: 2px dashed #00aae7;
-      background: rgba(0, 170, 231, 0.08);
-      border-radius: 3px;
-      z-index: 2147483644;
-    `
-  positionOverlay(overlay, el)
-  document.documentElement.appendChild(overlay)
-  return overlay
-}
-
-function createAdvancedOverlay(el: HTMLElement): HTMLDivElement {
-  const overlay = document.createElement('div')
-  overlay.style.cssText = `
-      position: absolute;
-      pointer-events: none;
-      border: 2px solid #6350e9;
-      background: rgba(99, 80, 233, 0.1);
-      border-radius: 3px;
-      z-index: 2147483644;
-    `
-  positionOverlay(overlay, el)
-  document.documentElement.appendChild(overlay)
-  return overlay
-}
-
 function runAdvancedQuery(selector: string) {
-  clearAdvancedOverlays()
+  clearAdvancedHighlights()
   state.advancedQuery = selector
   state.advancedInputValid = true
 
@@ -287,7 +335,7 @@ function runAdvancedQuery(selector: string) {
   state.advancedMatchedElements = matched
 
   for (const el of matched) {
-    state.advancedOverlays.push(createAdvancedOverlay(el))
+    el.dataset.isinstockAdvanced = ''
   }
 
   renderPanel()
@@ -306,7 +354,7 @@ function addAdvancedSelector() {
 
   const id = crypto.randomUUID()
   const badgeNumber = state.selections.size + 1
-  const overlays = matchedElements.map((el, i) => createSelectedOverlay(el, badgeNumber, i > 0))
+  markSelected(matchedElements, badgeNumber)
 
   const selection: SelectionState = {
     id,
@@ -315,7 +363,6 @@ function addAdvancedSelector() {
     extract: 'text_content',
     attributeName: '',
     preview: preview.substring(0, 120) || 'Element',
-    overlays,
   }
 
   state.selections.set(id, selection)
@@ -323,7 +370,7 @@ function addAdvancedSelector() {
     elementToSelectionId.set(el, id)
   }
 
-  clearAdvancedOverlays()
+  clearAdvancedHighlights()
   state.advancedQuery = ''
   state.advancedInputValid = true
 
@@ -393,56 +440,29 @@ function extractPreview(el: HTMLElement, extract: ExtractMode, attributeName: st
   return (el.textContent ?? '').trim().substring(0, 120)
 }
 
-// --- Overlay ---
+// --- Highlight management (data attributes on actual elements) ---
 
-function positionOverlay(overlay: HTMLElement, el: Element) {
-  const rect = el.getBoundingClientRect()
-  overlay.style.top = `${rect.top + window.scrollY}px`
-  overlay.style.left = `${rect.left + window.scrollX}px`
-  overlay.style.width = `${rect.width}px`
-  overlay.style.height = `${rect.height}px`
+function markSelected(elements: HTMLElement[], badgeNumber: number) {
+  const color = getSelectionColor(badgeNumber - 1)
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i]!
+    el.dataset.isinstockSelected = ''
+    el.style.setProperty('--isinstock-border', color.border)
+    el.style.setProperty('--isinstock-badge', color.badge)
+    // Only the first element in a multi-element selection gets the badge
+    if (i === 0) {
+      el.dataset.isinstockBadge = String(badgeNumber)
+    }
+  }
 }
 
-function createSelectedOverlay(el: HTMLElement, badgeNumber: number, hideBadge = false): HTMLDivElement {
-  const color = getSelectionColor(badgeNumber - 1)
-  const overlay = document.createElement('div')
-  overlay.style.cssText = `
-      position: absolute;
-      pointer-events: none;
-      border: 2px solid ${color.border};
-      background: ${color.background};
-      border-radius: 3px;
-      z-index: 2147483645;
-      overflow: visible;
-    `
-  positionOverlay(overlay, el)
-
-  if (!hideBadge) {
-    const badge = document.createElement('div')
-    badge.style.cssText = `
-        position: absolute;
-        top: -8px;
-        left: -8px;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: ${color.badge};
-        color: #fff;
-        font-size: 11px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        pointer-events: none;
-      `
-    badge.textContent = String(badgeNumber)
-    badge.dataset.overlayBadge = 'true'
-    overlay.appendChild(badge)
+function unmarkSelected(elements: HTMLElement[]) {
+  for (const el of elements) {
+    delete el.dataset.isinstockSelected
+    delete el.dataset.isinstockBadge
+    el.style.removeProperty('--isinstock-border')
+    el.style.removeProperty('--isinstock-badge')
   }
-
-  document.documentElement.appendChild(overlay)
-  return overlay
 }
 
 // --- Badge renumbering ---
@@ -451,14 +471,13 @@ function updateBadgeNumbers() {
   let index = 0
   for (const selection of state.selections.values()) {
     const color = getSelectionColor(index)
-    for (const overlay of selection.overlays) {
-      const badge = overlay.querySelector('[data-overlay-badge]') as HTMLElement | null
-      if (badge) {
-        badge.textContent = String(index + 1)
-        badge.style.background = color.badge
+    for (let i = 0; i < selection.elements.length; i++) {
+      const el = selection.elements[i]!
+      el.style.setProperty('--isinstock-border', color.border)
+      el.style.setProperty('--isinstock-badge', color.badge)
+      if (i === 0) {
+        el.dataset.isinstockBadge = String(index + 1)
       }
-      overlay.style.borderColor = color.border
-      overlay.style.background = color.background
     }
     index++
   }
@@ -471,7 +490,7 @@ function addSelection(el: HTMLElement) {
   const cssSelector = computeSelector(el, classFrequencyCache)
   const preview = extractPreview(el, 'text_content', '')
   const badgeNumber = state.selections.size + 1
-  const overlay = createSelectedOverlay(el, badgeNumber)
+  markSelected([el], badgeNumber)
 
   const selection: SelectionState = {
     id,
@@ -480,7 +499,6 @@ function addSelection(el: HTMLElement) {
     extract: 'text_content',
     attributeName: '',
     preview,
-    overlays: [overlay],
   }
 
   state.selections.set(id, selection)
@@ -499,7 +517,7 @@ function addCollectionSelection(result: CollectionResult) {
     .join(', ')
 
   const badgeNumber = state.selections.size + 1
-  const overlays = result.elements.map((el, i) => createSelectedOverlay(el, badgeNumber, i > 0))
+  markSelected(result.elements, badgeNumber)
 
   const selection: SelectionState = {
     id,
@@ -508,7 +526,6 @@ function addCollectionSelection(result: CollectionResult) {
     extract: 'text_content',
     attributeName: '',
     preview: preview.substring(0, 120) || 'Collection',
-    overlays,
   }
 
   state.selections.set(id, selection)
@@ -516,7 +533,7 @@ function addCollectionSelection(result: CollectionResult) {
     elementToSelectionId.set(el, id)
   }
 
-  clearCollectionOverlays()
+  clearCollectionHighlights()
 
   renderPanel()
   debouncedSendUpdate()
@@ -526,9 +543,7 @@ function removeSelection(id: string) {
   const selection = state.selections.get(id)
   if (!selection) return
 
-  for (const overlay of selection.overlays) {
-    overlay.remove()
-  }
+  unmarkSelected(selection.elements)
   for (const el of selection.elements) {
     elementToSelectionId.delete(el)
   }
@@ -564,6 +579,47 @@ function updateSelectionAttribute(id: string, attributeName: string) {
   debouncedSendUpdate()
 }
 
+function updateSelectionSelector(id: string, newSelector: string) {
+  const selection = state.selections.get(id)
+  if (!selection) return
+
+  let newElements: HTMLElement[]
+  try {
+    const nodes = document.querySelectorAll(newSelector)
+    newElements = Array.from(nodes).filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && !isPickerUI(el),
+    )
+  } catch {
+    // Invalid selector — don't update
+    return
+  }
+
+  // Unmark old elements
+  unmarkSelected(selection.elements)
+  for (const el of selection.elements) {
+    elementToSelectionId.delete(el)
+  }
+
+  // Update selection state
+  selection.cssSelector = newSelector
+  selection.elements = newElements
+
+  // Re-mark with highlights
+  const index = Array.from(state.selections.keys()).indexOf(id)
+  if (newElements.length > 0) {
+    markSelected(newElements, index + 1)
+    for (const el of newElements) {
+      elementToSelectionId.set(el, id)
+    }
+    selection.preview = extractPreview(newElements[0]!, selection.extract, selection.attributeName)
+  } else {
+    selection.preview = '(no matches)'
+  }
+
+  renderPanel()
+  debouncedSendUpdate()
+}
+
 // --- Error display ---
 
 function showError(message: string) {
@@ -579,8 +635,10 @@ function showError(message: string) {
 
 // --- Page event handlers ---
 
+let hoveredElement: HTMLElement | null = null
+
 function isPickerUI(el: Element): boolean {
-  return el === panelHost || el === hoverOverlay || panelHost.contains(el)
+  return el === panelHost || panelHost.contains(el)
 }
 
 function onMouseOver(e: MouseEvent) {
@@ -590,22 +648,38 @@ function onMouseOver(e: MouseEvent) {
 
   // Shift+hover: detect collection and highlight all matching elements
   if (e.shiftKey && state.pickerMode === 'click') {
-    clearCollectionOverlays()
+    clearCollectionHighlights()
     const result = findCollection(target)
     if (result) {
       state.collectionResult = result
-      hoverOverlay.style.display = 'none'
+      // Clear regular hover
+      if (hoveredElement) {
+        delete hoveredElement.dataset.isinstockHover
+        hoveredElement = null
+      }
       for (const el of result.elements) {
-        state.collectionOverlays.push(createCollectionOverlay(el))
+        el.dataset.isinstockCollection = ''
+        state.collectionElements.push(el)
       }
       return
     }
-  } else if (state.collectionOverlays.length > 0) {
-    clearCollectionOverlays()
+  } else if (state.collectionElements.length > 0) {
+    clearCollectionHighlights()
   }
 
-  hoverOverlay.style.display = 'block'
-  positionOverlay(hoverOverlay, target)
+  // Regular hover highlight
+  if (hoveredElement && hoveredElement !== target) {
+    delete hoveredElement.dataset.isinstockHover
+  }
+  target.dataset.isinstockHover = ''
+  hoveredElement = target
+
+  // Debug panel: preview selector evaluation for hovered element
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && state.pickerMode === 'click') {
+    computeSelector(target, classFrequencyCache)
+    debugTrace = lastTrace
+    renderDebugPanel()
+  }
 
   // Cross-hover: page element → panel row highlight
   const id = elementToSelectionId.get(target)
@@ -620,9 +694,16 @@ function onMouseOut(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (isPickerUI(target)) return
 
-  hoverOverlay.style.display = 'none'
-  if (state.collectionOverlays.length > 0) {
-    clearCollectionOverlays()
+  if (hoveredElement === target) {
+    delete hoveredElement.dataset.isinstockHover
+    hoveredElement = null
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      debugTrace = null
+      renderDebugPanel()
+    }
+  }
+  if (state.collectionElements.length > 0) {
+    clearCollectionHighlights()
   }
 
   const id = elementToSelectionId.get(target)
@@ -675,7 +756,9 @@ async function activate() {
     state.pickerMode = stored.pickerMode
   }
 
+  document.documentElement.dataset.isinstockPickerActive = ''
   panelHost.style.display = 'block'
+  pagePadding.start(panelHost)
   renderPanel()
   document.addEventListener('mouseover', onMouseOver, true)
   document.addEventListener('mouseout', onMouseOut, true)
@@ -694,18 +777,28 @@ function cleanup() {
   state.error = null
   state.validating = false
   state.validationError = null
-  hoverOverlay.style.display = 'none'
+
+  // Clear hover
+  if (hoveredElement) {
+    delete hoveredElement.dataset.isinstockHover
+    hoveredElement = null
+  }
+  debugTrace = null
+  renderDebugPanel()
+
+  delete document.documentElement.dataset.isinstockPickerActive
+  pagePadding.stop(panelHost)
 
   destroyInPagePanel()
 
+  // Clear all selection highlights
   for (const selection of state.selections.values()) {
-    for (const overlay of selection.overlays) {
-      overlay.remove()
-    }
+    unmarkSelected(selection.elements)
   }
   state.selections.clear()
 
-  clearAdvancedOverlays()
+  clearAdvancedHighlights()
+  clearCollectionHighlights()
   state.advancedQuery = ''
   state.advancedInputValid = true
   classFrequencyCache = undefined
@@ -718,7 +811,8 @@ function cleanup() {
 
 function teardown() {
   cleanup()
-  hoverOverlay.remove()
+  highlightStyle.remove()
+  debugHost?.remove()
   panelHost.remove()
   browser.runtime.onMessage.removeListener(onMessage)
   delete (window as any).__isinstockPickerLoaded
