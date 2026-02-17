@@ -1,3 +1,5 @@
+import {TEST_ID_ATTRIBUTES} from './test-id-attributes'
+
 const MAX_ANCESTOR_LEVELS = 5
 
 export interface CollectionResult {
@@ -78,6 +80,77 @@ function computeParentSelector(parent: Element): string | null {
 
   if (document.querySelectorAll(tag).length === 1) {
     return tag
+  }
+
+  return null
+}
+
+/**
+ * Finds the first test ID attribute name shared by ALL elements.
+ * Returns the attribute name (e.g. "data-testid") or null.
+ */
+function getSharedTestIdAttribute(elements: HTMLElement[]): string | null {
+  if (elements.length === 0) return null
+
+  for (const attr of TEST_ID_ATTRIBUTES) {
+    if (elements.every(el => el.hasAttribute(attr))) {
+      return attr
+    }
+  }
+  return null
+}
+
+/**
+ * Tries to build a collection selector using shared test ID attributes (Strategy 0).
+ *
+ * When all siblings share the same test ID attribute name (e.g. data-testid),
+ * tries `tag[attr]` globally first, then `[attr]` globally.
+ * Falls back to parent-scoped `parentSelector > tag[attr]` if global matches too many.
+ */
+function tryTestIdSelector(
+  tag: string,
+  siblings: HTMLElement[],
+  parent: Element,
+  target: HTMLElement,
+): CollectionResult | null {
+  const sharedAttr = getSharedTestIdAttribute(siblings)
+
+  if (sharedAttr) {
+    // Try tag[attr] globally
+    const tagAttrSelector = `${tag}[${sharedAttr}]`
+    const tagAttrMatched = toHTMLElements(Array.from(document.querySelectorAll(tagAttrSelector)))
+    if (tagAttrMatched.length === siblings.length) {
+      return {selector: tagAttrSelector, elements: tagAttrMatched}
+    }
+
+    // Try [attr] globally (without tag)
+    const attrSelector = `[${sharedAttr}]`
+    const attrMatched = toHTMLElements(Array.from(document.querySelectorAll(attrSelector)))
+    if (attrMatched.length === siblings.length) {
+      return {selector: attrSelector, elements: attrMatched}
+    }
+
+    // Fall back to parent-scoped tag[attr]
+    const parentSelector = computeParentSelector(parent)
+    if (parentSelector) {
+      const scopedSelector = `${parentSelector} > ${tag}[${sharedAttr}]`
+      const scopedMatched = toHTMLElements(Array.from(document.querySelectorAll(scopedSelector)))
+      if (scopedMatched.length === siblings.length) {
+        return {selector: scopedSelector, elements: scopedMatched}
+      }
+    }
+  }
+
+  // Check if target has a test ID that identifies a subset of siblings
+  for (const attr of TEST_ID_ATTRIBUTES) {
+    const value = target.getAttribute(attr)
+    if (!value) continue
+
+    const exactSelector = `${tag}[${attr}="${CSS.escape(value)}"]`
+    const exactMatched = toHTMLElements(Array.from(document.querySelectorAll(exactSelector)))
+    if (exactMatched.length > 1 && exactMatched.includes(target)) {
+      return {selector: exactSelector, elements: exactMatched}
+    }
   }
 
   return null
@@ -176,6 +249,7 @@ function tryParentScopedSelector(
  * CSS selector that identifies the group.
  *
  * Strategies tried at each level (in order):
+ * 0. Test ID selectors: tag[data-testid] or [data-testid] (if siblings share a test ID attr)
  * 1. Global selectors: tag.sharedClass (if globally unique to the group)
  * 2. Parent-scoped selectors: parentSelector > tag.class or parentSelector > tag
  * 3. Continue walking up if no selector found
@@ -195,6 +269,10 @@ export function findCollection(target: HTMLElement): CollectionResult | null {
 
     if (siblings.length >= 2) {
       const tag = current.tagName.toLowerCase()
+
+      // Strategy 0: Test ID attribute selectors
+      const testIdResult = tryTestIdSelector(tag, siblings, parent, target)
+      if (testIdResult) return testIdResult
 
       // Strategy 1: Global selectors
       const globalResult = tryGlobalSelector(tag, siblings, target)

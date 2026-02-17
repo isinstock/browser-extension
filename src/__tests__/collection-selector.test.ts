@@ -3,38 +3,9 @@
 import {describe, expect, test} from 'vitest'
 
 import {CollectionResult, findCollection, getSharedClasses} from '../utils/collection-selector'
+import {el, mount, polyfillCSSEscape} from './test-helpers'
 
-// jsdom doesn't provide CSS.escape — polyfill it for tests
-if (typeof globalThis.CSS === 'undefined') {
-  ;(globalThis as any).CSS = {}
-}
-if (typeof CSS.escape !== 'function') {
-  CSS.escape = (value: string) => value.replace(/([^\w-])/g, '\\$1')
-}
-
-function el(tag: string, attrs: Record<string, string> = {}, children: HTMLElement[] = []): HTMLElement {
-  const element = document.createElement(tag)
-  for (const [name, value] of Object.entries(attrs)) {
-    if (name === 'textContent') {
-      element.textContent = value
-    } else {
-      element.setAttribute(name, value)
-    }
-  }
-  for (const child of children) {
-    element.appendChild(child)
-  }
-  return element
-}
-
-/**
- * Appends the element to document.body so querySelectorAll works,
- * and returns a cleanup function.
- */
-function mount(element: HTMLElement): () => void {
-  document.body.appendChild(element)
-  return () => element.remove()
-}
+polyfillCSSEscape()
 
 describe('getSharedClasses', () => {
   test('returns empty array for empty input', () => {
@@ -413,6 +384,116 @@ describe('findCollection', () => {
     // Global div.item matches 4 (not 3), so should fall back to parent-scoped
     expect(result!.selector).toBe('#mismatch-parent > div.item')
     expect(result!.elements).toHaveLength(3)
+
+    cleanup()
+  })
+
+  // --- Test ID attribute strategy tests ---
+
+  test('prefers shared test ID attribute over class-based selectors', () => {
+    const container = el('div', {id: 'testid-grid'}, [
+      el('div', {class: 'card', 'data-testid': 'product-1'}),
+      el('div', {class: 'card', 'data-testid': 'product-2'}),
+      el('div', {class: 'card', 'data-testid': 'product-3'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as HTMLElement
+    const result = findCollection(target)
+
+    expect(result).not.toBeNull()
+    // Should prefer div[data-testid] over div.card
+    expect(result!.selector).toBe('div[data-testid]')
+    expect(result!.elements).toHaveLength(3)
+
+    cleanup()
+  })
+
+  test('uses data-cy attribute for collection when shared', () => {
+    const container = el('ul', {id: 'cy-list'}, [el('li', {'data-cy': 'item-a'}), el('li', {'data-cy': 'item-b'})])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as HTMLElement
+    const result = findCollection(target)
+
+    expect(result).not.toBeNull()
+    expect(result!.selector).toBe('li[data-cy]')
+    expect(result!.elements).toHaveLength(2)
+
+    cleanup()
+  })
+
+  test('falls back to parent-scoped test ID when global matches too many', () => {
+    const list1 = el('ul', {id: 'list-1'}, [el('li', {'data-testid': 'item-a'}), el('li', {'data-testid': 'item-b'})])
+    const list2 = el('ul', {id: 'list-2'}, [
+      el('li', {'data-testid': 'item-c'}),
+      el('li', {'data-testid': 'item-d'}),
+      el('li', {'data-testid': 'item-e'}),
+    ])
+    const wrapper = el('div', {}, [list1, list2])
+    const cleanup = mount(wrapper)
+
+    const target = list1.children[0] as HTMLElement
+    const result = findCollection(target)
+
+    expect(result).not.toBeNull()
+    // Global li[data-testid] matches 5, not 2, so should fall back to parent-scoped
+    expect(result!.selector).toBe('#list-1 > li[data-testid]')
+    expect(result!.elements).toHaveLength(2)
+
+    cleanup()
+  })
+
+  test('uses test ID subset detection for mixed siblings', () => {
+    // Parent has items with data-testid and separators without
+    const container = el('div', {id: 'mixed-testid'}, [
+      el('div', {'data-testid': 'product', class: 'item'}),
+      el('div', {class: 'separator'}),
+      el('div', {'data-testid': 'product', class: 'item'}),
+      el('div', {class: 'separator'}),
+      el('div', {'data-testid': 'product', class: 'item'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as HTMLElement
+    const result = findCollection(target)
+
+    expect(result).not.toBeNull()
+    // target has data-testid="product" — should find all 3 via exact value match
+    expect(result!.selector).toBe('div[data-testid="product"]')
+    expect(result!.elements).toHaveLength(3)
+
+    cleanup()
+  })
+
+  test('prefers data-testid over data-qa when both present', () => {
+    const container = el('div', {id: 'priority-test'}, [
+      el('div', {'data-testid': 'card-1', 'data-qa': 'qa-1'}),
+      el('div', {'data-testid': 'card-2', 'data-qa': 'qa-2'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as HTMLElement
+    const result = findCollection(target)
+
+    expect(result).not.toBeNull()
+    // data-testid is higher priority than data-qa
+    expect(result!.selector).toBe('div[data-testid]')
+    expect(result!.elements).toHaveLength(2)
+
+    cleanup()
+  })
+
+  test('test ID strategy still falls back to class when no test IDs present', () => {
+    const container = el('ul', {id: 'no-testid'}, [el('li', {class: 'product'}), el('li', {class: 'product'})])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as HTMLElement
+    const result = findCollection(target)
+
+    expect(result).not.toBeNull()
+    expect(result!.selector).toBe('li.product')
+    expect(result!.elements).toHaveLength(2)
 
     cleanup()
   })

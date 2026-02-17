@@ -5,6 +5,7 @@ import type {ElementPickerCommandMessage, PickerSelectionInfo} from '../@types/m
 import {PickerPanel} from '../components/picker-panel'
 import {findCollection} from '../utils/collection-selector'
 import type {CollectionResult} from '../utils/collection-selector'
+import {computeSelector} from '../utils/compute-selector'
 import {getAvailableAttributes} from '../utils/element-attributes'
 import {getSelectionColor} from '../utils/selection-colors'
 
@@ -420,44 +421,6 @@ function extractPreview(el: HTMLElement, extract: ExtractMode, attributeName: st
     return value !== null ? value.trim().substring(0, 120) : ''
   }
   return (el.textContent ?? '').trim().substring(0, 120)
-}
-
-// --- Selector computation ---
-
-function computeSelector(el: Element): string {
-  if (el.id) {
-    return `#${CSS.escape(el.id)}`
-  }
-
-  if (el.classList.length > 0) {
-    const classSelector = Array.from(el.classList)
-      .map(c => `.${CSS.escape(c)}`)
-      .join('')
-    const tagSelector = `${el.tagName.toLowerCase()}${classSelector}`
-    if (document.querySelectorAll(tagSelector).length === 1) {
-      return tagSelector
-    }
-  }
-
-  const parts: string[] = []
-  let current: Element | null = el
-  while (current && current !== document.documentElement) {
-    const tag = current.tagName.toLowerCase()
-    const parent: Element | null = current.parentElement
-    if (parent) {
-      const siblings = Array.from(parent.children).filter((c: Element) => c.tagName === current!.tagName)
-      if (siblings.length > 1) {
-        const index = siblings.indexOf(current) + 1
-        parts.unshift(`${tag}:nth-of-type(${index})`)
-      } else {
-        parts.unshift(tag)
-      }
-    } else {
-      parts.unshift(tag)
-    }
-    current = parent
-  }
-  return parts.join(' > ')
 }
 
 // --- Overlay ---

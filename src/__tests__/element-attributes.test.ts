@@ -3,14 +3,7 @@
 import {describe, expect, test} from 'vitest'
 
 import {getAvailableAttributes, getElementAttributes} from '../utils/element-attributes'
-
-function el(tag: string, attrs: Record<string, string> = {}): HTMLElement {
-  const element = document.createElement(tag)
-  for (const [name, value] of Object.entries(attrs)) {
-    element.setAttribute(name, value)
-  }
-  return element
-}
+import {el} from './test-helpers'
 
 describe('getElementAttributes', () => {
   test('returns empty array for element with no attributes', () => {
