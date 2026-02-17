@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
-import {describe, expect, test} from 'vitest'
+import {describe, expect, test, vi} from 'vitest'
 
+import {buildClassFrequencyCache} from '../utils/class-frequency-cache'
 import {computeSelector} from '../utils/compute-selector'
 import {el, mount, polyfillCSSEscape} from './test-helpers'
 
@@ -85,7 +86,7 @@ describe('computeSelector', () => {
     cleanup()
   })
 
-  // --- Strategy 3: tag.class ---
+  // --- Strategy 3: tag.class (frequency-scored) ---
 
   test('uses tag.class when unique on page', () => {
     const container = el('div', {}, [el('article', {class: 'featured-post'})])
@@ -97,12 +98,79 @@ describe('computeSelector', () => {
     cleanup()
   })
 
-  test('uses tag with all classes when unique', () => {
-    const container = el('div', {}, [el('div', {class: 'card featured'})])
+  test('prefers most specific single class over all-classes combination', () => {
+    // Simulates: span.p-name.vcard-fullname.d-block.overflow-hidden
+    // where .vcard-fullname is unique but .d-block and .overflow-hidden are common
+    const container = el('div', {}, [
+      el('span', {class: 'zcf-pname zcf-fullname zcf-dblock zcf-ovhidden'}),
+      // Add elements that share the utility classes
+      el('div', {class: 'zcf-dblock'}),
+      el('div', {class: 'zcf-dblock'}),
+      el('div', {class: 'zcf-dblock zcf-ovhidden'}),
+      el('span', {class: 'zcf-dblock'}),
+    ])
     const cleanup = mount(container)
 
     const target = container.children[0] as Element
-    expect(computeSelector(target)).toBe('div.card.featured')
+    const result = computeSelector(target)
+    // Should pick a single unique class rather than all 4
+    // span.zcf-pname(1) or span.zcf-fullname(1) — both are unique, either is acceptable
+    expect(result.split('.').length).toBe(2)
+    expect(result).not.toContain('zcf-dblock')
+    expect(result).not.toContain('zcf-ovhidden')
+
+    cleanup()
+  })
+
+  test('picks single class when multiple classes are unique', () => {
+    const container = el('div', {}, [
+      el('span', {class: 'zcf-alpha zcf-beta'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const result = computeSelector(target)
+    // Both have count=1, either is valid — just verify it's a single class
+    expect(result).toMatch(/^span\.zcf-/)
+    expect(result.split('.').length).toBe(2) // tag.class, not tag.class1.class2
+
+    cleanup()
+  })
+
+  test('builds minimal class combination when no single class is unique', () => {
+    const container = el('div', {}, [
+      el('span', {class: 'zcf-card zcf-feat zcf-sale'}),
+      el('span', {class: 'zcf-card zcf-sale'}),
+      el('span', {class: 'zcf-feat zcf-sale'}),
+      // No other span has both zcf-card+zcf-feat, so the combo should be minimal
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const result = computeSelector(target)
+    // Should not include .zcf-sale (matches 3) if zcf-card+zcf-feat is enough
+    expect(result).not.toContain('zcf-sale')
+    const matched = document.querySelectorAll(result)
+    expect(matched).toHaveLength(1)
+    expect(matched[0]).toBe(target)
+
+    cleanup()
+  })
+
+  test('drops utility classes when semantic class is unique', () => {
+    const container = el('div', {}, [
+      el('div', {class: 'zcf-prodtitle zcf-flex zcf-ic zcf-mt2'}),
+      // Many elements share the utility classes
+      el('div', {class: 'zcf-flex zcf-ic'}),
+      el('div', {class: 'zcf-flex zcf-mt2'}),
+      el('span', {class: 'zcf-flex zcf-ic zcf-mt2'}),
+      el('div', {class: 'zcf-flex'}),
+      el('div', {class: 'zcf-ic'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    expect(computeSelector(target)).toBe('div.zcf-prodtitle')
 
     cleanup()
   })
@@ -190,6 +258,65 @@ describe('computeSelector', () => {
     expect(matched).toHaveLength(1)
     expect(matched[0]).toBe(target)
 
+    cleanup()
+  })
+
+  // --- With ClassFrequencyCache ---
+
+  test('uses cache for class scoring instead of DOM queries', () => {
+    const container = el('div', {}, [
+      el('span', {class: 'zcf-uniq zcf-cblock zcf-covh'}),
+      el('div', {class: 'zcf-cblock'}),
+      el('div', {class: 'zcf-cblock zcf-covh'}),
+    ])
+    const cleanup = mount(container)
+
+    const cache = buildClassFrequencyCache()
+    const target = container.children[0] as Element
+    expect(computeSelector(target, cache)).toBe('span.zcf-uniq')
+
+    cleanup()
+  })
+
+  test('cache produces same result as uncached', () => {
+    const container = el('div', {}, [
+      el('span', {class: 'zcf-ctitle zcf-chero zcf-cflex zcf-cjc'}),
+      el('div', {class: 'zcf-cflex'}),
+      el('div', {class: 'zcf-cflex zcf-cjc'}),
+      el('span', {class: 'zcf-cflex'}),
+    ])
+    const cleanup = mount(container)
+
+    const cache = buildClassFrequencyCache()
+    const target = container.children[0] as Element
+    const uncached = computeSelector(target)
+    const cached = computeSelector(target, cache)
+    expect(cached).toBe(uncached)
+
+    cleanup()
+  })
+
+  test('logs selector evaluation to console.debug', () => {
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const container = el('div', {}, [
+      el('span', {class: 'zcf-logtest zcf-logutil'}),
+      el('div', {class: 'zcf-logutil'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    computeSelector(target)
+
+    expect(debugSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[selector] Evaluating 2 classes on <span>'),
+      expect.any(String),
+    )
+    expect(debugSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[selector] Result: span.zcf-logtest'),
+      expect.any(String),
+    )
+
+    debugSpy.mockRestore()
     cleanup()
   })
 })

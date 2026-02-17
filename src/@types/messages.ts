@@ -11,12 +11,10 @@ export enum MessageAction {
   ElementPickerComplete = 'element-picker-complete',
   ElementPickerCancel = 'element-picker-cancel',
   ElementPickerError = 'element-picker-error',
-  ElementPickerStateSync = 'element-picker-state-sync',
-  ElementPickerCommand = 'element-picker-command',
-  ElementPickerSidePanelReady = 'element-picker-side-panel-ready',
   ElementPickerSaved = 'element-picker-saved',
   PageValidationPassed = 'page-validation-passed',
   PageValidationFailed = 'page-validation-failed',
+  TrackCurrentPage = 'track-current-page',
   Authentication = 'authentication',
   RevokeAuthentication = 'revoke-authentication',
 }
@@ -61,13 +59,11 @@ export interface StartElementPickerMessage extends ActionMessage {
   action: MessageAction.StartElementPicker
   url: string
   sessionId: string
-  useSidePanel?: boolean
 }
 
 export interface ElementPickerStartedMessage extends ActionMessage {
   action: MessageAction.ElementPickerStarted
   sessionId: string
-  mode: 'side_panel' | 'tab'
 }
 
 export interface ElementPickerUpdateMessage extends ActionMessage {
@@ -107,32 +103,6 @@ export interface AdvancedPreviewItem {
   tagName: string
 }
 
-export interface ElementPickerStateSyncMessage extends ActionMessage {
-  action: MessageAction.ElementPickerStateSync
-  sessionId: string
-  selections: PickerSelectionInfo[]
-  pickerMode: 'click' | 'advanced'
-  advancedMatchCount: number
-  advancedPreviews: AdvancedPreviewItem[]
-  advancedInputValid: boolean
-  advancedQuery: string
-}
-
-export interface ElementPickerCommandMessage extends ActionMessage {
-  action: MessageAction.ElementPickerCommand
-  sessionId: string
-  command: ElementPickerCommand
-  selectionId?: string
-  extract?: string
-  attributeName?: string
-  mode?: 'click' | 'advanced'
-  selector?: string
-}
-
-export interface ElementPickerSidePanelReadyMessage extends ActionMessage {
-  action: MessageAction.ElementPickerSidePanelReady
-}
-
 export interface ElementPickerSavedMessage extends ActionMessage {
   action: MessageAction.ElementPickerSaved
   sessionId: string
@@ -168,9 +138,6 @@ export type Message =
   | ElementPickerCompleteMessage
   | ElementPickerCancelMessage
   | ElementPickerErrorMessage
-  | ElementPickerStateSyncMessage
-  | ElementPickerCommandMessage
-  | ElementPickerSidePanelReadyMessage
   | ElementPickerSavedMessage
   | AuthenticationMessage
   | RevokeAuthenticationMessage

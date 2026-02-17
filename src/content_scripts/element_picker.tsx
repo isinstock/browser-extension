@@ -1,8 +1,9 @@
 import {render} from 'preact'
 import browser from 'webextension-polyfill'
 import {ElementPickerCommand, MessageAction, SelectorEntry} from '../@types/messages'
-import type {ElementPickerCommandMessage, PickerSelectionInfo} from '../@types/messages'
 import {PickerPanel} from '../components/picker-panel'
+import type {ClassFrequencyCache} from '../utils/class-frequency-cache'
+import {buildClassFrequencyCache} from '../utils/class-frequency-cache'
 import {findCollection} from '../utils/collection-selector'
 import type {CollectionResult} from '../utils/collection-selector'
 import {computeSelector} from '../utils/compute-selector'
@@ -35,7 +36,6 @@ type PickerMode = 'click' | 'advanced'
 interface PickerState {
   active: boolean
   sessionId: string
-  useSidePanel: boolean
   selections: Map<string, SelectionState>
   hoveredSelectionId: string | null
   pickerMode: PickerMode
@@ -54,7 +54,6 @@ interface PickerState {
 const state: PickerState = {
   active: false,
   sessionId: '',
-  useSidePanel: false,
   selections: new Map(),
   hoveredSelectionId: null,
   pickerMode: 'click',
@@ -71,6 +70,8 @@ const state: PickerState = {
 }
 
 const elementToSelectionId = new WeakMap<HTMLElement, string>()
+
+let classFrequencyCache: ClassFrequencyCache | undefined
 
 // Hover overlay (lives in the page, not shadow DOM)
 const hoverOverlay = document.createElement('div')
@@ -107,9 +108,7 @@ shadow.appendChild(panelRoot)
 // --- Preact rendering ---
 
 function renderPanel() {
-  if (state.useSidePanel) return
-
-  const selections: PickerSelectionInfo[] = Array.from(state.selections.values()).map(s => ({
+  const selections = Array.from(state.selections.values()).map(s => ({
     id: s.id,
     cssSelector: s.cssSelector,
     extract: s.extract,
@@ -208,7 +207,6 @@ function setPickerMode(mode: PickerMode) {
     state.advancedInputValid = true
   }
   renderPanel()
-  sendStateSync()
 }
 
 function clearAdvancedOverlays() {
@@ -330,7 +328,6 @@ function addAdvancedSelector() {
 
   renderPanel()
   debouncedSendUpdate()
-  sendStateSync()
 }
 
 // --- Debounced message sending ---
@@ -372,34 +369,6 @@ function sendCancel() {
     sessionId: state.sessionId,
   })
   cleanup()
-}
-
-function sendStateSync() {
-  if (!state.useSidePanel) return
-
-  const previewLimit = 5
-  const advancedPreviews = state.advancedMatchedElements.slice(0, previewLimit).map(el => ({
-    text: (el.textContent ?? '').trim().substring(0, 80),
-    tagName: el.tagName.toLowerCase(),
-  }))
-
-  browser.runtime.sendMessage({
-    action: MessageAction.ElementPickerStateSync,
-    sessionId: state.sessionId,
-    selections: Array.from(state.selections.values()).map(s => ({
-      id: s.id,
-      cssSelector: s.cssSelector,
-      extract: s.extract,
-      attributeName: s.attributeName,
-      preview: s.preview,
-      availableAttributes: getAvailableAttributes(s.elements),
-    })),
-    pickerMode: state.pickerMode,
-    advancedMatchCount: state.advancedMatchedElements.length,
-    advancedPreviews,
-    advancedInputValid: state.advancedInputValid,
-    advancedQuery: state.advancedQuery,
-  })
 }
 
 function getSelectors(): SelectorEntry[] {
@@ -498,7 +467,7 @@ function updateBadgeNumbers() {
 
 function addSelection(el: HTMLElement) {
   const id = crypto.randomUUID()
-  const cssSelector = computeSelector(el)
+  const cssSelector = computeSelector(el, classFrequencyCache)
   const preview = extractPreview(el, 'text_content', '')
   const badgeNumber = state.selections.size + 1
   const overlay = createSelectedOverlay(el, badgeNumber)
@@ -518,7 +487,6 @@ function addSelection(el: HTMLElement) {
 
   renderPanel()
   debouncedSendUpdate()
-  sendStateSync()
 }
 
 function addCollectionSelection(result: CollectionResult) {
@@ -551,7 +519,6 @@ function addCollectionSelection(result: CollectionResult) {
 
   renderPanel()
   debouncedSendUpdate()
-  sendStateSync()
 }
 
 function removeSelection(id: string) {
@@ -569,7 +536,6 @@ function removeSelection(id: string) {
   updateBadgeNumbers()
   renderPanel()
   debouncedSendUpdate()
-  sendStateSync()
 }
 
 function updateSelectionExtract(id: string, extract: ExtractMode) {
@@ -584,7 +550,6 @@ function updateSelectionExtract(id: string, extract: ExtractMode) {
 
   renderPanel()
   debouncedSendUpdate()
-  sendStateSync()
 }
 
 function updateSelectionAttribute(id: string, attributeName: string) {
@@ -596,7 +561,6 @@ function updateSelectionAttribute(id: string, attributeName: string) {
 
   renderPanel()
   debouncedSendUpdate()
-  sendStateSync()
 }
 
 // --- Error display ---
@@ -643,12 +607,10 @@ function onMouseOver(e: MouseEvent) {
   positionOverlay(hoverOverlay, target)
 
   // Cross-hover: page element → panel row highlight
-  if (!state.useSidePanel) {
-    const id = elementToSelectionId.get(target)
-    if (id) {
-      const row = shadow.querySelector(`[data-selection-id="${id}"]`) as HTMLElement | null
-      if (row) row.classList.add('highlighted')
-    }
+  const id = elementToSelectionId.get(target)
+  if (id) {
+    const row = shadow.querySelector(`[data-selection-id="${id}"]`) as HTMLElement | null
+    if (row) row.classList.add('highlighted')
   }
 }
 
@@ -662,12 +624,10 @@ function onMouseOut(e: MouseEvent) {
     clearCollectionOverlays()
   }
 
-  if (!state.useSidePanel) {
-    const id = elementToSelectionId.get(target)
-    if (id) {
-      const row = shadow.querySelector(`[data-selection-id="${id}"]`) as HTMLElement | null
-      if (row) row.classList.remove('highlighted')
-    }
+  const id = elementToSelectionId.get(target)
+  if (id) {
+    const row = shadow.querySelector(`[data-selection-id="${id}"]`) as HTMLElement | null
+    if (row) row.classList.remove('highlighted')
   }
 }
 
@@ -707,10 +667,9 @@ function onKeyDown(e: KeyboardEvent) {
 
 function activate() {
   state.active = true
-  if (!state.useSidePanel) {
-    panelHost.style.display = 'block'
-    renderPanel()
-  }
+  classFrequencyCache = buildClassFrequencyCache()
+  panelHost.style.display = 'block'
+  renderPanel()
   document.addEventListener('mouseover', onMouseOver, true)
   document.addEventListener('mouseout', onMouseOut, true)
   document.addEventListener('click', onClick, true)
@@ -743,6 +702,7 @@ function cleanup() {
   state.advancedQuery = ''
   state.advancedInputValid = true
   state.pickerMode = 'click'
+  classFrequencyCache = undefined
 
   document.removeEventListener('mouseover', onMouseOver, true)
   document.removeEventListener('mouseout', onMouseOut, true)
@@ -761,66 +721,31 @@ function teardown() {
 // Wait for StartElementPicker message to show validating state, then
 // PageValidationPassed to activate or PageValidationFailed to show error.
 function onMessage(msg: unknown) {
-  const message = msg as {action: string; sessionId?: string; error?: string; message?: string; useSidePanel?: boolean}
+  const message = msg as {
+    action: string
+    sessionId?: string
+    error?: string
+    message?: string
+    subscriptionUrl?: string
+  }
   if (message.action === MessageAction.StartElementPicker && message.sessionId) {
     state.sessionId = message.sessionId
-    state.useSidePanel = message.useSidePanel === true
     state.validating = true
     state.validationError = null
-    if (!state.useSidePanel) {
-      panelHost.style.display = 'block'
-      renderPanel()
-    }
+    panelHost.style.display = 'block'
+    renderPanel()
   } else if (message.action === MessageAction.PageValidationPassed) {
     state.validating = false
     activate()
   } else if (message.action === MessageAction.PageValidationFailed) {
     state.validating = false
     state.validationError = message.message ?? 'This page cannot be tracked.'
-    if (!state.useSidePanel) {
-      renderPanel()
-    }
+    renderPanel()
   } else if (message.action === MessageAction.ElementPickerError && message.error) {
     showError(message.error)
-  } else if (message.action === MessageAction.ElementPickerSidePanelReady) {
-    if (state.active || state.validating) {
-      state.useSidePanel = true
-      destroyInPagePanel()
-      if (state.active) sendStateSync()
-    }
-  } else if (message.action === MessageAction.ElementPickerCommand) {
-    const cmd = message as unknown as ElementPickerCommandMessage
-    switch (cmd.command) {
-      case ElementPickerCommand.Remove:
-        if (cmd.selectionId) removeSelection(cmd.selectionId)
-        break
-      case ElementPickerCommand.ChangeExtract:
-        if (cmd.selectionId && cmd.extract) updateSelectionExtract(cmd.selectionId, cmd.extract as ExtractMode)
-        break
-      case ElementPickerCommand.ChangeAttribute:
-        if (cmd.selectionId && cmd.attributeName !== undefined)
-          updateSelectionAttribute(cmd.selectionId, cmd.attributeName)
-        break
-      case ElementPickerCommand.Done:
-        if (state.selections.size > 0) sendComplete()
-        break
-      case ElementPickerCommand.Cancel:
-        sendCancel()
-        break
-      case ElementPickerCommand.SetMode:
-        if (cmd.mode) setPickerMode(cmd.mode)
-        sendStateSync()
-        break
-      case ElementPickerCommand.RunAdvancedQuery:
-        if (cmd.selector !== undefined) {
-          runAdvancedQuery(cmd.selector)
-          sendStateSync()
-        }
-        break
-      case ElementPickerCommand.AddAdvancedSelector:
-        addAdvancedSelector()
-        break
-    }
+  } else if (message.action === MessageAction.ElementPickerSaved) {
+    state.saving = false
+    cleanup()
   }
 }
 

@@ -4,7 +4,6 @@ import {InventoryStateNormalized} from './@types/inventory-states'
 import {
   AuthenticationMessage,
   ContextMenuItem,
-  ElementPickerCommand,
   Message,
   MessageAction,
   RevokeAuthenticationMessage,
@@ -39,22 +38,6 @@ const pickerSessions = new Map<
 // otherwise fall back to opening a new tab.
 if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
   chrome.sidePanel.setPanelBehavior({openPanelOnActionClick: true}).catch(console.error)
-
-  // Chrome 142+: cancel the picker when the user closes the side panel
-  chrome.sidePanel.onClosed.addListener(({tabId}) => {
-    for (const [sid, session] of pickerSessions) {
-      if (tabId !== undefined && session.targetTabId !== tabId) continue
-      browser.tabs
-        .sendMessage(session.targetTabId, {
-          action: MessageAction.ElementPickerCommand,
-          sessionId: sid,
-          command: ElementPickerCommand.Cancel,
-        })
-        .catch(() => {})
-      pickerSessions.delete(sid)
-      break
-    }
-  })
 } else {
   browser.action.onClicked.addListener(tab => {
     const trackUrl = tab.id !== undefined ? tabTrackUrls.get(tab.id) : undefined
@@ -97,7 +80,6 @@ browser.tabs.onRemoved.addListener(tabId => {
   // Check if the removed tab is a picker target tab and notify origin
   for (const [sid, session] of pickerSessions) {
     if (session.targetTabId === tabId) {
-      closeSidePanel(tabId)
       if (session.originTabId !== undefined) {
         browser.tabs
           .sendMessage(session.originTabId, {
@@ -143,7 +125,6 @@ async function injectElementPicker(
   url: string,
   originTabId?: number,
   existingSessionId?: string,
-  sidePanelAlreadyOpen = false,
   title?: string,
 ) {
   const sid = existingSessionId ?? crypto.randomUUID()
@@ -170,7 +151,6 @@ async function injectElementPicker(
     action: MessageAction.StartElementPicker,
     sessionId: sid,
     url,
-    useSidePanel: sidePanelAlreadyOpen,
   })
 
   if (originTabId !== undefined) {
@@ -178,12 +158,11 @@ async function injectElementPicker(
       .sendMessage(originTabId, {
         action: MessageAction.ElementPickerStarted,
         sessionId: sid,
-        mode: sidePanelAlreadyOpen ? 'side_panel' : 'tab',
       })
       .catch(() => {})
   }
 
-  // Validate async — send result to content script (and side panel if open)
+  // Validate async — send result to content script
   const pageTitle =
     title ??
     (await browser.tabs
@@ -194,15 +173,9 @@ async function injectElementPicker(
 
   if (result.accessible) {
     browser.tabs.sendMessage(tabId, {action: MessageAction.PageValidationPassed, sessionId: sid}).catch(() => {})
-    if (sidePanelAlreadyOpen) {
-      chrome.runtime.sendMessage({action: MessageAction.PageValidationPassed, sessionId: sid}).catch(() => {})
-    }
   } else {
     const failMsg = validationFailedMessage(result)
     browser.tabs.sendMessage(tabId, failMsg).catch(() => {})
-    if (sidePanelAlreadyOpen) {
-      chrome.runtime.sendMessage(failMsg).catch(() => {})
-    }
     if (originTabId !== undefined) {
       browser.tabs
         .sendMessage(originTabId, {
@@ -212,12 +185,6 @@ async function injectElementPicker(
         })
         .catch(() => {})
     }
-  }
-}
-
-function closeSidePanel(tabId: number) {
-  if (typeof chrome !== 'undefined' && chrome.sidePanel != null) {
-    chrome.sidePanel.setOptions({tabId, enabled: false}).catch(() => {})
   }
 }
 
@@ -283,7 +250,7 @@ browser.contextMenus.create({
 browser.contextMenus.onClicked.addListener((info, tab) => {
   console.debug('[isinstock-bg] Context menu clicked:', info.menuItemId, 'tab:', tab?.id, tab?.url)
   if (info.menuItemId === ContextMenuItem.TrackElements && tab?.id) {
-    injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, false, tab.title)
+    injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, tab.title)
   }
 })
 
@@ -416,12 +383,6 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
       }
       return {processed: true}
     })()
-  } else if (action === MessageAction.ElementPickerCommand && 'sessionId' in message) {
-    const cmdMsg = message as {sessionId: string}
-    const session = pickerSessions.get(cmdMsg.sessionId)
-    if (session) {
-      browser.tabs.sendMessage(session.targetTabId, message).catch(() => {})
-    }
   } else if (action === MessageAction.ElementPickerUpdate && 'sessionId' in message) {
     const updateMsg = message as {sessionId: string; selectors: unknown[]}
     const session = pickerSessions.get(updateMsg.sessionId)
@@ -434,14 +395,13 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
 
     if (session) {
       if (session.originTabId !== undefined) {
-        // Flow B: forward to bridge, close target tab, and switch back to origin
-        closeSidePanel(session.targetTabId)
+        // Bridge flow: forward to origin tab, close target tab, switch back
         browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
         browser.tabs.remove(session.targetTabId).catch(() => {})
         browser.tabs.update(session.originTabId, {active: true}).catch(() => {})
         pickerSessions.delete(completeMsg.sessionId)
       } else {
-        // Flow A: POST to API, notify sidepanel of result
+        // Context menu / side panel "Track new" flow: POST to API, notify content script
         ;(async () => {
           try {
             const resp = await fetchApi(
@@ -454,8 +414,8 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
             )
             if (resp.ok) {
               const data = (await resp.json()) as {subscription_url: string}
-              chrome.runtime
-                .sendMessage({
+              browser.tabs
+                .sendMessage(session.targetTabId, {
                   action: MessageAction.ElementPickerSaved,
                   sessionId: completeMsg.sessionId,
                   subscriptionUrl: data.subscription_url,
@@ -467,8 +427,8 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
                 resp.status === 401
                   ? 'You need to sign in to Is In Stock to use custom tracking.'
                   : `Failed to create tracking (${resp.status}).`
-              chrome.runtime
-                .sendMessage({
+              browser.tabs
+                .sendMessage(session.targetTabId, {
                   action: MessageAction.ElementPickerError,
                   sessionId: completeMsg.sessionId,
                   error: errorMsg,
@@ -476,8 +436,8 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
                 .catch(() => {})
             }
           } catch (e) {
-            chrome.runtime
-              .sendMessage({
+            browser.tabs
+              .sendMessage(session.targetTabId, {
                 action: MessageAction.ElementPickerError,
                 sessionId: completeMsg.sessionId,
                 error: 'Failed to connect to Is In Stock.',
@@ -491,37 +451,19 @@ browser.runtime.onMessage.addListener((msg: unknown, sender: browser.Runtime.Mes
     const cancelMsg = message as {sessionId: string}
     const session = pickerSessions.get(cancelMsg.sessionId)
     if (session) {
-      closeSidePanel(session.targetTabId)
       if (session.originTabId !== undefined) {
         browser.tabs.sendMessage(session.originTabId, message).catch(() => {})
       }
     }
     pickerSessions.delete(cancelMsg.sessionId)
-  } else if (action === MessageAction.ElementPickerStateSync && 'sessionId' in message) {
-    // Relay state sync from content script to the sidepanel.
-    // The sidepanel lives in the extension context and listens via
-    // chrome.runtime.onMessage, so re-broadcasting with sendMessage
-    // ensures it receives the update (content script → background → sidepanel).
-    browser.runtime.sendMessage(message).catch(() => {})
-  } else if (action === MessageAction.ElementPickerSidePanelReady) {
+  } else if (action === MessageAction.TrackCurrentPage) {
+    // From side panel "Track new" button: inject picker into the active tab
     return (async () => {
       try {
         const [tab] = await browser.tabs.query({active: true, currentWindow: true})
-        if (!tab?.id) return {processed: true}
-
-        // Check if there's already a picker session for this tab
-        for (const session of pickerSessions.values()) {
-          if (session.targetTabId === tab.id) {
-            // Session exists — tell content script to switch to side panel mode and resync
-            browser.tabs.sendMessage(tab.id, {action: MessageAction.ElementPickerSidePanelReady}).catch(() => {})
-            return {processed: true}
-          }
+        if (tab?.id) {
+          await injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, tab.title)
         }
-
-        // No session — start the picker (side panel is already open).
-        // Validation happens inside injectElementPicker; the side panel
-        // will receive PageValidationPassed/Failed via chrome.runtime.sendMessage.
-        await injectElementPicker(tab.id, tab.url ?? '', undefined, undefined, true, tab.title)
       } catch (e) {
         console.debug('[isinstock-bg] Error starting picker from side panel', e)
       }

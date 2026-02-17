@@ -1,20 +1,8 @@
 import {render} from 'preact'
 import {useState, useEffect, useCallback, useRef} from 'preact/hooks'
-import {ElementPickerCommand, MessageAction} from './@types/messages'
-import type {
-  PickerSelectionInfo,
-  AdvancedPreviewItem,
-  ElementPickerStateSyncMessage,
-  PageValidationFailedMessage,
-} from './@types/messages'
+import {MessageAction} from './@types/messages'
 import type {CurrentUser} from './@types/api'
 import {useAccessToken, useCurrentUser} from './hooks'
-import {PickerPanel} from './components/picker-panel'
-
-type AppView = 'subscriptions' | 'picker'
-type PickerMode = 'click' | 'advanced'
-
-const PICKER_MODE_STORAGE_KEY = 'pickerMode'
 
 interface SubscriptionProduct {
   id: number
@@ -109,7 +97,7 @@ function Header({user, onDisconnect}: {user: CurrentUser; onDisconnect: () => vo
   )
 }
 
-function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
+function SubscriptionsView() {
   const {accessToken, isLoggedIn} = useAccessToken()
   const {user} = useCurrentUser()
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
@@ -119,6 +107,10 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
 
   const handleDisconnect = useCallback(() => {
     chrome.storage.local.remove('accessToken')
+  }, [])
+
+  const handleTrackNew = useCallback(() => {
+    chrome.runtime.sendMessage({action: MessageAction.TrackCurrentPage})
   }, [])
 
   useEffect(() => {
@@ -238,7 +230,7 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
         <div class="view-content view-content-centered">
           <div class="empty-state">
             <p class="empty-state-body">{error}</p>
-            <button class="btn btn-primary" onClick={onTrackNew} disabled={!canTrack}>
+            <button class="btn btn-primary" onClick={handleTrackNew} disabled={!canTrack}>
               Track new
             </button>
           </div>
@@ -260,7 +252,7 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
             </div>
             <p class="empty-state-title">No products yet</p>
             <p class="empty-state-body">Start tracking products to see them here.</p>
-            <button class="btn btn-primary" onClick={onTrackNew} disabled={!canTrack}>
+            <button class="btn btn-primary" onClick={handleTrackNew} disabled={!canTrack}>
               Track new
             </button>
           </div>
@@ -311,7 +303,7 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
         </div>
       </div>
       <div class="view-footer">
-        <button class="btn btn-primary btn-full" onClick={onTrackNew} disabled={!canTrack}>
+        <button class="btn btn-primary btn-full" onClick={handleTrackNew} disabled={!canTrack}>
           Track new
         </button>
       </div>
@@ -319,126 +311,8 @@ function SubscriptionsView({onTrackNew}: {onTrackNew: () => void}) {
   )
 }
 
-function PickerView({onBack}: {onBack: () => void}) {
-  const [selections, setSelections] = useState<PickerSelectionInfo[]>([])
-  const [sessionId, setSessionId] = useState<string>('')
-  const [pickerMode, setPickerMode] = useState<PickerMode>('click')
-  const [advancedMatchCount, setAdvancedMatchCount] = useState(0)
-  const [advancedPreviews, setAdvancedPreviews] = useState<AdvancedPreviewItem[]>([])
-  const [advancedInputValid, setAdvancedInputValid] = useState(true)
-  const [advancedQuery, setAdvancedQuery] = useState('')
-  const [modeLoaded, setModeLoaded] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [validating, setValidating] = useState(true)
-  const [validationError, setValidationError] = useState<string | null>(null)
-
-  useEffect(() => {
-    chrome.storage.local.get(PICKER_MODE_STORAGE_KEY, result => {
-      const stored = result[PICKER_MODE_STORAGE_KEY]
-      if (stored === 'click' || stored === 'advanced') {
-        setPickerMode(stored)
-      }
-      setModeLoaded(true)
-    })
-  }, [])
-
-  useEffect(() => {
-    const listener = (message: Record<string, unknown>) => {
-      if (message.action === MessageAction.ElementPickerStateSync) {
-        const sync = message as unknown as ElementPickerStateSyncMessage
-        if (sync.sessionId) setSessionId(sync.sessionId)
-        setSelections(sync.selections)
-        setPickerMode(sync.pickerMode)
-        setAdvancedMatchCount(sync.advancedMatchCount)
-        setAdvancedPreviews(sync.advancedPreviews)
-        setAdvancedInputValid(sync.advancedInputValid)
-        setAdvancedQuery(sync.advancedQuery)
-      } else if (message.action === MessageAction.ElementPickerSaved) {
-        onBack()
-      } else if (message.action === MessageAction.ElementPickerError) {
-        setSaving(false)
-        setError((message as {error: string}).error)
-      } else if (message.action === MessageAction.PageValidationPassed) {
-        setValidating(false)
-      } else if (message.action === MessageAction.PageValidationFailed) {
-        const msg = message as unknown as PageValidationFailedMessage
-        setValidating(false)
-        setValidationError(msg.message)
-      }
-    }
-    chrome.runtime.onMessage.addListener(listener)
-
-    chrome.runtime.sendMessage({action: MessageAction.ElementPickerSidePanelReady})
-
-    return () => chrome.runtime.onMessage.removeListener(listener)
-  }, [])
-
-  const sendCommand = useCallback(
-    (command: ElementPickerCommand, opts?: Record<string, string>) => {
-      chrome.runtime.sendMessage({
-        action: MessageAction.ElementPickerCommand,
-        sessionId,
-        command,
-        ...opts,
-      })
-    },
-    [sessionId],
-  )
-
-  useEffect(() => {
-    if (modeLoaded && sessionId) {
-      sendCommand(ElementPickerCommand.SetMode, {mode: pickerMode})
-    }
-  }, [modeLoaded, sessionId])
-
-  const handleCommand = useCallback(
-    (command: ElementPickerCommand, opts?: Record<string, string>) => {
-      if (command === ElementPickerCommand.SetMode && opts?.mode) {
-        const mode = opts.mode as PickerMode
-        setPickerMode(mode)
-        chrome.storage.local.set({[PICKER_MODE_STORAGE_KEY]: mode})
-      } else if (command === ElementPickerCommand.Done) {
-        setSaving(true)
-        setError(null)
-      } else if (command === ElementPickerCommand.Cancel) {
-        sendCommand(ElementPickerCommand.Cancel)
-        onBack()
-        return
-      }
-      sendCommand(command, opts)
-    },
-    [sendCommand, onBack],
-  )
-
-  return (
-    <div class="view">
-      <PickerPanel
-        selections={selections}
-        pickerMode={pickerMode}
-        advancedMatchCount={advancedMatchCount}
-        advancedPreviews={advancedPreviews}
-        advancedInputValid={advancedInputValid}
-        advancedQuery={advancedQuery}
-        saving={saving}
-        error={error}
-        validating={validating}
-        validationError={validationError}
-        onCommand={handleCommand}
-        onBack={onBack}
-      />
-    </div>
-  )
-}
-
 function App() {
-  const [view, setView] = useState<AppView>('subscriptions')
-
-  return view === 'subscriptions' ? (
-    <SubscriptionsView onTrackNew={() => setView('picker')} />
-  ) : (
-    <PickerView onBack={() => setView('subscriptions')} />
-  )
+  return <SubscriptionsView />
 }
 
 render(<App />, document.getElementById('root')!)

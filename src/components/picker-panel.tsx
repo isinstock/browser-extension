@@ -18,7 +18,6 @@ export interface PickerPanelProps {
   validating?: boolean
   validationError?: string | null
   onCommand: (command: ElementPickerCommand, opts?: Record<string, string>) => void
-  onBack?: () => void
   onSelectionHoverStart?: (selectionId: string) => void
   onSelectionHoverEnd?: (selectionId: string) => void
 }
@@ -233,7 +232,6 @@ export function PickerPanel({
   validating,
   validationError,
   onCommand,
-  onBack,
   onSelectionHoverStart,
   onSelectionHoverEnd,
 }: PickerPanelProps) {
@@ -293,13 +291,6 @@ export function PickerPanel({
     <div class="picker-panel" onKeyDown={stopKeyboard} onKeyUp={stopKeyboard} onKeyPress={stopKeyboard}>
       <style>{styles}</style>
       <div class="picker-header">
-        {onBack && (
-          <button class="btn-back" onClick={handleCancel} title="Back to subscriptions">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-          </button>
-        )}
         <SegmentedControl value={pickerMode} onChange={handleModeChange} />
       </div>
 
