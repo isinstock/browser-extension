@@ -206,6 +206,7 @@ function setPickerMode(mode: PickerMode) {
     state.advancedQuery = ''
     state.advancedInputValid = true
   }
+  browser.storage.local.set({pickerMode: mode})
   renderPanel()
 }
 
@@ -665,9 +666,15 @@ function onKeyDown(e: KeyboardEvent) {
 
 // --- Lifecycle ---
 
-function activate() {
+async function activate() {
   state.active = true
   classFrequencyCache = buildClassFrequencyCache()
+
+  const stored = await browser.storage.local.get('pickerMode')
+  if (stored.pickerMode === 'click' || stored.pickerMode === 'advanced') {
+    state.pickerMode = stored.pickerMode
+  }
+
   panelHost.style.display = 'block'
   renderPanel()
   document.addEventListener('mouseover', onMouseOver, true)
@@ -701,7 +708,6 @@ function cleanup() {
   clearAdvancedOverlays()
   state.advancedQuery = ''
   state.advancedInputValid = true
-  state.pickerMode = 'click'
   classFrequencyCache = undefined
 
   document.removeEventListener('mouseover', onMouseOver, true)

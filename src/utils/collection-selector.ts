@@ -163,10 +163,15 @@ function tryTestIdSelector(
 function tryGlobalSelector(tag: string, siblings: HTMLElement[], target: HTMLElement): CollectionResult | null {
   const sharedClasses = getSharedClasses(siblings)
 
+  console.debug(
+    `[collection]   Global strategy: ${sharedClasses.length} shared classes [${sharedClasses.join(', ')}], need exactly ${siblings.length} matches`,
+  )
+
   // Try each shared class individually as tag.class
   for (const cls of sharedClasses) {
     const selector = `${tag}.${CSS.escape(cls)}`
     const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+    console.debug(`[collection]   Tried ${selector} → ${matched.length} matches (need ${siblings.length})`)
     if (matched.length === siblings.length) {
       return {selector, elements: matched}
     }
@@ -176,6 +181,7 @@ function tryGlobalSelector(tag: string, siblings: HTMLElement[], target: HTMLEle
   if (sharedClasses.length > 1) {
     const selector = `${tag}${sharedClasses.map(c => `.${CSS.escape(c)}`).join('')}`
     const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
+    console.debug(`[collection]   Tried combined ${selector} → ${matched.length} matches (need ${siblings.length})`)
     if (matched.length === siblings.length) {
       return {selector, elements: matched}
     }
@@ -188,7 +194,7 @@ function tryGlobalSelector(tag: string, siblings: HTMLElement[], target: HTMLEle
     if (sharedClasses.includes(cls)) continue // already tried above
     const selector = `${tag}.${CSS.escape(cls)}`
     const matched = toHTMLElements(Array.from(document.querySelectorAll(selector)))
-    // Must match more than 1 element and target must be among them
+    console.debug(`[collection]   Tried target-specific ${selector} → ${matched.length} matches (need >1, includes target: ${matched.includes(target)})`)
     if (matched.length > 1 && matched.includes(target)) {
       return {selector, elements: matched}
     }
@@ -261,31 +267,51 @@ export function findCollection(target: HTMLElement): CollectionResult | null {
   let current: HTMLElement = target
   let level = 0
 
+  console.debug(`[collection] Starting from <${target.tagName.toLowerCase()}>, classes: [${Array.from(target.classList).join(', ')}]`)
+
   while (level < MAX_ANCESTOR_LEVELS) {
     const parent = current.parentElement
-    if (!parent || parent === document.documentElement) break
+    if (!parent || parent === document.documentElement) {
+      console.debug(`[collection] Level ${level}: hit document boundary, stopping`)
+      break
+    }
 
     const siblings = getSameTagSiblings(current, parent)
+    const tag = current.tagName.toLowerCase()
+
+    console.debug(
+      `[collection] Level ${level}: <${tag}> has ${siblings.length} same-tag siblings under <${parent.tagName.toLowerCase()}>`,
+    )
 
     if (siblings.length >= 2) {
-      const tag = current.tagName.toLowerCase()
-
       // Strategy 0: Test ID attribute selectors
       const testIdResult = tryTestIdSelector(tag, siblings, parent, target)
-      if (testIdResult) return testIdResult
+      if (testIdResult) {
+        console.debug(`[collection] Matched via test ID: ${testIdResult.selector} (${testIdResult.elements.length} elements)`)
+        return testIdResult
+      }
 
       // Strategy 1: Global selectors
       const globalResult = tryGlobalSelector(tag, siblings, target)
-      if (globalResult) return globalResult
+      if (globalResult) {
+        console.debug(`[collection] Matched via global: ${globalResult.selector} (${globalResult.elements.length} elements)`)
+        return globalResult
+      }
 
       // Strategy 2: Parent-scoped selectors
       const scopedResult = tryParentScopedSelector(tag, siblings, parent, target)
-      if (scopedResult) return scopedResult
+      if (scopedResult) {
+        console.debug(`[collection] Matched via parent-scoped: ${scopedResult.selector} (${scopedResult.elements.length} elements)`)
+        return scopedResult
+      }
+
+      console.debug(`[collection] Level ${level}: no strategy matched for ${siblings.length} <${tag}> siblings`)
     }
 
     current = parent as HTMLElement
     level++
   }
 
+  console.debug(`[collection] No collection found after ${level} levels`)
   return null
 }
