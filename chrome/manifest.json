@@ -30,7 +30,7 @@
     "service_worker": "background.js"
   },
   "externally_connectable": {
-    "matches": ["https://isinstock.com/*", "https://*.isinstock.com/*", "http://isinstock.localhost/*"]
+    "matches": ["https://isinstock.com/*", "https://*.isinstock.com/*", "https://isinstock.localhost/*"]
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

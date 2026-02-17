@@ -164,6 +164,7 @@ function SubscriptionsView() {
     }
 
     const fetchSubscriptions = async () => {
+      setLoading(true)
       try {
         const resp = await fetch(`${ISINSTOCK_URL}/api/inventory-subscriptions`, {
           headers: {
