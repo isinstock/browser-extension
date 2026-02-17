@@ -1,4 +1,5 @@
 import type {ClassFrequencyCache} from './class-frequency-cache'
+import {classifyClass, type ClassType} from './class-classification'
 import {TEST_ID_ATTRIBUTES} from './test-id-attributes'
 import {getTestIdSelector} from './test-id-attributes'
 
@@ -7,6 +8,7 @@ declare const __DEV__: boolean
 export interface SelectorTraceCandidate {
   name: string
   count: number
+  classification: ClassType
 }
 
 export interface SelectorTrace {
@@ -15,7 +17,14 @@ export interface SelectorTrace {
   classes: string[]
   testIdAttrs: {name: string; value: string}[]
   candidates: SelectorTraceCandidate[]
-  strategy: 'test-id' | 'id' | 'single-class' | 'class-combination' | 'structural'
+  strategy:
+    | 'test-id'
+    | 'id'
+    | 'single-class'
+    | 'semantic-combination'
+    | 'parent-context'
+    | 'class-combination'
+    | 'structural'
   result: string
   kept: string[]
   dropped: SelectorTraceCandidate[]
@@ -25,12 +34,62 @@ export interface SelectorTrace {
 export let lastTrace: SelectorTrace | null = null
 
 /**
+ * Try to build a unique selector using the parent's ID or semantic class.
+ * Returns `parentSelector > tag` if it uniquely identifies the element, or null.
+ */
+function tryParentContext(el: Element, tag: string): string | null {
+  const parent = el.parentElement
+  if (!parent || parent === document.documentElement) return null
+
+  // Try parent ID first
+  if (parent.id) {
+    const selector = `#${CSS.escape(parent.id)} > ${tag}`
+    if (document.querySelectorAll(selector).length === 1) return selector
+  }
+
+  // Try parent tag + semantic class
+  const parentTag = parent.tagName.toLowerCase()
+  const parentClasses = Array.from(parent.classList)
+  for (const cls of parentClasses) {
+    if (classifyClass(cls) === 'semantic') {
+      const selector = `${parentTag}.${CSS.escape(cls)} > ${tag}`
+      if (document.querySelectorAll(selector).length === 1) return selector
+    }
+  }
+
+  return null
+}
+
+/**
+ * Build a minimal class combination from the given scored list that produces
+ * a unique selector. Returns the selector string or null.
+ */
+function tryMinimalCombination(
+  tag: string,
+  scored: {name: string; count: number; classification: ClassType}[],
+): string | null {
+  const used: string[] = []
+  for (const s of scored) {
+    used.push(s.name)
+    const selector = `${tag}${used.map(c => `.${CSS.escape(c)}`).join('')}`
+    if (document.querySelectorAll(selector).length === 1) return selector
+  }
+  return null
+}
+
+/**
  * Computes a CSS selector that uniquely identifies the given element on the page.
  *
  * Strategies tried in order:
  * 1. Test ID attribute (e.g. [data-testid="product-card"]) — if unique on page
- * 2. #id
- * 3. tag.class — scored by frequency, minimal classes needed for uniqueness
+ * 2. #id — verified unique via querySelectorAll
+ * 3. Class evaluation with utility classification:
+ *    a. Score & classify all classes (semantic / utility / hashed)
+ *    b. Unique semantic classes → keep all, return
+ *    c. Semantic-only combination → build minimal combo from semantic classes
+ *    d. Parent-context → try `#parentId > tag` or `parentTag.semanticClass > tag`
+ *    e. Unique utility classes → keep all, return
+ *    f. All-class combination → build minimal combo from all classes
  * 4. Structural path: tag:nth-of-type(n) > ... up to <html>
  *
  * When a ClassFrequencyCache is provided, class evaluation uses pre-computed
@@ -49,7 +108,7 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
     if (value) elTestIdAttrs.push({name: attr, value})
   }
 
-  // Prefer test ID attributes — they're stable, developer-intentional identifiers
+  // --- Strategy 1: Test ID attribute ---
   const testIdSelector = getTestIdSelector(el)
   if (testIdSelector && document.querySelectorAll(testIdSelector).length === 1) {
     lastTrace = {
@@ -66,100 +125,134 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
     return testIdSelector
   }
 
+  // --- Strategy 2: #id — verified unique ---
   if (el.id) {
     const selector = `#${CSS.escape(el.id)}`
-    lastTrace = {
-      tag: elTag,
-      id: elId,
-      classes: elClasses,
-      testIdAttrs: elTestIdAttrs,
-      candidates: [],
-      strategy: 'id',
-      result: selector,
-      kept: [],
-      dropped: [],
+    if (document.querySelectorAll(selector).length === 1) {
+      lastTrace = {
+        tag: elTag,
+        id: elId,
+        classes: elClasses,
+        testIdAttrs: elTestIdAttrs,
+        candidates: [],
+        strategy: 'id',
+        result: selector,
+        kept: [],
+        dropped: [],
+      }
+      return selector
     }
-    return selector
+    // Duplicate ID — fall through to class strategies
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug(`[selector] Duplicate ID "${el.id}", falling through to class strategy`)
+    }
   }
 
+  // --- Strategy 3: Class evaluation with utility classification ---
   if (el.classList.length > 0) {
     const tag = el.tagName.toLowerCase()
     const classes = Array.from(el.classList)
 
-    // Score each class by how many elements on the page match tag.class
-    const scored = classes.map(cls => {
+    // 3a. Score & classify each class
+    const scored: SelectorTraceCandidate[] = classes.map(cls => {
       const count = cache
         ? cache.tagClassCount(tag, cls)
         : document.querySelectorAll(`${tag}.${CSS.escape(cls)}`).length
-      return {name: cls, count}
+      return {name: cls, count, classification: classifyClass(cls)}
     })
 
-    // Sort by frequency ascending — most specific (fewest matches) first
-    scored.sort((a, b) => a.count - b.count)
+    // Sort: semantic first (by count asc), then utility (by count asc), then hashed (by count asc)
+    const classOrder: Record<ClassType, number> = {semantic: 0, utility: 1, hashed: 2}
+    scored.sort((a, b) => {
+      const typeOrd = classOrder[a.classification] - classOrder[b.classification]
+      if (typeOrd !== 0) return typeOrd
+      return a.count - b.count
+    })
 
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.debug(
         `[selector] Evaluating ${classes.length} classes on <${tag}>`,
-        scored.map(s => `${s.name}(${s.count})`).join(', '),
+        scored.map(s => `${s.name}(${s.count},${s.classification})`).join(', '),
       )
     }
 
-    // Keep all unique classes (count === 1) — they're all meaningful identifiers
-    const uniqueClasses = scored.filter(s => s.count === 1)
-    if (uniqueClasses.length > 0) {
-      const selector = `${tag}${uniqueClasses.map(s => `.${CSS.escape(s.name)}`).join('')}`
-      const dropped = scored.filter(s => s.count !== 1)
-      lastTrace = {
-        tag,
-        id: elId,
-        classes: elClasses,
-        testIdAttrs: elTestIdAttrs,
-        candidates: [...scored],
-        strategy: 'single-class',
-        result: selector,
-        kept: uniqueClasses.map(s => s.name),
-        dropped,
-      }
+    const semantic = scored.filter(s => s.classification === 'semantic')
+    const utility = scored.filter(s => s.classification === 'utility')
+
+    // Helper to build a trace result
+    const makeTrace = (
+      strategy: SelectorTrace['strategy'],
+      result: string,
+      kept: string[],
+    ): SelectorTrace => ({
+      tag,
+      id: elId,
+      classes: elClasses,
+      testIdAttrs: elTestIdAttrs,
+      candidates: [...scored],
+      strategy,
+      result,
+      kept,
+      dropped: scored.filter(s => !kept.includes(s.name)),
+    })
+
+    // 3b. Unique semantic classes (count === 1)
+    const uniqueSemantic = semantic.filter(s => s.count === 1)
+    if (uniqueSemantic.length > 0) {
+      const selector = `${tag}${uniqueSemantic.map(s => `.${CSS.escape(s.name)}`).join('')}`
+      const kept = uniqueSemantic.map(s => s.name)
+      lastTrace = makeTrace('single-class', selector, kept)
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        console.debug(
-          `[selector] Result: ${selector}`,
-          dropped.length > 0
-            ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
-            : '',
-        )
+        console.debug(`[selector] Result: ${selector} (unique semantic)`)
       }
       return selector
     }
 
-    // Build minimal combination — start with most specific, add until unique
-    const used: string[] = []
-    for (const s of scored) {
-      used.push(s.name)
-      const selector = `${tag}${used.map(c => `.${CSS.escape(c)}`).join('')}`
-      const matchCount = document.querySelectorAll(selector).length
-      if (matchCount === 1) {
-        const dropped = scored.filter(x => !used.includes(x.name))
-        lastTrace = {
-          tag,
-          id: elId,
-          classes: elClasses,
-          testIdAttrs: elTestIdAttrs,
-          candidates: [...scored],
-          strategy: 'class-combination',
-          result: selector,
-          kept: [...used],
-          dropped,
-        }
+    // 3c. Semantic-only combination
+    if (semantic.length > 0) {
+      const combo = tryMinimalCombination(tag, semantic)
+      if (combo) {
+        // Extract which classes were used from the selector
+        const kept = semantic.filter(s => combo.includes(`.${CSS.escape(s.name)}`)).map(s => s.name)
+        lastTrace = makeTrace('semantic-combination', combo, kept)
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.debug(
-            `[selector] Result: ${selector} (${used.length} classes)`,
-            dropped.length > 0
-              ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
-              : '',
-          )
+          console.debug(`[selector] Result: ${combo} (semantic combination)`)
         }
-        return selector
+        return combo
       }
+    }
+
+    // 3d. Parent-context
+    const parentSel = tryParentContext(el, tag)
+    if (parentSel) {
+      lastTrace = makeTrace('parent-context', parentSel, [])
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug(`[selector] Result: ${parentSel} (parent context)`)
+      }
+      return parentSel
+    }
+
+    // 3e. Unique utility classes (count === 1)
+    const uniqueUtility = utility.filter(s => s.count === 1)
+    if (uniqueUtility.length > 0) {
+      const selector = `${tag}${uniqueUtility.map(s => `.${CSS.escape(s.name)}`).join('')}`
+      const kept = uniqueUtility.map(s => s.name)
+      lastTrace = makeTrace('single-class', selector, kept)
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug(`[selector] Result: ${selector} (unique utility)`)
+      }
+      return selector
+    }
+
+    // 3f. All-class combination (all types)
+    const allCombo = tryMinimalCombination(tag, scored)
+    if (allCombo) {
+      const kept = scored.filter(s => allCombo.includes(`.${CSS.escape(s.name)}`)).map(s => s.name)
+      lastTrace = makeTrace('class-combination', allCombo, kept)
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug(`[selector] Result: ${allCombo} (all-class combination)`)
+      }
+      return allCombo
     }
 
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -167,6 +260,7 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
     }
   }
 
+  // --- Strategy 4: Structural path ---
   const parts: string[] = []
   let current: Element | null = el
   while (current && current !== document.documentElement) {

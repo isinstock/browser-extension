@@ -177,14 +177,17 @@ describe('computeSelector', () => {
   })
 
   test('skips class selector when not unique and falls through to structural path', () => {
-    const container = el('div', {id: 'wrapper'}, [
-      el('div', {class: 'item'}),
-      el('div', {class: 'item'}),
-      el('div', {class: 'item'}),
+    // Use no parent id/semantic class so parent-context can't help either
+    const container = el('div', {}, [
+      el('div', {class: 'p-4'}, [
+        el('div', {class: 'item'}),
+        el('div', {class: 'item'}),
+        el('div', {class: 'item'}),
+      ]),
     ])
     const cleanup = mount(container)
 
-    const target = container.children[1] as Element
+    const target = container.children[0]!.children[1] as Element
     const selector = computeSelector(target)
 
     // Should NOT be div.item (matches 3)
@@ -315,7 +318,6 @@ describe('computeSelector', () => {
     )
     expect(debugSpy).toHaveBeenCalledWith(
       expect.stringContaining('[selector] Result: span.zcf-logtest'),
-      expect.any(String),
     )
 
     debugSpy.mockRestore()
@@ -349,13 +351,16 @@ describe('computeSelector', () => {
   })
 
   test('lastTrace shows structural strategy when no classes are unique', () => {
-    const container = el('div', {id: 'zcf-trc-wrap'}, [
-      el('div', {class: 'zcf-trc-dup'}),
-      el('div', {class: 'zcf-trc-dup'}),
+    // No parent id or semantic class — parent-context can't help
+    const container = el('div', {}, [
+      el('div', {class: 'p-4'}, [
+        el('div', {class: 'zcf-trc-dup'}),
+        el('div', {class: 'zcf-trc-dup'}),
+      ]),
     ])
     const cleanup = mount(container)
 
-    const target = container.children[1] as Element
+    const target = container.children[0]!.children[1] as Element
     computeSelector(target)
 
     expect(lastTrace).not.toBeNull()
@@ -406,6 +411,165 @@ describe('computeSelector', () => {
     expect(lastTrace!.id).toBeNull()
     expect(lastTrace!.classes).toEqual([])
     expect(lastTrace!.testIdAttrs).toEqual([])
+
+    cleanup()
+  })
+
+  // --- Duplicate ID fallthrough ---
+
+  test('duplicate ID falls through to class strategy', () => {
+    const container = el('div', {}, [
+      el('div', {id: 'dup-id', class: 'zcf-first-item'}),
+      el('div', {id: 'dup-id', class: 'zcf-second-item'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const selector = computeSelector(target)
+
+    // Should NOT use #dup-id since it's duplicated
+    expect(selector).not.toBe('#dup-id')
+    // Should use the unique semantic class instead
+    expect(selector).toBe('div.zcf-first-item')
+    expect(lastTrace!.strategy).toBe('single-class')
+
+    cleanup()
+  })
+
+  // --- Semantic vs utility classification ---
+
+  test('semantic class preferred over utility when both are unique', () => {
+    const container = el('div', {}, [
+      el('div', {class: 'product-card p-4 bg-white'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const selector = computeSelector(target)
+
+    // Should use the semantic class, not utility classes
+    expect(selector).toBe('div.product-card')
+    expect(selector).not.toContain('p-4')
+    expect(selector).not.toContain('bg-white')
+
+    cleanup()
+  })
+
+  // --- Parent-context strategy ---
+
+  test('parent-context when element only has utility classes', () => {
+    const container = el('div', {class: 'box'}, [
+      el('div', {class: 'p-4'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const selector = computeSelector(target)
+
+    // p-4 is utility, so parent-context should try div.box > div
+    expect(selector).toBe('div.box > div')
+    expect(lastTrace!.strategy).toBe('parent-context')
+
+    cleanup()
+  })
+
+  test('parent-context with parent ID', () => {
+    const container = el('div', {id: 'sidebar'}, [
+      el('div', {class: 'p-4 flex'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const selector = computeSelector(target)
+
+    // Utility-only classes, parent has ID
+    expect(selector).toBe('#sidebar > div')
+    expect(lastTrace!.strategy).toBe('parent-context')
+
+    cleanup()
+  })
+
+  // --- Hashed class deprioritization ---
+
+  test('hashed class deprioritized below semantic', () => {
+    const container = el('div', {}, [
+      el('div', {class: 'card styles_card__abc1234'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const selector = computeSelector(target)
+
+    // Should use semantic 'card' not the hashed class
+    expect(selector).toBe('div.card')
+    expect(selector).not.toContain('styles_card__abc1234')
+
+    cleanup()
+  })
+
+  // --- Semantic combination before parent-context ---
+
+  test('semantic combination tried before parent-context', () => {
+    const container = el('div', {id: 'wrapper'}, [
+      el('div', {class: 'card featured p-4'}),
+      el('div', {class: 'card p-4'}),
+      el('div', {class: 'featured p-4'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    const selector = computeSelector(target)
+
+    // card+featured combo is unique among divs — should use semantic-combination
+    expect(selector).toContain('card')
+    expect(selector).toContain('featured')
+    expect(selector).not.toContain('p-4')
+    expect(lastTrace!.strategy).toBe('semantic-combination')
+
+    cleanup()
+  })
+
+  // --- Trace candidates include classification ---
+
+  test('trace candidates include classification field', () => {
+    const container = el('div', {}, [
+      el('div', {class: 'product-card p-4 styles_card__abc1234'}),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.children[0] as Element
+    computeSelector(target)
+
+    expect(lastTrace).not.toBeNull()
+    const byName = Object.fromEntries(lastTrace!.candidates.map(c => [c.name, c.classification]))
+    expect(byName['product-card']).toBe('semantic')
+    expect(byName['p-4']).toBe('utility')
+    expect(byName['styles_card__abc1234']).toBe('hashed')
+
+    cleanup()
+  })
+
+  // --- All-utility deep nesting falls to structural ---
+
+  test('all-utility deep nesting falls to structural path when no parent context', () => {
+    // All classes are utility and shared, no parent semantic/id context
+    const container = el('div', {}, [
+      el('div', {class: 'flex'}, [
+        el('div', {class: 'p-4'}, [
+          el('span', {class: 'text-sm'}),
+          el('span', {class: 'text-sm'}),
+        ]),
+      ]),
+    ])
+    const cleanup = mount(container)
+
+    const target = container.querySelector('div.flex > div > span') as Element
+    const selector = computeSelector(target)
+
+    // text-sm is shared between 2 spans, parent has only utility class
+    // Should fall through to structural path
+    expect(selector).toContain('nth-of-type')
+    expect(lastTrace!.strategy).toBe('structural')
 
     cleanup()
   })

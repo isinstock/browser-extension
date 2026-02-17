@@ -756,6 +756,15 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
+// Warn the user before closing the tab if they have unsaved selections.
+// Calling preventDefault() on beforeunload triggers the browser's native
+// "Leave site?" confirmation dialog.
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (state.selections.size > 0) {
+    e.preventDefault()
+  }
+}
+
 // --- Lifecycle ---
 
 async function activate() {
@@ -776,6 +785,7 @@ async function activate() {
   document.addEventListener('mouseout', onMouseOut, true)
   document.addEventListener('click', onClick, true)
   document.addEventListener('keydown', onKeyDown, true)
+  window.addEventListener('beforeunload', onBeforeUnload)
 }
 
 function destroyInPagePanel() {
@@ -820,6 +830,7 @@ function cleanup() {
   document.removeEventListener('mouseout', onMouseOut, true)
   document.removeEventListener('click', onClick, true)
   document.removeEventListener('keydown', onKeyDown, true)
+  window.removeEventListener('beforeunload', onBeforeUnload)
 }
 
 function teardown() {

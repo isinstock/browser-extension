@@ -357,6 +357,62 @@ describe('Element Picker Click Behavior', () => {
     expect(await getSelectionCount()).toBe(1)
   })
 
+  test('beforeunload is not prevented when there are no selections', async () => {
+    await page.goto('https://example.com', {waitUntil: 'domcontentloaded'})
+    const worker = await getServiceWorker()
+    const tabId = await getActiveTabId(worker)
+    await injectAndActivatePicker(worker, tabId)
+
+    const prevented = await page.evaluate(() => {
+      const event = new Event('beforeunload', {cancelable: true})
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+
+    expect(prevented).toBe(false)
+  })
+
+  test('beforeunload is prevented when there are selections', async () => {
+    await page.goto('https://example.com', {waitUntil: 'domcontentloaded'})
+    const worker = await getServiceWorker()
+    const tabId = await getActiveTabId(worker)
+    await injectAndActivatePicker(worker, tabId)
+
+    await page.click('h1')
+    expect(await getSelectionCount()).toBe(1)
+
+    const prevented = await page.evaluate(() => {
+      const event = new Event('beforeunload', {cancelable: true})
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+
+    expect(prevented).toBe(true)
+  })
+
+  test('beforeunload is not prevented after selection is removed', async () => {
+    await page.goto('https://example.com', {waitUntil: 'domcontentloaded'})
+    const worker = await getServiceWorker()
+    const tabId = await getActiveTabId(worker)
+    await injectAndActivatePicker(worker, tabId)
+
+    await page.click('h1')
+    expect(await getSelectionCount()).toBe(1)
+
+    // Remove the selection by clicking the same element
+    await page.click('h1')
+    await page.waitForTimeout(300)
+    expect(await getSelectionCount()).toBe(0)
+
+    const prevented = await page.evaluate(() => {
+      const event = new Event('beforeunload', {cancelable: true})
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    })
+
+    expect(prevented).toBe(false)
+  })
+
   test('multiple selections get different badge colors', async () => {
     await page.goto('https://example.com', {waitUntil: 'domcontentloaded'})
     const worker = await getServiceWorker()

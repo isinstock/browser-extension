@@ -57,7 +57,8 @@ function formatSelectorTrace(trace: SelectorTrace, mode: PickerMode): string {
     for (const c of trace.candidates) {
       const marker = trace.kept.includes(c.name) ? '\u2713' : '\u2717'
       const label = trace.kept.includes(c.name) ? 'kept' : 'dropped'
-      lines.push(`  ${marker} .${c.name} \u2192 ${c.count} match${c.count !== 1 ? 'es' : ''} (${label})`)
+      const classLabel = c.classification !== 'semantic' ? ` [${c.classification}]` : ''
+      lines.push(`  ${marker} .${c.name}${classLabel} \u2192 ${c.count} match${c.count !== 1 ? 'es' : ''} (${label})`)
     }
   }
 
