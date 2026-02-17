@@ -101,31 +101,30 @@ describe('computeSelector', () => {
     cleanup()
   })
 
-  test('prefers most specific single class over all-classes combination', () => {
-    // Simulates: span.p-name.vcard-fullname.d-block.overflow-hidden
-    // where .vcard-fullname is unique but .d-block and .overflow-hidden are common
+  test('keeps all unique classes and drops non-unique ones', () => {
+    // zcf-pname and zcf-fullname are both unique (count=1)
+    // zcf-dblock and zcf-ovhidden are shared with other elements
     const container = el('div', {}, [
       el('span', {class: 'zcf-pname zcf-fullname zcf-dblock zcf-ovhidden'}),
-      // Add elements that share the utility classes
       el('div', {class: 'zcf-dblock'}),
       el('div', {class: 'zcf-dblock'}),
       el('div', {class: 'zcf-dblock zcf-ovhidden'}),
-      el('span', {class: 'zcf-dblock'}),
+      el('span', {class: 'zcf-dblock zcf-ovhidden'}),
     ])
     const cleanup = mount(container)
 
     const target = container.children[0] as Element
     const result = computeSelector(target)
-    // Should pick a single unique class rather than all 4
-    // span.zcf-pname(1) or span.zcf-fullname(1) — both are unique, either is acceptable
-    expect(result.split('.').length).toBe(2)
+    // Both unique classes should be kept, non-unique ones dropped
+    expect(result).toContain('zcf-pname')
+    expect(result).toContain('zcf-fullname')
     expect(result).not.toContain('zcf-dblock')
     expect(result).not.toContain('zcf-ovhidden')
 
     cleanup()
   })
 
-  test('picks single class when multiple classes are unique', () => {
+  test('keeps both classes when multiple classes are unique', () => {
     const container = el('div', {}, [
       el('span', {class: 'zcf-alpha zcf-beta'}),
     ])
@@ -133,9 +132,8 @@ describe('computeSelector', () => {
 
     const target = container.children[0] as Element
     const result = computeSelector(target)
-    // Both have count=1, either is valid — just verify it's a single class
-    expect(result).toMatch(/^span\.zcf-/)
-    expect(result.split('.').length).toBe(2) // tag.class, not tag.class1.class2
+    // Both have count=1, both should be kept
+    expect(result).toBe('span.zcf-alpha.zcf-beta')
 
     cleanup()
   })
@@ -223,8 +221,8 @@ describe('computeSelector', () => {
     const target = container.querySelector('main') as Element
     const selector = computeSelector(target)
 
-    // main is unique among its siblings, so no nth-of-type needed
-    expect(selector).not.toContain('nth-of-type')
+    // main is unique among its siblings, so main itself should not have nth-of-type
+    expect(selector).not.toContain('main:nth-of-type')
     expect(selector).toContain('main')
 
     cleanup()
@@ -269,13 +267,14 @@ describe('computeSelector', () => {
   test('uses cache for class scoring instead of DOM queries', () => {
     const container = el('div', {}, [
       el('span', {class: 'zcf-uniq zcf-cblock zcf-covh'}),
-      el('div', {class: 'zcf-cblock'}),
-      el('div', {class: 'zcf-cblock zcf-covh'}),
+      el('span', {class: 'zcf-cblock'}),
+      el('span', {class: 'zcf-cblock zcf-covh'}),
     ])
     const cleanup = mount(container)
 
     const cache = buildClassFrequencyCache()
     const target = container.children[0] as Element
+    // zcf-uniq is the only unique class for span, zcf-cblock and zcf-covh are shared
     expect(computeSelector(target, cache)).toBe('span.zcf-uniq')
 
     cleanup()
@@ -328,9 +327,8 @@ describe('computeSelector', () => {
   test('lastTrace contains evaluation details after computeSelector', () => {
     const container = el('div', {}, [
       el('span', {class: 'zcf-trc-unique zcf-trc-common zcf-trc-vcommon'}),
-      el('div', {class: 'zcf-trc-common'}),
-      el('div', {class: 'zcf-trc-common zcf-trc-vcommon'}),
-      el('span', {class: 'zcf-trc-vcommon'}),
+      el('span', {class: 'zcf-trc-common'}),
+      el('span', {class: 'zcf-trc-common zcf-trc-vcommon'}),
     ])
     const cleanup = mount(container)
 

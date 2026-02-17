@@ -104,32 +104,31 @@ export function computeSelector(el: Element, cache?: ClassFrequencyCache): strin
       )
     }
 
-    // Try single classes first — if tag.class is unique, that's the best selector
-    for (const s of scored) {
-      if (s.count === 1) {
-        const selector = `${tag}.${CSS.escape(s.name)}`
-        const dropped = scored.filter(x => x !== s)
-        lastTrace = {
-          tag,
-          id: elId,
-          classes: elClasses,
-          testIdAttrs: elTestIdAttrs,
-          candidates: [...scored],
-          strategy: 'single-class',
-          result: selector,
-          kept: [s.name],
-          dropped,
-        }
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.debug(
-            `[selector] Result: ${selector}`,
-            dropped.length > 0
-              ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
-              : '',
-          )
-        }
-        return selector
+    // Keep all unique classes (count === 1) — they're all meaningful identifiers
+    const uniqueClasses = scored.filter(s => s.count === 1)
+    if (uniqueClasses.length > 0) {
+      const selector = `${tag}${uniqueClasses.map(s => `.${CSS.escape(s.name)}`).join('')}`
+      const dropped = scored.filter(s => s.count !== 1)
+      lastTrace = {
+        tag,
+        id: elId,
+        classes: elClasses,
+        testIdAttrs: elTestIdAttrs,
+        candidates: [...scored],
+        strategy: 'single-class',
+        result: selector,
+        kept: uniqueClasses.map(s => s.name),
+        dropped,
       }
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug(
+          `[selector] Result: ${selector}`,
+          dropped.length > 0
+            ? `| Dropped: ${dropped.map(d => `${d.name}(${d.count})`).join(', ')}`
+            : '',
+        )
+      }
+      return selector
     }
 
     // Build minimal combination — start with most specific, add until unique
